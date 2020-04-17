@@ -5,6 +5,7 @@ import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.message.BasicHttpRequest;
+import org.apache.http.nio.entity.NFileEntity;
 import org.apache.http.nio.protocol.*;
 import org.apache.http.protocol.HttpContext;
 import org.globsframework.json.GSonUtils;
@@ -20,6 +21,7 @@ import org.globsframework.utils.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
@@ -192,8 +194,29 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                 if (glob != null) {
                     glob.whenComplete((res, throwable) -> {
                         if (res != null) {
-                            response.setEntity(new StringEntity(GSonUtils.encode(res, false),
-                                    ContentType.create("text/json", StandardCharsets.UTF_8)));
+                            if (res.getType() == GlobFile.TYPE) {
+                                NFileEntity entity;
+                                final File file = new File(res.get(GlobFile.file));
+                                if (res.get(GlobFile.removeWhenDelivered, false)) {
+                                    entity = new NFileEntity(file,
+                                            ContentType.create("text/json", StandardCharsets.UTF_8)){
+                                        public void close() throws IOException {
+                                            super.close();
+                                            if (!file.delete()){
+                                                LOGGER.error("Fail to delete " + file.getAbsolutePath());
+                                            }
+                                        }
+                                    };
+                                }else {
+                                    entity = new NFileEntity(file,
+                                            ContentType.create("text/json", StandardCharsets.UTF_8));
+                                }
+                                response.setEntity(entity);
+                            }
+                            else {
+                                response.setEntity(new StringEntity(GSonUtils.encode(res, false),
+                                        ContentType.create("text/json", StandardCharsets.UTF_8)));
+                            }
                             response.setStatusCode(HttpStatus.SC_OK);
                         } else {
                             if (throwable != null) {

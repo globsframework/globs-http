@@ -75,14 +75,6 @@ public class ClientSharedData implements SharedDataService {
         thread.start();
     }
 
-    public static int getSizeWithKey(int size) {
-        int i = size | RemoteRWState.MARK;
-        if ((i & RemoteRWState.MASK_FOR_SIZE) != size) {
-            throw new RuntimeException("Too big repository size : " + size);
-        }
-        return i;
-    }
-
     private void resetIdAndUpdateChangeSet() {
         Lock lock = readWriteLock.writeLock();
         lock.lock();
@@ -149,24 +141,24 @@ public class ClientSharedData implements SharedDataService {
     }
 
     private void propagate(ChangeSet changeSet) {
-        NanoChrono chrono = NanoChrono.start();
         for (SharedDataEventListener sharedDataEventListener : sharedDataEventListeners()) {
+            NanoChrono chrono = NanoChrono.start();
             sharedDataEventListener.event(changeSet);
-        }
-        int elapsedTime = (int) chrono.getElapsedTimeInMS();
-        if (logger.isDebugEnabled() || elapsedTime > LOG_PROPAGATE) {
-            logger.info(elapsedTime + " ms to propagate changeSet.");
+            int elapsedTime = (int) chrono.getElapsedTimeInMS();
+            if (logger.isDebugEnabled() || elapsedTime > LOG_PROPAGATE) {
+                logger.info(elapsedTime + " ms to propagate changeSet some where in " + sharedDataEventListener);
+            }
         }
     }
 
     private void reset() {
-        NanoChrono chrono = NanoChrono.start();
         for (SharedDataEventListener sharedDataEventListener : sharedDataEventListeners()) {
+            NanoChrono chrono = NanoChrono.start();
             sharedDataEventListener.reset();
-        }
-        int elapsedTime = (int) chrono.getElapsedTimeInMS();
-        if (logger.isDebugEnabled() || elapsedTime > LOG_PROPAGATE) {
-            logger.info(elapsedTime + "ms to propagate reset");
+            int elapsedTime = (int) chrono.getElapsedTimeInMS();
+            if (logger.isDebugEnabled() || elapsedTime > LOG_PROPAGATE) {
+                logger.info(elapsedTime + "ms to propagate reset for " + sharedDataEventListener);
+            }
         }
     }
 
@@ -471,6 +463,14 @@ public class ClientSharedData implements SharedDataService {
                 throw new RuntimeException("can not stop selector ", e1);
             }
         }
+    }
+
+    public static int getSizeWithKey(int size) {
+        int i = size | RemoteRWState.MARK;
+        if ((i & RemoteRWState.MASK_FOR_SIZE) != size) {
+            throw new RuntimeException("Too big repository size : " + size);
+        }
+        return i;
     }
 
     public interface OnStop {

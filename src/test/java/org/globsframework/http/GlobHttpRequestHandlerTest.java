@@ -15,13 +15,16 @@ import org.globsframework.metamodel.fields.LongField;
 import org.globsframework.metamodel.fields.StringArrayField;
 import org.globsframework.metamodel.fields.StringField;
 import org.globsframework.model.Glob;
+import org.globsframework.utils.Files;
 import org.globsframework.utils.collections.Pair;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
@@ -42,12 +45,23 @@ public class GlobHttpRequestHandlerTest {
                 .setListenerPort(0)
                 .setIOReactorConfig(config);
 
+        File httpContent = File.createTempFile("httpContent", ".json");
+        httpContent.deleteOnExit();
+        Files.dumpStringToFile(httpContent, "[]");
+        String absolutePath = httpContent.getAbsolutePath();
+
         BlockingQueue<Pair<Glob, Glob>> pairs = new LinkedBlockingDeque<>();
         HttpServerRegister httpServerRegister = new HttpServerRegister(bootstrap);
         httpServerRegister.register("/test/{id}/TOTO/{subId}", URLParameter.TYPE)
                 .get(QueryParameter.TYPE, (body, url, queryParameters) -> {
                     pairs.add(Pair.makePair(url, queryParameters));
                     return null;
+                });
+        httpServerRegister.register("/query", null)
+                .get(null, (body, url, queryParameters) -> {
+                    return CompletableFuture.completedFuture(GlobFile.TYPE.instantiate()
+                            .set(GlobFile.file, absolutePath)
+                            .set(GlobFile.removeWhenDelivered, true));
                 });
 
         httpServerRegister.init();
@@ -71,6 +85,14 @@ public class GlobHttpRequestHandlerTest {
         Assert.assertEquals(4567, poll.getFirst().get(URLParameter.SUBID, 0));
         Assert.assertEquals("ZERZE", poll.getSecond().get(QueryParameter.NAME));
         Assert.assertArrayEquals(new String[]{"A", "B", "C", "D"}, poll.getSecond().get(QueryParameter.INFO));
+
+
+        HttpGet httpGetFile = new HttpGet("/query");
+        HttpResponse httpFileResponse = httpclient.execute(target, httpGetFile);
+        Assert.assertEquals(200, httpFileResponse.getStatusLine().getStatusCode());
+        Assert.assertEquals("[]", Files.loadStreamToString(httpFileResponse.getEntity().getContent(), "UTF-8"));
+
+        Assert.assertFalse(httpContent.exists());
         server.shutdown(0, TimeUnit.MINUTES);
     }
 

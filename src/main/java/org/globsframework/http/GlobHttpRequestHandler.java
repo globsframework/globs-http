@@ -71,30 +71,6 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
         }
     }
 
-    public static DefaultHttpOperation post(HttpTreatment function, GlobType bodyType) {
-        return post(function, bodyType, null);
-    }
-
-    public static DefaultHttpOperation post(HttpTreatment function, GlobType bodyType, GlobType queryType) {
-        return new DefaultHttpOperation(HttpOp.post, bodyType, queryType, function);
-    }
-
-    public static DefaultHttpOperation get(HttpTreatment function) {
-        return get(function, null);
-    }
-
-    public static DefaultHttpOperation get(HttpTreatment function, GlobType queryType) {
-        return new DefaultHttpOperation(HttpOp.get, null, queryType, function);
-    }
-
-    public static DefaultHttpOperation delete(HttpTreatment function) {
-        return delete(function, null);
-    }
-
-    public static DefaultHttpOperation delete(HttpTreatment function, GlobType queryType) {
-        return new DefaultHttpOperation(HttpOp.delete, null, queryType, function);
-    }
-
     public HttpAsyncRequestConsumer<HttpRequest> processRequest(HttpRequest httpRequest, HttpContext httpContext) throws HttpException, IOException {
         return new BasicAsyncRequestConsumer();
     }
@@ -157,7 +133,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                 String uri = requestLine.getUri();
                 int i = uri.indexOf("?");
                 String urlStr = uri.substring(0, i == -1 ? uri.length() : i);
-                String paramStr = i == -1 ? null : uri.substring(i, uri.length());
+                String paramStr = i == -1 ? null : uri.substring(i + 1);
                 Glob url = urlMatcher.parse(urlStr);
                 Glob queryParam = httpHandler.teatParam(paramStr);
                 CompletableFuture<Glob> future = operation.consume(data, url, queryParam);
@@ -177,8 +153,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                         }
                         httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
                     });
-                }
-                else {
+                } else {
                     response.setStatusCode(HttpStatus.SC_OK);
                     httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
                 }
@@ -187,7 +162,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                 HttpOperation operation = httpHandler.operation;
                 int i = uri.indexOf("?");
                 String urlStr = uri.substring(0, i == -1 ? uri.length() : i);
-                String paramStr = i == -1 ? null : uri.substring(i + 1, uri.length());
+                String paramStr = i == -1 ? null : uri.substring(i + 1);
                 Glob url = urlMatcher.parse(urlStr);
                 Glob queryParam = httpHandler.teatParam(paramStr);
                 CompletableFuture<Glob> glob = operation.consume(null, url, queryParam);
@@ -199,21 +174,20 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                                 final File file = new File(res.get(GlobFile.file));
                                 if (res.get(GlobFile.removeWhenDelivered, false)) {
                                     entity = new NFileEntity(file,
-                                            ContentType.create("text/json", StandardCharsets.UTF_8)){
+                                            ContentType.create("text/json", StandardCharsets.UTF_8)) {
                                         public void close() throws IOException {
                                             super.close();
-                                            if (!file.delete()){
+                                            if (!file.delete()) {
                                                 LOGGER.error("Fail to delete " + file.getAbsolutePath());
                                             }
                                         }
                                     };
-                                }else {
+                                } else {
                                     entity = new NFileEntity(file,
                                             ContentType.create("text/json", StandardCharsets.UTF_8));
                                 }
                                 response.setEntity(entity);
-                            }
-                            else {
+                            } else {
                                 response.setEntity(new StringEntity(GSonUtils.encode(res, false),
                                         ContentType.create("text/json", StandardCharsets.UTF_8)));
                             }
@@ -228,8 +202,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                         }
                         httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
                     });
-                }
-                else {
+                } else {
                     response.setStatusCode(HttpStatus.SC_OK);
                     httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
                 }
@@ -243,6 +216,30 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
             response.setStatusCode(HttpStatus.SC_FORBIDDEN);
             httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
         }
+    }
+
+    public static DefaultHttpOperation post(HttpTreatment function, GlobType bodyType) {
+        return post(function, bodyType, null);
+    }
+
+    public static DefaultHttpOperation post(HttpTreatment function, GlobType bodyType, GlobType queryType) {
+        return new DefaultHttpOperation(HttpOp.post, bodyType, queryType, function);
+    }
+
+    public static DefaultHttpOperation get(HttpTreatment function) {
+        return get(function, null);
+    }
+
+    public static DefaultHttpOperation get(HttpTreatment function, GlobType queryType) {
+        return new DefaultHttpOperation(HttpOp.get, null, queryType, function);
+    }
+
+    public static DefaultHttpOperation delete(HttpTreatment function) {
+        return delete(function, null);
+    }
+
+    public static DefaultHttpOperation delete(HttpTreatment function, GlobType queryType) {
+        return new DefaultHttpOperation(HttpOp.delete, null, queryType, function);
     }
 
     public interface ParamProcessor {
@@ -279,7 +276,12 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                 MutableGlob instantiate = paramType.instantiate();
                 List<NameValuePair> parse = URLEncodedUtils.parse(queryParams, StandardCharsets.UTF_8);
                 for (NameValuePair nameValuePair : parse) {
-                    converterMap.get(nameValuePair.getName()).convert(instantiate, nameValuePair.getValue());
+                    StringConverter.FromStringConverter fromStringConverter = converterMap.get(nameValuePair.getName());
+                    if (fromStringConverter != null) {
+                        fromStringConverter.convert(instantiate, nameValuePair.getValue());
+                    } else {
+                        LOGGER.error("unexpected param " + nameValuePair.getName());
+                    }
                 }
                 return instantiate;
             }

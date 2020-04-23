@@ -1,5 +1,6 @@
 package org.globsframework.http;
 
+import org.apache.http.impl.nio.bootstrap.HttpServer;
 import org.apache.http.impl.nio.bootstrap.ServerBootstrap;
 import org.globsframework.metamodel.GlobType;
 
@@ -22,12 +23,13 @@ public class HttpServerRegister {
         return verb;
     }
 
-    public void init(){
+    public HttpServer init(){
         for (Map.Entry<String, Verb> stringVerbEntry : verbMap.entrySet()) {
             Verb verb = stringVerbEntry.getValue();
             GlobHttpRequestHandler globHttpRequestHandler = new GlobHttpRequestHandler(verb.complete());
             serverBootstrap.registerHandler(globHttpRequestHandler.createRegExp(), globHttpRequestHandler);
         }
+        return serverBootstrap.create();
     }
 
     public class Verb {

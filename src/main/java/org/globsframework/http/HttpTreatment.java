@@ -8,5 +8,5 @@ import java.util.concurrent.CompletableFuture;
 public interface HttpTreatment {
     CompletableFuture<Glob> consume(@ArgName("Body") Glob body,
                                     @ArgName("url")Glob url,
-                                    @ArgName("queryParameters")Glob queryParameters);
+                                    @ArgName("queryParameters")Glob queryParameters) throws Exception;
 }

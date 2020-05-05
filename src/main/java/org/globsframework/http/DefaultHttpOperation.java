@@ -40,7 +40,7 @@ public class DefaultHttpOperation implements HttpOperation {
         return verb;
     }
 
-    public CompletableFuture<Glob> consume(Glob data, Glob url, Glob queryParameters) {
+    public CompletableFuture<Glob> consume(Glob data, Glob url, Glob queryParameters) throws Exception {
         return httpTreatment.consume(data, url, queryParameters);
     }
 }

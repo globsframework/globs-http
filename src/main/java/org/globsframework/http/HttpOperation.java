@@ -9,7 +9,7 @@ public interface HttpOperation {
 
     HttpOp verb();
 
-    CompletableFuture<Glob> consume(Glob data, Glob url, Glob queryParameters);
+    CompletableFuture<Glob> consume(Glob data, Glob url, Glob queryParameters) throws Exception;
 
     GlobType getBodyType();
 

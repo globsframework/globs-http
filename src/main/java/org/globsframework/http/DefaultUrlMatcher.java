@@ -22,7 +22,7 @@ class DefaultUrlMatcher implements UrlMatcher {
             String s = split[i];
             if (s.startsWith("{") && s.endsWith("}")) {
                 Field field = globType.getField(s.substring(1, s.length() - 1));
-                StringConverter.FromStringConverter fromStringConverter = StringConverter.createConverter(field);
+                StringConverter.FromStringConverter fromStringConverter = StringConverter.createConverter(field, "");
                 argByPosition.put(i, fromStringConverter);
             }
         }

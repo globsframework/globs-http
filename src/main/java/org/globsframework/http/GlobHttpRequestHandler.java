@@ -121,7 +121,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
     private void treatOp(RequestLine requestLine, HttpAsyncExchange httpAsyncExchange, HttpRequest httpRequest, HttpResponse response, HttpHandler httpHandler) throws IOException {
         try {
             if (httpHandler == null) {
-                LOGGER.error("Receive unexpeted request");
+                LOGGER.error("Receive unexpected request (" + requestLine.getMethod() + ")");
                 response.setStatusCode(HttpStatus.SC_FORBIDDEN);
                 httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
             } else if (httpRequest instanceof HttpEntityEnclosingRequest) {
@@ -188,7 +188,11 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                                 }
                                 response.setEntity(entity);
                             } else {
-                                response.setEntity(new StringEntity(GSonUtils.encode(res, false),
+                                String resp = GSonUtils.encode(res, false);
+                                if (LOGGER.isDebugEnabled()) {
+                                    LOGGER.debug("response {}", resp);
+                                }
+                                response.setEntity(new StringEntity(resp,
                                         ContentType.create("text/json", StandardCharsets.UTF_8)));
                             }
                             response.setStatusCode(HttpStatus.SC_OK);
@@ -267,7 +271,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
         public DefaultParamProcessor(GlobType paramType) {
             this.paramType = paramType;
             for (Field field : paramType.getFields()) {
-                converterMap.put(FieldNameAnnotationType.getName(field), StringConverter.createConverter(field));
+                converterMap.put(FieldNameAnnotationType.getName(field), StringConverter.createConverter(field, ","));
             }
         }
 

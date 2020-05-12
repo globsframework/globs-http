@@ -245,9 +245,7 @@ public class ClientSharedData implements SharedDataService {
                 socketChannel.socket().setTcpNoDelay(DefaultServerSharedData.TCP_NO_DELAY);
                 selectionKey = socketChannel.register(selector, SelectionKey.OP_READ);
             } catch (Exception e) {
-                logger.info("Fail to connect to " + hostAndPort.getFirst() + ":" + hostAndPort.getSecond() + ". Cause by : " + e.getMessage() + " (see console for more info)");
-                // on trace sur stdout pour envoyé l'erreur dans la console et ne pas polluer les TPK.
-                e.printStackTrace();
+                logger.error("Fail to connect to " + hostAndPort.getFirst() + ":" + hostAndPort.getSecond() + ". Cause by : " + e.getMessage() + " (see console for more info)", e);
                 if (socketChannel != null) {
                     socketChannel.close();
                 }

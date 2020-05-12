@@ -172,7 +172,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                             if (res.getType() == GlobFile.TYPE) {
                                 NFileEntity entity;
                                 final File file = new File(res.get(GlobFile.file));
-                                if (res.get(GlobFile.removeWhenDelivered, false)) {
+                                if (res.get(GlobFile.removeWhenDelivered, !LOGGER.isTraceEnabled())) {
                                     entity = new NFileEntity(file,
                                             ContentType.create("text/json", StandardCharsets.UTF_8)) {
                                         public void close() throws IOException {

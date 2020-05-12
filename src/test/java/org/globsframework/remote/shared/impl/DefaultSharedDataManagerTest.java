@@ -174,6 +174,40 @@ public class DefaultSharedDataManagerTest extends TestCase {
 
     }
 
+    public void testStartClientFirstAtGivenPort() throws InterruptedException {
+        AddressAccessor.FixAddressAccessor addressAccessor = new AddressAccessor.FixAddressAccessor("localhost", 3000);
+        SharedDataManager.Path path = SharedPathBuilder.create("/test");
+        DefaultGlobModel model = new DefaultGlobModel(SharedDummyObject1.TYPE);
+
+
+        SharedDataManager sharedDataManager1 = DefaultSharedDataManager.create(addressAccessor);
+        SharedDataManager sharedDataManager2 = DefaultSharedDataManager.create(addressAccessor);
+
+
+        SharedDataService sharedDataService1 = sharedDataManager1.getSharedDataService(path, model);
+        SharedDataService sharedDataService2 = sharedDataManager2.getSharedDataService(path, model);
+
+        SharedDataServiceChecker sharedDataServiceChecker1 = new SharedDataServiceChecker("data 1", sharedDataService1);
+        SharedDataServiceChecker sharedDataServiceChecker2 = new SharedDataServiceChecker("data 2", sharedDataService2);
+
+        Thread.sleep(1000);
+        ServerSharedData serverSharedData = DefaultSharedDataManager.initSharedData("localhost", 3000);
+        SharedDataManager centralSharedDataManager = DefaultSharedDataManager.create(addressAccessor);
+        centralSharedDataManager.create(path, model);
+
+        sharedDataServiceChecker1.create(SharedDummyObject1.TYPE, FieldValue.value(SharedDummyObject1.ID, 1), FieldValue.value(SharedDummyObject1.LABEL1, "l1"));
+        sharedDataServiceChecker2.create(SharedDummyObject1.TYPE, FieldValue.value(SharedDummyObject1.ID, 1), FieldValue.value(SharedDummyObject1.LABEL1, "l2"));
+
+        GlobMatcher l1 = GlobMatchers.fieldEquals(SharedDummyObject1.LABEL1, "l1");
+        GlobMatcher l2 = GlobMatchers.fieldEquals(SharedDummyObject1.LABEL1, "l2");
+        sharedDataServiceChecker2.checkContain(SharedDummyObject1.TYPE, l1);
+        sharedDataServiceChecker1.checkContain(SharedDummyObject1.TYPE, l2);
+
+        sharedDataManager1.close();
+        sharedDataManager2.close();
+        serverSharedData.stop();
+    }
+
     public static class SharedDummyObject1 {
         public static GlobType TYPE;
 

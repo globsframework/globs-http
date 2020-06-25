@@ -92,8 +92,8 @@ public class GlobHttpRequestHandlerTest {
         Assert.assertEquals(200, httpFileResponse.getStatusLine().getStatusCode());
         Assert.assertEquals("[]", Files.loadStreamToString(httpFileResponse.getEntity().getContent(), "UTF-8"));
 
-        Assert.assertFalse(httpContent.exists());
         server.shutdown(0, TimeUnit.MINUTES);
+        Assert.assertFalse(httpContent.exists());
     }
 
     static public class URLParameter {

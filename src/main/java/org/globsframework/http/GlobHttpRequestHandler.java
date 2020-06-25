@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
@@ -29,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
 public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpRequest> {
@@ -127,9 +129,25 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
             } else if (httpRequest instanceof HttpEntityEnclosingRequest) {
                 HttpOperation operation = httpHandler.operation;
                 HttpEntity entity = ((HttpEntityEnclosingRequest) httpRequest).getEntity();
-                String str = Files.read(entity.getContent(), StandardCharsets.UTF_8);
-                LOGGER.info("receive : " + str);
-                Glob data = (Strings.isNullOrEmpty(str) || operation.getBodyType() == null) ? null : GSonUtils.decode(new StringReader(str), operation.getBodyType());
+                Glob data;
+                Runnable deleteFile;
+                if (operation.getBodyType() == GlobFile.TYPE) {
+                    File tempFile = File.createTempFile("htpp", ".data");
+                    FileOutputStream outputStream = new FileOutputStream(tempFile);
+                    Files.copyStream(entity.getContent(), outputStream);
+                    outputStream.close();
+                    data = GlobFile.TYPE.instantiate().set(GlobFile.file, tempFile.getAbsolutePath());
+                    deleteFile = () -> {
+                        if (tempFile.exists() && !tempFile.delete()) {
+                            LOGGER.error("Fail to delete" + tempFile.getAbsolutePath());
+                        }
+                    };
+                } else {
+                    String str = Files.read(entity.getContent(), StandardCharsets.UTF_8);
+                    LOGGER.info("receive : " + str);
+                    data = (Strings.isNullOrEmpty(str) || operation.getBodyType() == null) ? null : GSonUtils.decode(new StringReader(str), operation.getBodyType());
+                    deleteFile = () -> {};
+                }
                 String uri = requestLine.getUri();
                 int i = uri.indexOf("?");
                 String urlStr = uri.substring(0, i == -1 ? uri.length() : i);
@@ -152,8 +170,10 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                             }
                         }
                         httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
+                        deleteFile.run();
                     });
                 } else {
+                    deleteFile.run();
                     response.setStatusCode(HttpStatus.SC_OK);
                     httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
                 }
@@ -177,7 +197,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                                             ContentType.create("text/json", StandardCharsets.UTF_8)) {
                                         public void close() throws IOException {
                                             super.close();
-                                            if (!file.delete()) {
+                                            if (!file.delete() && file.exists()) {
                                                 LOGGER.error("Fail to delete " + file.getAbsolutePath());
                                             }
                                         }

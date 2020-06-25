@@ -18,12 +18,20 @@ public class HttpServerRegister {
     }
 
     public Verb register(String url, GlobType queryUrl) {
-        Verb verb = new Verb(url, queryUrl);
-        verbMap.put(url, verb);
-        return verb;
+        Verb current = verbMap.get(url);
+        if (current == null) {
+            Verb verb = new Verb(url, queryUrl);
+            verbMap.put(url, verb);
+            return verb;
+        } else {
+            if (current.queryUrl != queryUrl) {
+                throw new RuntimeException("Same query Type is expected for same url on different verb (" + url + ")");
+            }
+        }
+        return current;
     }
 
-    public HttpServer init(){
+    public HttpServer init() {
         for (Map.Entry<String, Verb> stringVerbEntry : verbMap.entrySet()) {
             Verb verb = stringVerbEntry.getValue();
             GlobHttpRequestHandler globHttpRequestHandler = new GlobHttpRequestHandler(verb.complete());
@@ -48,6 +56,10 @@ public class HttpServerRegister {
 
         public void post(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
             operations.add(new DefaultHttpOperation(HttpOp.post, bodyParam, paramType, httpTreatment));
+        }
+
+        public void put(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
+            operations.add(new DefaultHttpOperation(HttpOp.put, bodyParam, paramType, httpTreatment));
         }
 
         public void delete(GlobType paramType, HttpTreatment httpTreatment) {

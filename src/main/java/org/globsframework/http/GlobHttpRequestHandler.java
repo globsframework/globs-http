@@ -96,8 +96,8 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
 
     public void handle(HttpRequest httpRequest, HttpAsyncExchange httpAsyncExchange, HttpContext httpContext) throws HttpException, IOException {
         RequestLine requestLine = httpRequest.getRequestLine();
-        LOGGER.info("Receive : " + requestLine.getUri());
         String method = requestLine.getMethod().toUpperCase(Locale.ROOT);
+        LOGGER.info("Receive : " + method + " : " + requestLine.getUri());
         final HttpResponse response = httpAsyncExchange.getResponse();
         try {
             if (method.equals("DELETE")) {
@@ -159,12 +159,26 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                     future.whenComplete((glob, throwable) -> {
                         if (glob != null) {
                             response.setEntity(new StringEntity(GSonUtils.encode(glob, false),
-                                    ContentType.create("text/json", StandardCharsets.UTF_8)));
+                                    ContentType.create("application/json", StandardCharsets.UTF_8)));
                             response.setStatusCode(HttpStatus.SC_OK);
                         } else {
                             if (throwable != null) {
                                 LOGGER.error("Request fail", throwable);
-                                response.setStatusCode(HttpStatus.SC_INTERNAL_SERVER_ERROR);
+                                if (throwable instanceof HttpException) {
+                                    int statusCode = ((HttpException) throwable).code;
+                                    LOGGER.error("return status: " + statusCode);
+                                    response.setStatusCode(statusCode);
+                                    response.setReasonPhrase(((HttpException) throwable).message);
+                                } else if (throwable instanceof HttpExceptionWithContent) {
+                                    response.setEntity(new StringEntity(GSonUtils.encode(((HttpExceptionWithContent) throwable).message, false),
+                                            ContentType.create("application/json", StandardCharsets.UTF_8)));
+                                    int statusCode = ((HttpExceptionWithContent) throwable).code;
+                                    LOGGER.error("return status: " + statusCode);
+                                    response.setStatusCode(statusCode);
+                                } else {
+                                    LOGGER.error("return status: " + HttpStatus.SC_INTERNAL_SERVER_ERROR);
+                                    response.setStatusCode(HttpStatus.SC_INTERNAL_SERVER_ERROR);
+                                }
                             } else {
                                 response.setStatusCode(HttpStatus.SC_OK);
                             }
@@ -194,7 +208,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                                 final File file = new File(res.get(GlobFile.file));
                                 if (res.get(GlobFile.removeWhenDelivered, !LOGGER.isTraceEnabled())) {
                                     entity = new NFileEntity(file,
-                                            ContentType.create("text/json", StandardCharsets.UTF_8)) {
+                                            ContentType.create("application/json", StandardCharsets.UTF_8)) {
                                         public void close() throws IOException {
                                             super.close();
                                             if (!file.delete() && file.exists()) {
@@ -204,7 +218,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                                     };
                                 } else {
                                     entity = new NFileEntity(file,
-                                            ContentType.create("text/json", StandardCharsets.UTF_8));
+                                            ContentType.create("application/json", StandardCharsets.UTF_8));
                                 }
                                 response.setEntity(entity);
                             } else {
@@ -213,12 +227,13 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                                     LOGGER.debug("response {}", resp);
                                 }
                                 response.setEntity(new StringEntity(resp,
-                                        ContentType.create("text/json", StandardCharsets.UTF_8)));
+                                        ContentType.create("application/json", StandardCharsets.UTF_8)));
                             }
                             response.setStatusCode(HttpStatus.SC_OK);
                         } else {
                             if (throwable != null) {
                                 LOGGER.error("Request fail", throwable);
+                                LOGGER.error("return status: " + HttpStatus.SC_INTERNAL_SERVER_ERROR);
                                 response.setStatusCode(HttpStatus.SC_INTERNAL_SERVER_ERROR);
                             } else {
                                 response.setStatusCode(HttpStatus.SC_OK);
@@ -232,11 +247,13 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                 }
             } else {
                 LOGGER.error("Unexpected type " + httpRequest.getClass().getName());
+                LOGGER.error("return status: " + HttpStatus.SC_INTERNAL_SERVER_ERROR);
                 response.setStatusCode(HttpStatus.SC_INTERNAL_SERVER_ERROR);
                 httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
             }
         } catch (Exception e) {
             LOGGER.error("request error", e);
+            LOGGER.error("return status: " + HttpStatus.SC_FORBIDDEN);
             response.setStatusCode(HttpStatus.SC_FORBIDDEN);
             httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
         }

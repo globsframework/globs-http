@@ -106,7 +106,7 @@ public class GlobHttpRequestHandlerTest {
         public static LongField SUBID;
 
         static {
-            GlobTypeLoaderFactory.create(URLParameter.class).load();
+            GlobTypeLoaderFactory.create(URLParameter.class, true).load();
         }
     }
 
@@ -119,7 +119,7 @@ public class GlobHttpRequestHandlerTest {
         public static StringArrayField INFO;
 
         static {
-            GlobTypeLoaderFactory.create(QueryParameter.class).load();
+            GlobTypeLoaderFactory.create(QueryParameter.class, true).load();
         }
     }
 }

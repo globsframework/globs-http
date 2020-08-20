@@ -25,12 +25,13 @@ public class DefaultSharedDataManager implements SharedDataManager, SharedDataSe
     private static final int INITIALIZATION_TIMEOUT = Integer.getInteger("org.globsframework.remote.shared.impl.DefaultSharedDataManager.initialization.timeout", 60 * 1000);
     static private Logger logger = LoggerFactory.getLogger(DefaultSharedDataManager.class);
     private final SharedDataService sharedDataService;
-    Map<Path, ServerSharedData> serverData = new HashMap<>();
-    Map<Path, SharedDataService> sharedDataServices = new HashMap<>();
+    private final Map<Path, ServerSharedData> serverData = new HashMap<>();
+    private final Map<Path, SharedDataService> sharedDataServices = new HashMap<>();
 
     private DefaultSharedDataManager(SharedDataService sharedDataService) {
         this.sharedDataService = sharedDataService;
         sharedDataService.listen(this);
+        sharedDataService.waitForInitialization(10000);
     }
 
     static public ServerSharedData initSharedData(String host, int port) {

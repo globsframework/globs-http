@@ -10,6 +10,8 @@ public class GlobFile {
 
     public static StringField file;
 
+    public static StringField mimeType;
+
     public static BooleanField removeWhenDelivered;
 
     static {

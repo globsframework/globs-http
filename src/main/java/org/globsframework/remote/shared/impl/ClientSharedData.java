@@ -35,7 +35,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class ClientSharedData implements SharedDataService {
     private static final int MAX_MSG_TO_READ = Integer.getInteger("org.globsframework.remote.shared.ClientSharedData.max.message.per.round", 10);
     private static final int LOG_PROPAGATE = Integer.getInteger("org.globsframework.remote.shared.ClientSharedData.propagate.timeout", 1000);
-    private static Logger logger = LoggerFactory.getLogger(ClientSharedData.class);
+    private static Logger LOGGER = LoggerFactory.getLogger(ClientSharedData.class);
     private final Thread thread;
     private final AddressAccessor addressAccessor;
     private final OnStop onStop;
@@ -99,6 +99,8 @@ public class ClientSharedData implements SharedDataService {
         lock.lock();
         try {
             sharedData.data(repository);
+        }catch (Exception exception){
+            LOGGER.error("In read client code", exception);
         } finally {
             lock.unlock();
         }
@@ -116,6 +118,9 @@ public class ClientSharedData implements SharedDataService {
         try {
             repository.startChangeSet();
             sharedData.data(repository);
+        } catch (Exception exception) {
+            LOGGER.error("error write in client code", exception);
+            throw exception;
         } finally {
             try {
                 repository.completeChangeSet();
@@ -145,8 +150,8 @@ public class ClientSharedData implements SharedDataService {
             NanoChrono chrono = NanoChrono.start();
             sharedDataEventListener.event(changeSet);
             int elapsedTime = (int) chrono.getElapsedTimeInMS();
-            if (logger.isDebugEnabled() || elapsedTime > LOG_PROPAGATE) {
-                logger.info(elapsedTime + " ms to propagate changeSet some where in " + sharedDataEventListener);
+            if (LOGGER.isDebugEnabled() || elapsedTime > LOG_PROPAGATE) {
+                LOGGER.info(elapsedTime + " ms to propagate changeSet some where in " + sharedDataEventListener);
             }
         }
     }
@@ -156,8 +161,8 @@ public class ClientSharedData implements SharedDataService {
             NanoChrono chrono = NanoChrono.start();
             sharedDataEventListener.reset();
             int elapsedTime = (int) chrono.getElapsedTimeInMS();
-            if (logger.isDebugEnabled() || elapsedTime > LOG_PROPAGATE) {
-                logger.info(elapsedTime + "ms to propagate reset for " + sharedDataEventListener);
+            if (LOGGER.isDebugEnabled() || elapsedTime > LOG_PROPAGATE) {
+                LOGGER.info(elapsedTime + "ms to propagate reset for " + sharedDataEventListener);
             }
         }
     }
@@ -180,7 +185,7 @@ public class ClientSharedData implements SharedDataService {
                 }
             }
             if (occ == 0) {
-                logger.info("Listener removed twice " + sharedDataEventListener);
+                LOGGER.info("Listener removed twice " + sharedDataEventListener);
                 return;
             }
             SharedDataEventListener[] newListeners = new SharedDataEventListener[sharedDataEventListeners.length - occ];
@@ -199,7 +204,7 @@ public class ClientSharedData implements SharedDataService {
     }
 
     public void stop() {
-        logger.info("Stop requested on " + (remoteRWState != null ? remoteRWState.getClientId() : " not connected."));
+        LOGGER.info("Stop requested on " + (remoteRWState != null ? remoteRWState.getClientId() : " not connected."));
         stop = true;
         try {
             synchronized (remoteRwLock) {
@@ -236,7 +241,7 @@ public class ClientSharedData implements SharedDataService {
             if (hostAndPort == null) {
                 return;
             }
-            logger.info("Connect to " + hostAndPort.getFirst() + ":" + hostAndPort.getSecond());
+            LOGGER.info("Connect to " + hostAndPort.getFirst() + ":" + hostAndPort.getSecond());
             SocketChannel socketChannel = null;
             try {
                 socketChannel = SocketChannel.open();
@@ -245,7 +250,7 @@ public class ClientSharedData implements SharedDataService {
                 socketChannel.socket().setTcpNoDelay(DefaultServerSharedData.TCP_NO_DELAY);
                 selectionKey = socketChannel.register(selector, SelectionKey.OP_READ);
             } catch (Exception e) {
-                logger.error("Fail to connect to " + hostAndPort.getFirst() + ":" + hostAndPort.getSecond() + ". Cause by : " + e.getMessage() + " (see console for more info)", e);
+                LOGGER.error("Fail to connect to " + hostAndPort.getFirst() + ":" + hostAndPort.getSecond() + ". Cause by : " + e.getMessage() + " (see console for more info)", e);
                 if (socketChannel != null) {
                     socketChannel.close();
                 }
@@ -269,7 +274,7 @@ public class ClientSharedData implements SharedDataService {
                                         int id = serializedInput.readNotNullInt();
                                         if (id == 0) {
                                             connectionId = serializedInput.readNotNullInt();
-                                            logger.info("Client connected " + connectionId);
+                                            LOGGER.info("Client connected " + connectionId);
                                             remoteRWState.setClientId(connectionId);
                                             repository.startChangeSetWithoutChange();
                                             sharedModelType.updateRepoWith(repository, connectionId);
@@ -283,8 +288,8 @@ public class ClientSharedData implements SharedDataService {
                                         } else if (id < 0) {
                                             int remoteConnectionId = serializedInput.readNotNullInt(); //connectionId
                                             int len = serializedInput.readNotNullInt();
-                                            if (logger.isInfoEnabled()) {
-                                                logger.info("Received repo " + remoteConnectionId + ":" + id + " with " + len + " globs.");
+                                            if (LOGGER.isInfoEnabled()) {
+                                                LOGGER.info("Received repo " + remoteConnectionId + ":" + id + " with " + len + " globs.");
                                             }
                                             repository.startChangeSetWithoutChange();
                                             while (len > 0) {
@@ -308,11 +313,11 @@ public class ClientSharedData implements SharedDataService {
                                             repository.startChangeSetWithoutChange();
                                             repository.apply(changeSet);
                                             repository.completeChangeSetWithoutTriggers();
-                                            if (logger.isDebugEnabled()) {
-                                                if (logger.isTraceEnabled()) {
-                                                    logger.trace("Received  changeSet " + remoteConnectionId + ":" + id + changeSet.toString());
+                                            if (LOGGER.isDebugEnabled()) {
+                                                if (LOGGER.isTraceEnabled()) {
+                                                    LOGGER.trace("Received  changeSet " + remoteConnectionId + ":" + id + changeSet.toString());
                                                 } else {
-                                                    logger.debug("Received changeSet " + remoteConnectionId + ":" + id);
+                                                    LOGGER.debug("Received changeSet " + remoteConnectionId + ":" + id);
                                                 }
                                             }
                                             // lock is released here because, we don't know if the listener will take a read or a read/write lock
@@ -323,7 +328,7 @@ public class ClientSharedData implements SharedDataService {
                                         }
                                     } catch (RuntimeException e) {
                                         //TODO check why/what
-                                        logger.error("Unexpected error " + e.getMessage(), e);
+                                        LOGGER.error("Unexpected error " + e.getMessage(), e);
                                         throw e;
                                     } finally {
                                         if (lock != null) {
@@ -343,7 +348,7 @@ public class ClientSharedData implements SharedDataService {
                                     remoteRWState.writeNext();
                                 }
                             } else {
-                                logger.warn("Connection lost to shared data server.");
+                                LOGGER.warn("Connection lost to shared data server.");
                                 remoteRWState.cancel();
                                 connected = false;
                                 remoteRWState = null;
@@ -356,7 +361,7 @@ public class ClientSharedData implements SharedDataService {
                 }
                 synchronized (remoteRwLock) {
                     if (remoteRWState == null || remoteRWState.isClosed()) {
-                        logger.warn("Connection lost to shared data server.");
+                        LOGGER.warn("Connection lost to shared data server.");
                         selectionKey.cancel();
                         connected = false;
                         remoteRWState = null;
@@ -367,10 +372,10 @@ public class ClientSharedData implements SharedDataService {
         } catch (Exception e) {
             synchronized (remoteRwLock) {
                 if (remoteRWState != null) {
-                    logger.warn("Connection lost to shared data server with io exception", e);
+                    LOGGER.warn("Connection lost to shared data server with io exception", e);
                     remoteRWState.cancel();
                 } else {
-                    logger.info("Connection lost to shared data server with io exception " + e.getMessage());
+                    LOGGER.info("Connection lost to shared data server with io exception " + e.getMessage());
                 }
                 connected = false;
                 remoteRWState = null;
@@ -383,8 +388,8 @@ public class ClientSharedData implements SharedDataService {
             return;
         }
         int globCount = repository.size();
-        if (logger.isDebugEnabled()) {
-            logger.debug("Send " + globCount + " globs to server");
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Send " + globCount + " globs to server");
         }
         if (globCount > 0) {
             ReusableByteArrayOutputStream outputStream = new ReusableByteArrayOutputStream();
@@ -401,8 +406,8 @@ public class ClientSharedData implements SharedDataService {
             int size = outputStream.size();
             outputStream.reset();
             serializedOutput.write(getSizeWithKey(size - 4));
-            if (logger.isDebugEnabled()) {
-                logger.debug("Send changeSet " + connectionId + ":" + (-changeId));
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Send changeSet " + connectionId + ":" + (-changeId));
             }
             try {
                 if (!remoteRWState.write(outputStream.getBuffer(), size)) {
@@ -415,8 +420,8 @@ public class ClientSharedData implements SharedDataService {
     }
 
     private void sendChangeSet(RemoteRWState remoteRWState, ChangeSet changeSet) {
-        if (logger.isTraceEnabled()) {
-            logger.trace("Send changeSet " + connectionId + ":" + changeId + changeSet.toString());
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("Send changeSet " + connectionId + ":" + changeId + changeSet.toString());
         }
         if (sendOutputStream == null) {
             sendOutputStream = new ReusableByteArrayOutputStream();
@@ -429,7 +434,7 @@ public class ClientSharedData implements SharedDataService {
         int size = sendOutputStream.size();
         if (size > RemoteRWState.MAX_MSG_SIZE) {
             String message = "Message too big " + size + " : " + changeSet.toString();
-            logger.error(message);
+            LOGGER.error(message);
             repository.startChangeSetWithoutChange();
             repository.apply(changeSet.reverse());
             repository.completeChangeSetWithoutTriggers();
@@ -437,8 +442,8 @@ public class ClientSharedData implements SharedDataService {
         }
         sendOutputStream.reset();
         serializedOutput.write(getSizeWithKey(size - 4));
-        if (logger.isDebugEnabled()) {
-            logger.debug("Send changeSet " + connectionId + ":" + changeId);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Send changeSet " + connectionId + ":" + changeId);
         }
         try {
             if (!remoteRWState.write(sendOutputStream.getBuffer(), size)) {
@@ -449,10 +454,10 @@ public class ClientSharedData implements SharedDataService {
             }
         } catch (IOException e) {
             String message = "Write fail will retry";
-            if (logger.isDebugEnabled()) {
-                logger.warn(message, e);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.warn(message, e);
             } else {
-                logger.warn(message);
+                LOGGER.warn(message);
             }
             connected = false;
             try {
@@ -505,18 +510,18 @@ public class ClientSharedData implements SharedDataService {
                         throw new RuntimeException("Fail to create selector", e);
                     }
                     ClientSharedData.this.run();
-                    logger.info("Connection closed");
+                    LOGGER.info("Connection closed");
                     resetIdAndUpdateChangeSet();
                     try {
                         if (!stop) {
-                            logger.info("try re-connect in 1s");
+                            LOGGER.info("try re-connect in 1s");
                             Thread.sleep(1000);
                         }
                     } catch (InterruptedException e) {
                         throw new RuntimeException("End in interrupt", e);
                     }
                 }
-                logger.info("Client stopped");
+                LOGGER.info("Client stopped");
             } catch (Exception e) {
                 /*
                 if (e.getCause() instanceof IOException) {
@@ -525,7 +530,7 @@ public class ClientSharedData implements SharedDataService {
                     logger.error("Client end in error.", e);
                 }
                 */
-                logger.error("Client end in error.", e);
+                LOGGER.error("Client end in error.", e);
             }
         }
     }

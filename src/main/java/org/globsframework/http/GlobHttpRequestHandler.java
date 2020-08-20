@@ -30,7 +30,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
 public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpRequest> {
@@ -146,7 +145,8 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                     String str = Files.read(entity.getContent(), StandardCharsets.UTF_8);
                     LOGGER.info("receive : " + str);
                     data = (Strings.isNullOrEmpty(str) || operation.getBodyType() == null) ? null : GSonUtils.decode(new StringReader(str), operation.getBodyType());
-                    deleteFile = () -> {};
+                    deleteFile = () -> {
+                    };
                 }
                 String uri = requestLine.getUri();
                 int i = uri.indexOf("?");
@@ -158,9 +158,29 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                 if (future != null) {
                     future.whenComplete((glob, throwable) -> {
                         if (glob != null) {
-                            response.setEntity(new StringEntity(GSonUtils.encode(glob, false),
-                                    ContentType.create("application/json", StandardCharsets.UTF_8)));
-                            response.setStatusCode(HttpStatus.SC_OK);
+                            if (glob.getType() == GlobFile.TYPE) {
+                                NFileEntity returnEntity;
+                                final File file = new File(glob.get(GlobFile.file));
+                                if (glob.get(GlobFile.removeWhenDelivered, !LOGGER.isTraceEnabled())) {
+                                    returnEntity = new NFileEntity(file,
+                                            ContentType.create(glob.get(GlobFile.mimeType, "application/json"), StandardCharsets.UTF_8)) {
+                                        public void close() throws IOException {
+                                            super.close();
+                                            if (!file.delete() && file.exists()) {
+                                                LOGGER.error("Fail to delete " + file.getAbsolutePath());
+                                            }
+                                        }
+                                    };
+                                } else {
+                                    returnEntity = new NFileEntity(file,
+                                            ContentType.create(glob.get(GlobFile.mimeType, "application/json"), StandardCharsets.UTF_8));
+                                }
+                                response.setEntity(returnEntity);
+                            } else {
+                                response.setEntity(new StringEntity(GSonUtils.encode(glob, false),
+                                        ContentType.create("application/json", StandardCharsets.UTF_8)));
+                                response.setStatusCode(HttpStatus.SC_OK);
+                            }
                         } else {
                             if (throwable != null) {
                                 LOGGER.error("Request fail", throwable);
@@ -208,7 +228,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                                 final File file = new File(res.get(GlobFile.file));
                                 if (res.get(GlobFile.removeWhenDelivered, !LOGGER.isTraceEnabled())) {
                                     entity = new NFileEntity(file,
-                                            ContentType.create("application/json", StandardCharsets.UTF_8)) {
+                                            ContentType.create(res.get(GlobFile.mimeType, "application/json"), StandardCharsets.UTF_8)) {
                                         public void close() throws IOException {
                                             super.close();
                                             if (!file.delete() && file.exists()) {
@@ -218,7 +238,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                                     };
                                 } else {
                                     entity = new NFileEntity(file,
-                                            ContentType.create("application/json", StandardCharsets.UTF_8));
+                                            ContentType.create(res.get(GlobFile.mimeType, "application/json"), StandardCharsets.UTF_8));
                                 }
                                 response.setEntity(entity);
                             } else {

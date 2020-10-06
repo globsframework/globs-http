@@ -27,7 +27,7 @@ public class SharedModelType {
         for (GlobType globType : all) {
             for (Field field : globType.getFields()) {
                 if (field.hasAnnotation(SharedId.KEY)) {
-                    globTypeToConnectionField.put(globType, (IntegerField) field);
+                    globTypeToConnectionField.put(globType, field.asIntegerField());
                     break;
                 }
             }

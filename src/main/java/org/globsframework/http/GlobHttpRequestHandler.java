@@ -130,7 +130,13 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                 HttpEntity entity = ((HttpEntityEnclosingRequest) httpRequest).getEntity();
                 Glob data;
                 Runnable deleteFile;
-                if (operation.getBodyType() == GlobFile.TYPE) {
+                if (operation.getBodyType() == GlobHttpContent.TYPE) {
+                    String str = Files.read(entity.getContent(), StandardCharsets.UTF_8);
+                    LOGGER.info("receive : " + str);
+                    data = GlobHttpContent.TYPE.instantiate().set(GlobHttpContent.content, str);
+                    deleteFile = () -> {
+                    };
+                } else if (operation.getBodyType() == GlobFile.TYPE) {
                     File tempFile = File.createTempFile("htpp", ".data");
                     FileOutputStream outputStream = new FileOutputStream(tempFile);
                     Files.copyStream(entity.getContent(), outputStream);
@@ -158,7 +164,10 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                 if (future != null) {
                     future.whenComplete((glob, throwable) -> {
                         if (glob != null) {
-                            if (glob.getType() == GlobFile.TYPE) {
+                            if (glob.getType() == GlobHttpContent.TYPE) {
+                                response.setEntity(new StringEntity(glob.get(GlobHttpContent.content),
+                                        ContentType.create(glob.get(GlobHttpContent.mimeType, "application/json"), StandardCharsets.UTF_8)));
+                            } else if (glob.getType() == GlobFile.TYPE) {
                                 NFileEntity returnEntity;
                                 final File file = new File(glob.get(GlobFile.file));
                                 if (glob.get(GlobFile.removeWhenDelivered, !LOGGER.isTraceEnabled())) {
@@ -223,7 +232,10 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                 if (glob != null) {
                     glob.whenComplete((res, throwable) -> {
                         if (res != null) {
-                            if (res.getType() == GlobFile.TYPE) {
+                            if (res.getType() == GlobHttpContent.TYPE) {
+                                response.setEntity(new StringEntity(res.get(GlobHttpContent.content),
+                                        ContentType.create(res.get(GlobHttpContent.mimeType, "application/json"), StandardCharsets.UTF_8)));
+                            } else if (res.getType() == GlobFile.TYPE) {
                                 NFileEntity entity;
                                 final File file = new File(res.get(GlobFile.file));
                                 if (res.get(GlobFile.removeWhenDelivered, !LOGGER.isTraceEnabled())) {

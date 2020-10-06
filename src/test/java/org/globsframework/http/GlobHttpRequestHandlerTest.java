@@ -53,9 +53,11 @@ public class GlobHttpRequestHandlerTest {
         BlockingQueue<Pair<Glob, Glob>> pairs = new LinkedBlockingDeque<>();
         HttpServerRegister httpServerRegister = new HttpServerRegister(bootstrap);
         httpServerRegister.register("/test/{id}/TOTO/{subId}", URLParameter.TYPE)
-                .get(QueryParameter.TYPE, (body, url, queryParameters) -> {
-                    pairs.add(Pair.makePair(url, queryParameters));
-                    return null;
+                .get(QueryParameter.TYPE, new HttpTreatment() {
+                    public CompletableFuture<Glob> consume(Glob body, Glob url, Glob queryParameters) throws Exception {
+                        pairs.add(Pair.makePair(url, queryParameters));
+                        return null;
+                    }
                 });
         httpServerRegister.register("/query", null)
                 .get(null, (body, url, queryParameters) -> {

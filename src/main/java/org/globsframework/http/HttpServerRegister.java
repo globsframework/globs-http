@@ -34,7 +34,7 @@ public class HttpServerRegister {
     public HttpServer init() {
         for (Map.Entry<String, Verb> stringVerbEntry : verbMap.entrySet()) {
             Verb verb = stringVerbEntry.getValue();
-            GlobHttpRequestHandler globHttpRequestHandler = new GlobHttpRequestHandler(verb.complete());
+            GlobHttpRequestHandler globHttpRequestHandler = new GlobHttpRequestHandler(verb.complete(), verb.gzipCompress);
             serverBootstrap.registerHandler(globHttpRequestHandler.createRegExp(), globHttpRequestHandler);
         }
         return serverBootstrap.create();
@@ -43,11 +43,22 @@ public class HttpServerRegister {
     public class Verb {
         private final String url;
         private final GlobType queryUrl;
+        private boolean gzipCompress = false;
         private List<HttpOperation> operations = new ArrayList<>();
 
         public Verb(String url, GlobType queryUrl) {
             this.url = url;
             this.queryUrl = queryUrl;
+        }
+
+        public Verb setGzipCompress() {
+            this.gzipCompress = true;
+            return this;
+        }
+
+        public Verb setGzipCompress(boolean gzipCompress) {
+            this.gzipCompress = true;
+            return this;
         }
 
         public void get(GlobType paramType, HttpTreatment httpTreatment) {

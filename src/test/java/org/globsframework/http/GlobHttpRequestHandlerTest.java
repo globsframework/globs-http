@@ -4,6 +4,7 @@ import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.nio.bootstrap.HttpServer;
 import org.apache.http.impl.nio.bootstrap.ServerBootstrap;
@@ -66,6 +67,13 @@ public class GlobHttpRequestHandlerTest {
                             .set(GlobFile.removeWhenDelivered, true));
                 });
 
+        httpServerRegister.register("/query", null)
+                .setGzipCompress()
+                .post(BodyContent.TYPE, null, (body, url, queryParameters) -> {
+                    return CompletableFuture.completedFuture(BodyContent.TYPE.instantiate()
+                            .set(BodyContent.DATA, "some important information."));
+                });
+
         httpServerRegister.init();
         server = bootstrap.create();
         server.start();
@@ -93,6 +101,11 @@ public class GlobHttpRequestHandlerTest {
         HttpResponse httpFileResponse = httpclient.execute(target, httpGetFile);
         Assert.assertEquals(200, httpFileResponse.getStatusLine().getStatusCode());
         Assert.assertEquals("[]", Files.loadStreamToString(httpFileResponse.getEntity().getContent(), "UTF-8"));
+
+        HttpPost httpPostFile = new HttpPost("/query");
+        HttpResponse httpPostResponse = httpclient.execute(target, httpPostFile);
+        Assert.assertEquals(200, httpPostResponse.getStatusLine().getStatusCode());
+        Assert.assertEquals("{\"DATA\":\"some important information.\"}", Files.loadStreamToString(httpPostResponse.getEntity().getContent(), "UTF-8"));
 
         server.shutdown(0, TimeUnit.MINUTES);
         Assert.assertFalse(httpContent.exists());
@@ -122,6 +135,15 @@ public class GlobHttpRequestHandlerTest {
 
         static {
             GlobTypeLoaderFactory.create(QueryParameter.class, true).load();
+        }
+    }
+
+    static public class BodyContent {
+        public static GlobType TYPE;
+
+        public static StringField DATA;
+        static {
+            GlobTypeLoaderFactory.create(BodyContent.class).load();
         }
     }
 }

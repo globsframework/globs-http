@@ -28,9 +28,9 @@ class DefaultUrlMatcher implements UrlMatcher {
         }
     }
 
-    boolean match(String fullUrl) {
-        return true;
-    }
+//    boolean match(String fullUrl) {
+//        return true;
+//    }
 
     public Glob parse(String url) {
         String[] split = url.split("/");

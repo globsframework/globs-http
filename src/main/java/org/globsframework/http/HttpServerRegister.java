@@ -2,7 +2,15 @@ package org.globsframework.http;
 
 import org.apache.http.impl.nio.bootstrap.HttpServer;
 import org.apache.http.impl.nio.bootstrap.ServerBootstrap;
+import org.globsframework.json.GSonUtils;
+import org.globsframework.json.annottations.IsJsonContentAnnotation;
 import org.globsframework.metamodel.GlobType;
+import org.globsframework.metamodel.GlobTypeLoaderFactory;
+import org.globsframework.metamodel.fields.StringField;
+import org.globsframework.model.MutableGlob;
+import org.globsframework.utils.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,11 +18,12 @@ import java.util.List;
 import java.util.Map;
 
 public class HttpServerRegister {
-    final ServerBootstrap serverBootstrap;
+    private static final Logger LOGGER = LoggerFactory.getLogger(HttpServerRegister.class);
     final Map<String, Verb> verbMap = new HashMap<>();
+    private String serverInfo;
 
-    public HttpServerRegister(ServerBootstrap serverBootstrap) {
-        this.serverBootstrap = serverBootstrap;
+    public HttpServerRegister(String serverInfo) {
+        this.serverInfo = serverInfo;
     }
 
     public Verb register(String url, GlobType queryUrl) {
@@ -31,13 +40,31 @@ public class HttpServerRegister {
         return current;
     }
 
-    public HttpServer init() {
+    public HttpServer init(ServerBootstrap serverBootstrap) {
         for (Map.Entry<String, Verb> stringVerbEntry : verbMap.entrySet()) {
             Verb verb = stringVerbEntry.getValue();
             GlobHttpRequestHandler globHttpRequestHandler = new GlobHttpRequestHandler(verb.complete(), verb.gzipCompress);
             serverBootstrap.registerHandler(globHttpRequestHandler.createRegExp(), globHttpRequestHandler);
+            for (HttpOperation operation : stringVerbEntry.getValue().operations) {
+
+                MutableGlob logs = HttpAPIDesc.TYPE.instantiate()
+                        .set(HttpAPIDesc.serverName, serverInfo)
+                        .set(HttpAPIDesc.url, stringVerbEntry.getKey())
+                        .set(HttpAPIDesc.queryParam, GSonUtils.encodeGlobType(operation.getQueryParamType()))
+                        .set(HttpAPIDesc.body, GSonUtils.encodeGlobType(operation.getBodyType()))
+                        .set(HttpAPIDesc.returnType, GSonUtils.encodeGlobType(operation.getReturnType()))
+                        ;
+                LOGGER.info(GSonUtils.encode(logs, false));
+            }
+        }
+        if (Strings.isNotEmpty(serverInfo)) {
+            serverBootstrap.setServerInfo(serverInfo);
         }
         return serverBootstrap.create();
+    }
+
+    public interface ReturnType {
+        void add(GlobType globType);
     }
 
     public class Verb {
@@ -61,24 +88,57 @@ public class HttpServerRegister {
             return this;
         }
 
-        public void get(GlobType paramType, HttpTreatment httpTreatment) {
-            operations.add(new DefaultHttpOperation(HttpOp.get, null, paramType, httpTreatment));
+        public ReturnType get(GlobType paramType, HttpTreatment httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.get, null, paramType, httpTreatment);
+            operations.add(operation);
+            return operation::withReturnType;
         }
 
-        public void post(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
-            operations.add(new DefaultHttpOperation(HttpOp.post, bodyParam, paramType, httpTreatment));
+        public ReturnType post(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.post, bodyParam, paramType, httpTreatment);
+            operations.add(operation);
+            return operation::withReturnType;
         }
 
-        public void put(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
-            operations.add(new DefaultHttpOperation(HttpOp.put, bodyParam, paramType, httpTreatment));
+        public ReturnType put(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.put, bodyParam, paramType, httpTreatment);
+            operations.add(operation);
+            return operation::withReturnType;
         }
 
-        public void delete(GlobType paramType, HttpTreatment httpTreatment) {
-            operations.add(new DefaultHttpOperation(HttpOp.delete, null, paramType, httpTreatment));
+        public ReturnType delete(GlobType paramType, HttpTreatment httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.delete, null, paramType, httpTreatment);
+            operations.add(operation);
+            return operation::withReturnType;
         }
 
         HttpReceiver complete() {
             return new DefaultHttpReceiver(url, queryUrl, operations.toArray(new HttpOperation[0]));
         }
+    }
+
+
+    public static class HttpAPIDesc {
+        public static GlobType TYPE;
+
+        public static StringField serverName;
+
+        public static StringField url;
+
+        public static StringField verb;
+
+        @IsJsonContentAnnotation
+        public static StringField queryParam;
+
+        @IsJsonContentAnnotation
+        public static StringField body;
+
+        @IsJsonContentAnnotation
+        public static StringField returnType;
+
+        static {
+            GlobTypeLoaderFactory.create(HttpAPIDesc.class).load();
+        }
+
     }
 }

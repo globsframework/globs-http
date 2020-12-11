@@ -317,10 +317,13 @@ public class DefaultRpcService implements RpcService, Cleanable {
     public <Service> void unregister(final Class<Service> serviceClass, final String name) {
         sharedDataService.write(new SharedDataService.SharedData() {
             public void data(GlobRepository globRepository) {
-                globRepository.delete(KeyBuilder.create(ServiceType.TYPE)
+                Key key = KeyBuilder.create(ServiceType.TYPE)
                         .set(ServiceType.KEY, name)
                         .set(ServiceType.SHARED_ID, sharedDataService.getId())
-                        .set(ServiceType.CLASS_NAME, serviceClass.getName()).get());
+                        .set(ServiceType.CLASS_NAME, serviceClass.getName()).get();
+                if (globRepository.find(key) != null) {
+                    globRepository.delete(key);
+                }
             }
         });
         synchronized (services) {

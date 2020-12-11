@@ -42,7 +42,6 @@ public class GlobHttpRequestHandlerTest {
                 .build();
 
         ServerBootstrap bootstrap = ServerBootstrap.bootstrap()
-                .setServerInfo("PriceServer/1.1")
                 .setListenerPort(0)
                 .setIOReactorConfig(config);
 
@@ -52,7 +51,7 @@ public class GlobHttpRequestHandlerTest {
         String absolutePath = httpContent.getAbsolutePath();
 
         BlockingQueue<Pair<Glob, Glob>> pairs = new LinkedBlockingDeque<>();
-        HttpServerRegister httpServerRegister = new HttpServerRegister(bootstrap);
+        HttpServerRegister httpServerRegister = new HttpServerRegister("PriceServer/1.1");
         httpServerRegister.register("/test/{id}/TOTO/{subId}", URLParameter.TYPE)
                 .get(QueryParameter.TYPE, new HttpTreatment() {
                     public CompletableFuture<Glob> consume(Glob body, Glob url, Glob queryParameters) throws Exception {
@@ -74,7 +73,7 @@ public class GlobHttpRequestHandlerTest {
                             .set(BodyContent.DATA, "some important information."));
                 });
 
-        httpServerRegister.init();
+        httpServerRegister.init(bootstrap);
         server = bootstrap.create();
         server.start();
         server.getEndpoint().waitFor();

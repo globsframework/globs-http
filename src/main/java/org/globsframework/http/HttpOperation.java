@@ -14,4 +14,6 @@ public interface HttpOperation {
     GlobType getBodyType();
 
     GlobType getQueryParamType();
+
+    GlobType getReturnType();
 }

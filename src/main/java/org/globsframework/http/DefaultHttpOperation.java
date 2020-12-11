@@ -9,6 +9,7 @@ public class DefaultHttpOperation implements HttpOperation {
     HttpOp verb;
     GlobType bodyType;
     GlobType queryType;
+    GlobType returnType;
     HttpTreatment httpTreatment;
 
     public DefaultHttpOperation(HttpOp verb, GlobType bodyType, GlobType queryType, HttpTreatment httpTreatment) {
@@ -28,12 +29,20 @@ public class DefaultHttpOperation implements HttpOperation {
         return this;
     }
 
+    void withReturnType(GlobType type){
+        this.returnType = type;
+    }
+
     public GlobType getBodyType() {
         return bodyType;
     }
 
     public GlobType getQueryParamType() {
         return queryType;
+    }
+
+    public GlobType getReturnType() {
+        return returnType;
     }
 
     public HttpOp verb() {

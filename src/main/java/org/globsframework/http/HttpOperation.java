@@ -7,6 +7,8 @@ import java.util.concurrent.CompletableFuture;
 
 public interface HttpOperation {
 
+    String getComment();
+
     HttpOp verb();
 
     CompletableFuture<Glob> consume(Glob data, Glob url, Glob queryParameters) throws Exception;
@@ -16,4 +18,5 @@ public interface HttpOperation {
     GlobType getQueryParamType();
 
     GlobType getReturnType();
+
 }

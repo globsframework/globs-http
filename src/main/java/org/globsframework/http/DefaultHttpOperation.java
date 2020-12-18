@@ -11,6 +11,7 @@ public class DefaultHttpOperation implements HttpOperation {
     GlobType queryType;
     GlobType returnType;
     HttpTreatment httpTreatment;
+    private String comment;
 
     public DefaultHttpOperation(HttpOp verb, GlobType bodyType, GlobType queryType, HttpTreatment httpTreatment) {
         this.verb = verb;
@@ -45,11 +46,19 @@ public class DefaultHttpOperation implements HttpOperation {
         return returnType;
     }
 
+    public String getComment(){
+        return comment;
+    }
+
     public HttpOp verb() {
         return verb;
     }
 
     public CompletableFuture<Glob> consume(Glob data, Glob url, Glob queryParameters) throws Exception {
         return httpTreatment.consume(data, url, queryParameters);
+    }
+
+    public void withComment(String comment) {
+        this.comment = comment;
     }
 }

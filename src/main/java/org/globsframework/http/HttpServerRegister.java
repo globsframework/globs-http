@@ -53,8 +53,9 @@ public class HttpServerRegister {
                         .set(HttpAPIDesc.queryParam, GSonUtils.encodeGlobType(operation.getQueryParamType()))
                         .set(HttpAPIDesc.body, GSonUtils.encodeGlobType(operation.getBodyType()))
                         .set(HttpAPIDesc.returnType, GSonUtils.encodeGlobType(operation.getReturnType()))
+                        .set(HttpAPIDesc.comment, operation.getComment())
                         ;
-                LOGGER.info(GSonUtils.encode(logs, false));
+                LOGGER.info("Api : " + GSonUtils.encode(logs, false));
             }
         }
         if (Strings.isNotEmpty(serverInfo)) {
@@ -64,7 +65,9 @@ public class HttpServerRegister {
     }
 
     public interface ReturnType {
-        void add(GlobType globType);
+        ReturnType add(GlobType globType);
+
+        ReturnType comment(String comment);
     }
 
     public class Verb {
@@ -91,29 +94,47 @@ public class HttpServerRegister {
         public ReturnType get(GlobType paramType, HttpTreatment httpTreatment) {
             DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.get, null, paramType, httpTreatment);
             operations.add(operation);
-            return operation::withReturnType;
+            return new DefaultReturnType(operation);
         }
 
         public ReturnType post(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
             DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.post, bodyParam, paramType, httpTreatment);
             operations.add(operation);
-            return operation::withReturnType;
+            return new DefaultReturnType(operation);
         }
 
         public ReturnType put(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
             DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.put, bodyParam, paramType, httpTreatment);
             operations.add(operation);
-            return operation::withReturnType;
+            return new DefaultReturnType(operation);
         }
 
         public ReturnType delete(GlobType paramType, HttpTreatment httpTreatment) {
             DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.delete, null, paramType, httpTreatment);
             operations.add(operation);
-            return operation::withReturnType;
+            return new DefaultReturnType(operation);
         }
 
         HttpReceiver complete() {
             return new DefaultHttpReceiver(url, queryUrl, operations.toArray(new HttpOperation[0]));
+        }
+
+        private class DefaultReturnType implements ReturnType {
+            private final DefaultHttpOperation operation;
+
+            public DefaultReturnType(DefaultHttpOperation operation) {
+                this.operation = operation;
+            }
+
+            public ReturnType add(GlobType type) {
+                operation.withReturnType(type);
+                return this;
+            }
+
+            public ReturnType comment(String comment) {
+                operation.withComment(comment);
+                return this;
+            }
         }
     }
 
@@ -135,6 +156,8 @@ public class HttpServerRegister {
 
         @IsJsonContentAnnotation
         public static StringField returnType;
+
+        public static StringField comment;
 
         static {
             GlobTypeLoaderFactory.create(HttpAPIDesc.class).load();

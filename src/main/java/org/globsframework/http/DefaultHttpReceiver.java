@@ -24,7 +24,7 @@ public class DefaultHttpReceiver implements HttpReceiver {
     }
 
     public GlobType getUrlType() {
-        return urlType;
+        return urlType != null ? urlType : DefaultHttpOperation.EMPTY;
     }
 
     public HttpOperation[] getOperations() {

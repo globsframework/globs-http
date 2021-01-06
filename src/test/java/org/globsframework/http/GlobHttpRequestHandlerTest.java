@@ -9,6 +9,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.nio.bootstrap.HttpServer;
 import org.apache.http.impl.nio.bootstrap.ServerBootstrap;
 import org.apache.http.impl.nio.reactor.IOReactorConfig;
+import org.globsframework.json.GSonUtils;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.GlobTypeLoaderFactory;
 import org.globsframework.metamodel.annotations.FieldNameAnnotation;
@@ -23,7 +24,6 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -71,15 +71,17 @@ public class GlobHttpRequestHandlerTest {
                 .post(BodyContent.TYPE, null, (body, url, queryParameters) -> {
                     return CompletableFuture.completedFuture(BodyContent.TYPE.instantiate()
                             .set(BodyContent.DATA, "some important information."));
-                });
+                })
+                .declareReturnType(BodyContent.TYPE);
 
-        httpServerRegister.init(bootstrap);
-        server = bootstrap.create();
-        server.start();
-        server.getEndpoint().waitFor();
-        InetSocketAddress address = (InetSocketAddress) server.getEndpoint().getAddress();
-        int port = address.getPort();
+        Pair<HttpServer, Integer> httpServerIntegerPair = httpServerRegister.startAndWaitForStartup(bootstrap);
+        int port = httpServerIntegerPair.getSecond();
+        server = httpServerIntegerPair.getFirst();
         System.out.println("port:" + port);
+
+        Glob openApiDoc = httpServerRegister.createOpenApiDoc(port);
+        String encode = GSonUtils.encode(openApiDoc, false);
+        System.out.println(encode);
 
         HttpClient httpclient = HttpClients.createDefault();
 
@@ -108,6 +110,7 @@ public class GlobHttpRequestHandlerTest {
 
         server.shutdown(0, TimeUnit.MINUTES);
         Assert.assertFalse(httpContent.exists());
+        httpServerIntegerPair.getFirst().shutdown(0, TimeUnit.DAYS);
     }
 
     static public class URLParameter {
@@ -141,6 +144,7 @@ public class GlobHttpRequestHandlerTest {
         public static GlobType TYPE;
 
         public static StringField DATA;
+
         static {
             GlobTypeLoaderFactory.create(BodyContent.class).load();
         }

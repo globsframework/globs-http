@@ -1,12 +1,14 @@
 package org.globsframework.http;
 
 import org.globsframework.metamodel.GlobType;
+import org.globsframework.metamodel.impl.DefaultGlobTypeBuilder;
 import org.globsframework.model.Glob;
 
 import java.util.concurrent.CompletableFuture;
 
 public class DefaultHttpOperation implements HttpOperation {
-    HttpOp verb;
+    public static final GlobType EMPTY = DefaultGlobTypeBuilder.init("Empty").get();
+    private final HttpOp verb;
     GlobType bodyType;
     GlobType queryType;
     GlobType returnType;
@@ -39,7 +41,7 @@ public class DefaultHttpOperation implements HttpOperation {
     }
 
     public GlobType getQueryParamType() {
-        return queryType;
+        return queryType != null ? queryType : EMPTY;
     }
 
     public GlobType getReturnType() {

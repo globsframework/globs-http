@@ -35,14 +35,14 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpRequest> {
-    private static Logger LOGGER = LoggerFactory.getLogger(GlobHttpRequestHandler.class);
+    private final static Logger LOGGER = LoggerFactory.getLogger(GlobHttpRequestHandler.class);
     private final UrlMatcher urlMatcher;
     private final boolean gzipCompress;
+    private final HttpReceiver httpReceiver;
     private HttpHandler onPost;
     private HttpHandler onPut;
     private HttpHandler onDelete;
     private HttpHandler onGet;
-    private HttpReceiver httpReceiver;
 
     public GlobHttpRequestHandler(HttpReceiver httpReceiver, boolean gzipCompress) {
         this.httpReceiver = httpReceiver;
@@ -136,12 +136,16 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                 Runnable deleteFile;
                 if (operation.getBodyType() == GlobHttpContent.TYPE) {
                     String str = Files.read(entity.getContent(), StandardCharsets.UTF_8);
-                    LOGGER.info("receive : " + str);
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("receive : " + str);
+                    } else {
+                        LOGGER.info("receive : " + str.substring(0, Math.min(1000, str.length())));
+                    }
                     data = GlobHttpContent.TYPE.instantiate().set(GlobHttpContent.content, str);
                     deleteFile = () -> {
                     };
                 } else if (operation.getBodyType() == GlobFile.TYPE) {
-                    File tempFile = File.createTempFile("htpp", ".data");
+                    File tempFile = File.createTempFile("http", ".data");
                     FileOutputStream outputStream = new FileOutputStream(tempFile);
                     Files.copyStream(entity.getContent(), outputStream);
                     outputStream.close();
@@ -153,8 +157,12 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                     };
                 } else {
                     String str = Files.read(entity.getContent(), StandardCharsets.UTF_8);
-                    LOGGER.info("receive : " + str);
-                    data = (Strings.isNullOrEmpty(str) || operation.getBodyType() == null) ? null : GSonUtils.decode(new StringReader(str), operation.getBodyType());
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("receive : " + str);
+                    } else {
+                        LOGGER.info("receive : " + str.substring(0, Math.min(1000, str.length())));
+                    }
+                    data = (Strings.isNullOrEmpty(str) || operation.getBodyType() == null) ? null : GSonUtils.decode(str, operation.getBodyType());
                     deleteFile = () -> {
                     };
                 }
@@ -203,8 +211,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                                         LOGGER.error("Bug io error", e);
                                         response.setStatusCode(HttpStatus.SC_METHOD_FAILURE);
                                     }
-                                }
-                                else {
+                                } else {
                                     response.setEntity(new StringEntity(GSonUtils.encode(glob, false),
                                             ContentType.create("application/json", StandardCharsets.UTF_8)));
                                     response.setStatusCode(HttpStatus.SC_OK);
@@ -285,8 +292,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                                         LOGGER.error("Bug io error on GZIP", e);
                                         response.setStatusCode(HttpStatus.SC_METHOD_FAILURE);
                                     }
-                                }
-                                else {
+                                } else {
                                     response.setEntity(new StringEntity(GSonUtils.encode(res, false),
                                             ContentType.create("application/json", StandardCharsets.UTF_8)));
                                     response.setStatusCode(HttpStatus.SC_OK);
@@ -406,10 +412,11 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
 
     private static class ArrayOutputInputStream extends ByteArrayOutputStream {
         int at = 0;
-        InputStream getInputStream(){
+
+        InputStream getInputStream() {
             return new InputStream() {
                 public int read() throws IOException {
-                    return at < count ? buf[at++]: -1;
+                    return at < count ? buf[at++] : -1;
                 }
             };
         }

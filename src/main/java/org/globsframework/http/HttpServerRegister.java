@@ -183,9 +183,47 @@ public class HttpServerRegister {
             public void visitLong(LongField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
-                        .set(OpenApiSchemaProperty.type, "integer");
+                        .set(OpenApiSchemaProperty.type, "number");
                 p.set(instantiate);
             }
+
+            public void visitLongArray(LongArrayField field) throws Exception {
+                MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
+                        .set(OpenApiSchemaProperty.name, field.getName())
+                        .set(OpenApiSchemaProperty.type, "array")
+                        .set(OpenApiSchemaProperty.items,
+                                OpenApiSchemaProperty.TYPE.instantiate()
+                                        .set(OpenApiSchemaProperty.type, "number"));
+                p.set(instantiate);
+            }
+
+            public void visitIntegerArray(IntegerArrayField field) throws Exception {
+                MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
+                        .set(OpenApiSchemaProperty.name, field.getName())
+                        .set(OpenApiSchemaProperty.type, "array")
+                        .set(OpenApiSchemaProperty.items,
+                                OpenApiSchemaProperty.TYPE.instantiate()
+                                        .set(OpenApiSchemaProperty.type, "integer"));
+                p.set(instantiate);
+            }
+
+            public void visitBoolean(BooleanField field) throws Exception {
+                MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
+                        .set(OpenApiSchemaProperty.name, field.getName())
+                        .set(OpenApiSchemaProperty.type, "boolean");
+                p.set(instantiate);
+            }
+
+            public void visitBooleanArray(BooleanArrayField field) throws Exception {
+                MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
+                        .set(OpenApiSchemaProperty.name, field.getName())
+                        .set(OpenApiSchemaProperty.type, "array")
+                        .set(OpenApiSchemaProperty.items,
+                                OpenApiSchemaProperty.TYPE.instantiate()
+                                        .set(OpenApiSchemaProperty.type, "boolean"));
+                p.set(instantiate);
+            }
+
 
             public void visitStringArray(StringArrayField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()

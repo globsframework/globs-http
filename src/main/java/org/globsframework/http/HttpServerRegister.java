@@ -18,7 +18,6 @@ import org.globsframework.utils.collections.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -199,7 +198,7 @@ public class HttpServerRegister {
             }
 
             public void visitGlob(GlobField field) throws Exception {
-                MutableGlob ref = buildSchema(field.getType());
+                MutableGlob ref = buildSchema(field.getTargetType());
                 ref.set(OpenApiSchemaProperty.name, field.getName());
                 p.set(ref);
             }
@@ -209,7 +208,7 @@ public class HttpServerRegister {
                         .set(OpenApiSchemaProperty.name, field.getName())
                         .set(OpenApiSchemaProperty.type, "array")
                         .set(OpenApiSchemaProperty.items,
-                                buildSchema(field.getType()));
+                                buildSchema(field.getTargetType()));
                 p.set(ref);
 
             }
@@ -352,7 +351,7 @@ public class HttpServerRegister {
         public void visitGlobArray(GlobArrayField field) throws Exception {
             schema = OpenApiSchemaProperty.TYPE.instantiate()
                     .set(OpenApiSchemaProperty.type, "array")
-                    .set(OpenApiSchemaProperty.items, buildSchema(field.getType()));
+                    .set(OpenApiSchemaProperty.items, buildSchema(field.getTargetType()));
 
         }
     }

@@ -1,6 +1,5 @@
 package org.globsframework.http.openapi.model;
 
-import org.globsframework.json.annottations.JsonAsObject;
 import org.globsframework.json.annottations.JsonValueAsField;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.GlobTypeLoaderFactory;

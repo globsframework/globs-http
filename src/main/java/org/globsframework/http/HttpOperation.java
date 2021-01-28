@@ -19,4 +19,9 @@ public interface HttpOperation {
 
     GlobType getReturnType();
 
+    void headers(HeaderConsumer headerConsumer);
+
+    interface HeaderConsumer {
+        void push(String name, String value);
+    }
 }

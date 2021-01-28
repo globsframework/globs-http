@@ -166,10 +166,66 @@ public class HttpServerRegister {
     private Glob subType(Field field) {
         final Ref<Glob> p = new Ref<>();
         field.safeVisit(new FieldVisitor.AbstractWithErrorVisitor() {
+
+            public void visitDouble(DoubleField field) throws Exception {
+                MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
+                        .set(OpenApiSchemaProperty.name, field.getName())
+                        .set(OpenApiSchemaProperty.format, "double")
+                        .set(OpenApiSchemaProperty.type, "number");
+                p.set(instantiate);
+            }
+
+            public void visitDoubleArray(DoubleArrayField field) throws Exception {
+                MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
+                        .set(OpenApiSchemaProperty.name, field.getName())
+                        .set(OpenApiSchemaProperty.type, "array")
+                        .set(OpenApiSchemaProperty.items,
+                                OpenApiSchemaProperty.TYPE.instantiate()
+                                        .set(OpenApiSchemaProperty.format, "double")
+                                        .set(OpenApiSchemaProperty.type, "number"));
+                p.set(instantiate);
+            }
+
+            public void visitBigDecimal(BigDecimalField field) throws Exception {
+                MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
+                        .set(OpenApiSchemaProperty.name, field.getName())
+                        .set(OpenApiSchemaProperty.format, "big-decimal")
+                        .set(OpenApiSchemaProperty.type, "string");
+                p.set(instantiate);
+            }
+
+            public void visitBigDecimalArray(BigDecimalArrayField field) throws Exception {
+                MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
+                        .set(OpenApiSchemaProperty.name, field.getName())
+                        .set(OpenApiSchemaProperty.type, "array")
+                        .set(OpenApiSchemaProperty.items,
+                                OpenApiSchemaProperty.TYPE.instantiate()
+                                        .set(OpenApiSchemaProperty.format, "big-decimal")
+                                        .set(OpenApiSchemaProperty.type, "string"));
+                p.set(instantiate);
+            }
+
             public void visitInteger(IntegerField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
+                        .set(OpenApiSchemaProperty.format, "int32")
                         .set(OpenApiSchemaProperty.type, "integer");
+                p.set(instantiate);
+            }
+
+            public void visitDate(DateField field) throws Exception {
+                MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
+                        .set(OpenApiSchemaProperty.name, field.getName())
+                        .set(OpenApiSchemaProperty.format, "date")
+                        .set(OpenApiSchemaProperty.type, "string");
+                p.set(instantiate);
+            }
+
+            public void visitDateTime(DateTimeField field) throws Exception {
+                MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
+                        .set(OpenApiSchemaProperty.name, field.getName())
+                        .set(OpenApiSchemaProperty.format, "date-time")
+                        .set(OpenApiSchemaProperty.type, "string");
                 p.set(instantiate);
             }
 
@@ -183,7 +239,8 @@ public class HttpServerRegister {
             public void visitLong(LongField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
-                        .set(OpenApiSchemaProperty.type, "number");
+                        .set(OpenApiSchemaProperty.format, "int64")
+                        .set(OpenApiSchemaProperty.type, "integer");
                 p.set(instantiate);
             }
 
@@ -193,7 +250,8 @@ public class HttpServerRegister {
                         .set(OpenApiSchemaProperty.type, "array")
                         .set(OpenApiSchemaProperty.items,
                                 OpenApiSchemaProperty.TYPE.instantiate()
-                                        .set(OpenApiSchemaProperty.type, "number"));
+                                        .set(OpenApiSchemaProperty.format, "int64")
+                                        .set(OpenApiSchemaProperty.type, "integer"));
                 p.set(instantiate);
             }
 
@@ -203,6 +261,7 @@ public class HttpServerRegister {
                         .set(OpenApiSchemaProperty.type, "array")
                         .set(OpenApiSchemaProperty.items,
                                 OpenApiSchemaProperty.TYPE.instantiate()
+                                        .set(OpenApiSchemaProperty.format, "int32")
                                         .set(OpenApiSchemaProperty.type, "integer"));
                 p.set(instantiate);
             }
@@ -237,7 +296,10 @@ public class HttpServerRegister {
 
             public void visitGlob(GlobField field) throws Exception {
                 MutableGlob ref = buildSchema(field.getTargetType());
-                ref.set(OpenApiSchemaProperty.name, field.getName());
+                ref.set(OpenApiSchemaProperty.name, field.getName())
+                        .set(OpenApiSchemaProperty.format, "binary")
+                        .set(OpenApiSchemaProperty.type, "string");
+
                 p.set(ref);
             }
 
@@ -298,6 +360,8 @@ public class HttpServerRegister {
         OperationInfo declareReturnType(GlobType globType);
 
         OperationInfo comment(String comment);
+
+        void addHeader(String name, String value);
     }
 
     public static class HttpAPIDesc {
@@ -331,55 +395,78 @@ public class HttpServerRegister {
 
 
         public void visitInteger(IntegerField field) throws Exception {
-            createSchema("integer");
+            createSchema("integer", "int32");
         }
 
-        private void createSchema(String type) {
-            schema = create(type);
+        private void createSchema(String type, String format) {
+            schema = create(type, format);
         }
 
-        private MutableGlob create(String type) {
-            return OpenApiSchemaProperty.TYPE.instantiate()
+        private MutableGlob create(String type, String format) {
+            MutableGlob set = OpenApiSchemaProperty.TYPE.instantiate()
                     .set(OpenApiSchemaProperty.type, type);
+            if (format != null) {
+                set.set(OpenApiSchemaProperty.format, format);
+            }
+            return set;
         }
 
         public void visitDouble(DoubleField field) throws Exception {
-            createSchema("number");
+            createSchema("number", "double");
         }
 
         public void visitString(StringField field) throws Exception {
-            createSchema("string");
+            createSchema("string", null);
         }
 
         public void visitBoolean(BooleanField field) throws Exception {
-            createSchema("boolean");
+            createSchema("boolean", null);
         }
 
         public void visitLong(LongField field) throws Exception {
-            createSchema("integer");
+            createSchema("integer", "int64");
         }
 
         public void visitStringArray(StringArrayField field) throws Exception {
-            createArray("string");
+            createArray("string", null);
         }
 
-
         public void visitDoubleArray(DoubleArrayField field) throws Exception {
-            createArray("number");
+            createArray("number", "double");
         }
 
         public void visitIntegerArray(IntegerArrayField field) throws Exception {
-            createArray("integer");
+            createArray("integer", "int32");
         }
 
         public void visitLongArray(LongArrayField field) throws Exception {
-            createArray("integer");
+            createArray("integer", "int64");
         }
 
-        private void createArray(String type) {
+        public void visitDate(DateField field) throws Exception {
+            createSchema("string", "date");
+        }
+
+        public void visitDateTime(DateTimeField field) throws Exception {
+            createSchema("string", "date-time");
+        }
+
+        public void visitBooleanArray(BooleanArrayField field) throws Exception {
+            createArray("boolean", null);
+        }
+
+        public void visitBigDecimal(BigDecimalField field) throws Exception {
+            createSchema("string", "big-decimal");
+        }
+
+        public void visitBigDecimalArray(BigDecimalArrayField field) throws Exception {
+            createArray("string", "big-decimal");
+        }
+
+        private void createArray(String type, String format) {
             schema = OpenApiSchemaProperty.TYPE.instantiate()
                     .set(OpenApiSchemaProperty.type, "array")
-                    .set(OpenApiSchemaProperty.items, create(type));
+                    .set(OpenApiSchemaProperty.items, create(type, format));
         }
 
         public void visitGlob(GlobField field) throws Exception {
@@ -399,6 +486,8 @@ public class HttpServerRegister {
         private final GlobType queryUrl;
         private boolean gzipCompress = false;
         private List<HttpOperation> operations = new ArrayList<>();
+        private final Map<String, String> headers = new HashMap<>();
+
 
         public Verb(String url, GlobType queryUrl) {
             this.url = url;
@@ -439,8 +528,14 @@ public class HttpServerRegister {
             return new DefaultOperationInfo(operation);
         }
 
+        public void addHeader(String name, String value) {
+            headers.put(name, value);
+        }
+
         HttpReceiver complete() {
-            return new DefaultHttpReceiver(url, queryUrl, operations.toArray(new HttpOperation[0]));
+            DefaultHttpReceiver defaultHttpReceiver = new DefaultHttpReceiver(url, queryUrl, operations.toArray(new HttpOperation[0]));
+            headers.forEach(defaultHttpReceiver::addHeader);
+            return defaultHttpReceiver;
         }
 
         private class DefaultOperationInfo implements OperationInfo {
@@ -458,6 +553,10 @@ public class HttpServerRegister {
             public OperationInfo comment(String comment) {
                 operation.withComment(comment);
                 return this;
+            }
+
+            public void addHeader(String name, String value) {
+                operation.addHeader(name, value);
             }
         }
     }

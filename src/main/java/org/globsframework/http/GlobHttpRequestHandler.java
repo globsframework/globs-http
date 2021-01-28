@@ -43,6 +43,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
     private HttpHandler onPut;
     private HttpHandler onDelete;
     private HttpHandler onGet;
+    private HttpHandler onOption;
 
     public GlobHttpRequestHandler(HttpReceiver httpReceiver, boolean gzipCompress) {
         this.httpReceiver = httpReceiver;
@@ -69,6 +70,9 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                     break;
                 case get:
                     onGet = new HttpHandler(operation);
+                    break;
+                case option:
+                    onOption = new HttpHandler(operation);
                     break;
                 default:
                     throw new IllegalStateException("Unexpected value: " + operation.verb());
@@ -111,7 +115,12 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                 treatOp(requestLine, httpAsyncExchange, httpRequest, response, onPut);
             } else if (method.equals("GET")) {
                 treatOp(requestLine, httpAsyncExchange, httpRequest, response, onGet);
-            } else {
+            } else if (method.equals("OPTIONS")) {
+                response.setStatusCode(HttpStatus.SC_OK);
+                this.httpReceiver.headers(response::addHeader);
+                httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
+            }
+            else {
                 response.setStatusCode(HttpStatus.SC_FORBIDDEN);
                 httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
             }
@@ -239,6 +248,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                                 response.setStatusCode(HttpStatus.SC_OK);
                             }
                         }
+                        operation.headers(response::addHeader);
                         httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
                         deleteFile.run();
                     });
@@ -311,10 +321,12 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                                 response.setStatusCode(HttpStatus.SC_OK);
                             }
                         }
+                        operation.headers(response::addHeader);
                         httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
                     });
                 } else {
                     response.setStatusCode(HttpStatus.SC_OK);
+                    operation.headers(response::addHeader);
                     httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
                 }
             } else {

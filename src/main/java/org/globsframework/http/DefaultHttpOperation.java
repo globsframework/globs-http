@@ -4,6 +4,8 @@ import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.impl.DefaultGlobTypeBuilder;
 import org.globsframework.model.Glob;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class DefaultHttpOperation implements HttpOperation {
@@ -14,6 +16,8 @@ public class DefaultHttpOperation implements HttpOperation {
     GlobType returnType;
     HttpTreatment httpTreatment;
     private String comment;
+    private final Map<String, String> headers = new HashMap<>();
+
 
     public DefaultHttpOperation(HttpOp verb, GlobType bodyType, GlobType queryType, HttpTreatment httpTreatment) {
         this.verb = verb;
@@ -46,6 +50,14 @@ public class DefaultHttpOperation implements HttpOperation {
 
     public GlobType getReturnType() {
         return returnType;
+    }
+
+    public void headers(HeaderConsumer headerConsumer) {
+        headers.forEach(headerConsumer::push);
+    }
+
+    public void addHeader(String name, String value) {
+        this.headers.put(name, value);
     }
 
     public String getComment(){

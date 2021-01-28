@@ -2,10 +2,14 @@ package org.globsframework.http;
 
 import org.globsframework.metamodel.GlobType;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class DefaultHttpReceiver implements HttpReceiver {
     private final String url;
     private final GlobType urlType;
     private final HttpOperation[] httpOperations;
+    private final Map<String, String> headers = new HashMap<>();
 
     public DefaultHttpReceiver(String url, GlobType urlType, HttpOperation... httpOperations) {
         this.url = url;
@@ -30,4 +34,13 @@ public class DefaultHttpReceiver implements HttpReceiver {
     public HttpOperation[] getOperations() {
         return httpOperations;
     }
+
+    public void headers(HttpOperation.HeaderConsumer headerConsumer) {
+        headers.forEach(headerConsumer::push);
+    }
+
+    public void addHeader(String name, String value) {
+        this.headers.put(name, value);
+    }
+
 }

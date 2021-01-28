@@ -10,4 +10,5 @@ public interface HttpReceiver {
 
     HttpOperation[] getOperations();
 
+    void headers(HttpOperation.HeaderConsumer headerConsumer);
 }

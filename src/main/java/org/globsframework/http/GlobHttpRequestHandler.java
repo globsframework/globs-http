@@ -2,6 +2,7 @@ package org.globsframework.http;
 
 import org.apache.http.*;
 import org.apache.http.client.utils.URLEncodedUtils;
+import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
@@ -25,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
@@ -144,13 +146,10 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                 Glob data;
                 Runnable deleteFile;
                 if (operation.getBodyType() == GlobHttpContent.TYPE) {
-                    String str = Files.read(entity.getContent(), StandardCharsets.UTF_8);
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("receive : " + str);
-                    } else {
-                        LOGGER.info("receive : " + str.substring(0, Math.min(1000, str.length())));
-                    }
-                    data = GlobHttpContent.TYPE.instantiate().set(GlobHttpContent.content, str);
+                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                    Files.copyStream(entity.getContent(), outputStream);
+                    data = GlobHttpContent.TYPE.instantiate()
+                            .set(GlobHttpContent.content, outputStream.toByteArray());
                     deleteFile = () -> {
                     };
                 } else if (operation.getBodyType() == GlobFile.TYPE) {
@@ -186,8 +185,9 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                     future.whenComplete((glob, throwable) -> {
                         if (glob != null) {
                             if (glob.getType() == GlobHttpContent.TYPE) {
-                                response.setEntity(new StringEntity(glob.get(GlobHttpContent.content),
-                                        ContentType.create(glob.get(GlobHttpContent.mimeType, "application/json"), StandardCharsets.UTF_8)));
+                                response.setEntity(new ByteArrayEntity(glob.get(GlobHttpContent.content),
+                                        ContentType.create(glob.get(GlobHttpContent.mimeType, "application/octet-stream"),
+                                                glob.get(GlobHttpContent.charset) != null ? Charset.forName(glob.get(GlobHttpContent.charset)) : null)));
                             } else if (glob.getType() == GlobFile.TYPE) {
                                 NFileEntity returnEntity;
                                 final File file = new File(glob.get(GlobFile.file));
@@ -270,8 +270,9 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                     glob.whenComplete((res, throwable) -> {
                         if (res != null) {
                             if (res.getType() == GlobHttpContent.TYPE) {
-                                response.setEntity(new StringEntity(res.get(GlobHttpContent.content),
-                                        ContentType.create(res.get(GlobHttpContent.mimeType, "application/json"), StandardCharsets.UTF_8)));
+                                response.setEntity(new ByteArrayEntity(res.get(GlobHttpContent.content),
+                                        ContentType.create(res.get(GlobHttpContent.mimeType, "application/octet-stream"),
+                                                res.get(GlobHttpContent.charset) != null ? Charset.forName(res.get(GlobHttpContent.charset)) : null)));
                             } else if (res.getType() == GlobFile.TYPE) {
                                 NFileEntity entity;
                                 final File file = new File(res.get(GlobFile.file));

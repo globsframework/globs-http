@@ -20,7 +20,6 @@ import org.globsframework.metamodel.annotations.FieldNameAnnotationType;
 import org.globsframework.model.Glob;
 import org.globsframework.model.MutableGlob;
 import org.globsframework.utils.Files;
-import org.globsframework.utils.StringConverter;
 import org.globsframework.utils.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,7 +133,8 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
         LOGGER.info("done " + requestLine.getUri());
     }
 
-    private void treatOp(RequestLine requestLine, HttpAsyncExchange httpAsyncExchange, HttpRequest httpRequest, HttpResponse response, HttpHandler httpHandler) throws IOException {
+    private void treatOp(RequestLine requestLine, HttpAsyncExchange httpAsyncExchange, HttpRequest httpRequest,
+                         HttpResponse response, HttpHandler httpHandler) throws IOException {
         try {
             if (httpHandler == null) {
                 LOGGER.error("Receive unexpected request (" + requestLine.getMethod() + ")");
@@ -388,12 +388,12 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
 
     public static class DefaultParamProcessor implements ParamProcessor {
         GlobType paramType;
-        Map<String, StringConverter.FromStringConverter> converterMap = new HashMap<>();
+        Map<String, GlobHttpUtils.FromStringConverter> converterMap = new HashMap<>();
 
         public DefaultParamProcessor(GlobType paramType) {
             this.paramType = paramType;
             for (Field field : paramType.getFields()) {
-                converterMap.put(FieldNameAnnotationType.getName(field), StringConverter.createConverter(field, ","));
+                converterMap.put(FieldNameAnnotationType.getName(field), GlobHttpUtils.createConverter(field, ","));
             }
         }
 
@@ -402,7 +402,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                 MutableGlob instantiate = paramType.instantiate();
                 List<NameValuePair> parse = URLEncodedUtils.parse(queryParams, StandardCharsets.UTF_8);
                 for (NameValuePair nameValuePair : parse) {
-                    StringConverter.FromStringConverter fromStringConverter = converterMap.get(nameValuePair.getName());
+                    GlobHttpUtils.FromStringConverter fromStringConverter = converterMap.get(nameValuePair.getName());
                     if (fromStringConverter != null) {
                         fromStringConverter.convert(instantiate, nameValuePair.getValue());
                     } else {

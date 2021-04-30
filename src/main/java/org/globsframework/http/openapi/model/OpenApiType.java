@@ -18,6 +18,9 @@ public class OpenApiType {
     @Target(OpenApiInfo.class)
     public static GlobField info;
 
+    @Target(OpenApiComponents.class)
+    public static GlobField components;
+
     @Target(OpenApiServers.class)
     public static GlobArrayField servers;
 

@@ -4,7 +4,6 @@ import org.globsframework.metamodel.Field;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.model.Glob;
 import org.globsframework.model.MutableGlob;
-import org.globsframework.utils.StringConverter;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,7 +11,7 @@ import java.util.Map;
 class DefaultUrlMatcher implements UrlMatcher {
     private final GlobType globType;
     private final String fullUrl; // /titi/{AZE}/SD/{XYZ}
-    private final Map<Integer, StringConverter.FromStringConverter> argByPosition = new HashMap<>();
+    private final Map<Integer, GlobHttpUtils.FromStringConverter> argByPosition = new HashMap<>();
 
     public DefaultUrlMatcher(GlobType globType, String fullUrl) {
         this.globType = globType;
@@ -22,7 +21,7 @@ class DefaultUrlMatcher implements UrlMatcher {
             String s = split[i];
             if (s.startsWith("{") && s.endsWith("}")) {
                 Field field = globType.getField(s.substring(1, s.length() - 1));
-                StringConverter.FromStringConverter fromStringConverter = StringConverter.createConverter(field, "");
+                GlobHttpUtils.FromStringConverter fromStringConverter = GlobHttpUtils.createConverter(field, "");
                 argByPosition.put(i, fromStringConverter);
             }
         }
@@ -35,7 +34,7 @@ class DefaultUrlMatcher implements UrlMatcher {
     public Glob parse(String url) {
         String[] split = url.split("/");
         MutableGlob instantiate = globType.instantiate();
-        for (Map.Entry<Integer, StringConverter.FromStringConverter> integerFieldEntry : argByPosition.entrySet()) {
+        for (Map.Entry<Integer, GlobHttpUtils.FromStringConverter> integerFieldEntry : argByPosition.entrySet()) {
             integerFieldEntry.getValue().convert(instantiate, split[integerFieldEntry.getKey()]);
         }
         return instantiate;

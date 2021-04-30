@@ -59,6 +59,7 @@ public class HttpServerRegister {
     }
 
     public Glob createOpenApiDoc(int port) {
+        Map<GlobType, Glob> schemas = new HashMap<>();
         List<Glob> paths = new ArrayList<>();
         for (Map.Entry<String, Verb> stringVerbEntry : verbMap.entrySet()) {
             Verb verb = stringVerbEntry.getValue();
@@ -75,7 +76,7 @@ public class HttpServerRegister {
                 List<Glob> parameters = new ArrayList<>();
                 if (verb.queryUrl != null) {
                     for (Field field : verb.queryUrl.getFields()) {
-                        OpenApiFieldVisitor apiFieldVisitor = new OpenApiFieldVisitor();
+                        OpenApiFieldVisitor apiFieldVisitor = new OpenApiFieldVisitor(schemas);
                         OpenApiFieldVisitor openApiFieldVisitor = field.safeVisit(apiFieldVisitor);
                         parameters.add(OpenApiParameter.TYPE.instantiate()
                                 .set(OpenApiParameter.in, "path")
@@ -87,7 +88,7 @@ public class HttpServerRegister {
                 GlobType queryParamType = operation.getQueryParamType();
                 if (queryParamType != null) {
                     for (Field field : queryParamType.getFields()) {
-                        OpenApiFieldVisitor openApiFieldVisitor = field.safeVisit(new OpenApiFieldVisitor());
+                        OpenApiFieldVisitor openApiFieldVisitor = field.safeVisit(new OpenApiFieldVisitor(schemas));
                         parameters.add(OpenApiParameter.TYPE.instantiate()
                                 .set(OpenApiParameter.in, "query")
                                 .set(OpenApiParameter.name, field.getName())
@@ -101,7 +102,7 @@ public class HttpServerRegister {
                     desc.set(OpenApiPathDsc.requestBody, OpenApiRequestBody.TYPE.instantiate()
                             .set(OpenApiRequestBody.content, new Glob[]{OpenApiBodyMimeType.TYPE.instantiate()
                                     .set(OpenApiBodyMimeType.mimeType, "application/json")
-                                    .set(OpenApiBodyMimeType.schema, buildSchema(bodyType))}));
+                                    .set(OpenApiBodyMimeType.schema, buildSchema(bodyType, schemas))}));
                 }
                 GlobType returnType = operation.getReturnType();
                 if (returnType == null) {
@@ -118,7 +119,7 @@ public class HttpServerRegister {
                             .set(OpenApiResponses.content, new Glob[]{
                             OpenApiBodyMimeType.TYPE.instantiate()
                                     .set(OpenApiBodyMimeType.mimeType, "application/json")
-                                    .set(OpenApiBodyMimeType.schema, buildSchema(returnType))})
+                                    .set(OpenApiBodyMimeType.schema, buildSchema(returnType, schemas))})
                     });
                 }
 
@@ -147,23 +148,30 @@ public class HttpServerRegister {
                         .set(OpenApiInfo.title, serverInfo)
                         .set(OpenApiInfo.version, "1.0")
                 )
+                .set(OpenApiType.components, OpenApiComponents.TYPE.instantiate()
+                        .set(OpenApiComponents.schemas, schemas.values().toArray(Glob[]::new)))
                 .set(OpenApiType.servers, new Glob[]{OpenApiServers.TYPE.instantiate()
                         .set(OpenApiServers.url, "http://localhost:" + port)})
                 .set(OpenApiType.paths, paths.toArray(Glob[]::new));
     }
 
-    private MutableGlob buildSchema(GlobType bodyType) {
-        MutableGlob schema = OpenApiSchemaProperty.TYPE.instantiate();
-        schema.set(OpenApiSchemaProperty.type, "object");
-        List<Glob> param = new ArrayList<>();
-        for (Field field : bodyType.getFields()) {
-            param.add(subType(field));
+    private MutableGlob buildSchema(GlobType bodyType, Map<GlobType, Glob> schemas) {
+        if (!schemas.containsKey(bodyType)) {
+            MutableGlob schema = OpenApiSchemaProperty.TYPE.instantiate();
+            schemas.put(bodyType, schema);
+            schema.set(OpenApiSchemaProperty.name, bodyType.getName());
+            schema.set(OpenApiSchemaProperty.type, "object");
+            List<Glob> param = new ArrayList<>();
+            for (Field field : bodyType.getFields()) {
+                param.add(subType(field, schemas));
+            }
+            schema.set(OpenApiSchemaProperty.properties, param.toArray(Glob[]::new));
         }
-        schema.set(OpenApiSchemaProperty.properties, param.toArray(Glob[]::new));
-        return schema;
+        return OpenApiSchemaProperty.TYPE.instantiate()
+                .set(OpenApiSchemaProperty.ref, "#/components/schemas/" + bodyType.getName());
     }
 
-    private Glob subType(Field field) {
+    private Glob subType(Field field, Map<GlobType, Glob> schemas) {
         final Ref<Glob> p = new Ref<>();
         field.safeVisit(new FieldVisitor.AbstractWithErrorVisitor() {
 
@@ -295,11 +303,10 @@ public class HttpServerRegister {
             }
 
             public void visitGlob(GlobField field) throws Exception {
-                MutableGlob ref = buildSchema(field.getTargetType());
-                ref.set(OpenApiSchemaProperty.name, field.getName())
-                        .set(OpenApiSchemaProperty.format, "binary")
-                        .set(OpenApiSchemaProperty.type, "string");
-
+                MutableGlob ref = buildSchema(field.getTargetType(), schemas);
+                ref.set(OpenApiSchemaProperty.name, field.getName());
+//                        .set(OpenApiSchemaProperty.format, "binary")
+//                        .set(OpenApiSchemaProperty.type, "object");
                 p.set(ref);
             }
 
@@ -308,7 +315,7 @@ public class HttpServerRegister {
                         .set(OpenApiSchemaProperty.name, field.getName())
                         .set(OpenApiSchemaProperty.type, "array")
                         .set(OpenApiSchemaProperty.items,
-                                buildSchema(field.getTargetType()));
+                                buildSchema(field.getTargetType(), schemas));
                 p.set(ref);
 
             }
@@ -391,7 +398,12 @@ public class HttpServerRegister {
     }
 
     private class OpenApiFieldVisitor extends FieldVisitor.AbstractWithErrorVisitor {
-        private MutableGlob schema;
+        private Glob schema;
+        private Map<GlobType, Glob> schemas;
+
+        public OpenApiFieldVisitor(Map<GlobType, Glob> schemas) {
+            this.schemas = schemas;
+        }
 
 
         public void visitInteger(IntegerField field) throws Exception {
@@ -470,13 +482,13 @@ public class HttpServerRegister {
         }
 
         public void visitGlob(GlobField field) throws Exception {
-            schema = buildSchema(field.getGlobType());
+            schema = buildSchema(field.getGlobType(), schemas);
         }
 
         public void visitGlobArray(GlobArrayField field) throws Exception {
             schema = OpenApiSchemaProperty.TYPE.instantiate()
                     .set(OpenApiSchemaProperty.type, "array")
-                    .set(OpenApiSchemaProperty.items, buildSchema(field.getTargetType()));
+                    .set(OpenApiSchemaProperty.items, buildSchema(field.getTargetType(), schemas));
 
         }
     }

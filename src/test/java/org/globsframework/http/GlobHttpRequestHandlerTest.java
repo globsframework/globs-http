@@ -13,6 +13,8 @@ import org.globsframework.json.GSonUtils;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.GlobTypeLoaderFactory;
 import org.globsframework.metamodel.annotations.FieldNameAnnotation;
+import org.globsframework.metamodel.annotations.Target;
+import org.globsframework.metamodel.fields.GlobField;
 import org.globsframework.metamodel.fields.LongField;
 import org.globsframework.metamodel.fields.StringArrayField;
 import org.globsframework.metamodel.fields.StringField;
@@ -87,7 +89,9 @@ public class GlobHttpRequestHandlerTest {
 
         HttpHost target = new HttpHost("localhost", port, "http");
 
-        HttpGet httpGet = new HttpGet("/test/123/TOTO/4567?name=ZERZE&info=A,B,C,D");
+        HttpGet httpGet = GlobHttpUtils.createGet("/test/123/TOTO/4567", QueryParameter.TYPE.instantiate()
+                .set(QueryParameter.NAME, "ZERZE").set(QueryParameter.INFO, new String[]{"A", "B", "C", "D"})
+                .set(QueryParameter.param, QueryParameter.TYPE.instantiate().set(QueryParameter.NAME, "AAAZZZ")));
         HttpResponse httpResponse = httpclient.execute(target, httpGet);
         Assert.assertEquals(200, httpResponse.getStatusLine().getStatusCode());
         Pair<Glob, Glob> poll = pairs.poll(2, TimeUnit.SECONDS);
@@ -96,6 +100,7 @@ public class GlobHttpRequestHandlerTest {
         Assert.assertEquals(4567, poll.getFirst().get(URLParameter.SUBID, 0));
         Assert.assertEquals("ZERZE", poll.getSecond().get(QueryParameter.NAME));
         Assert.assertArrayEquals(new String[]{"A", "B", "C", "D"}, poll.getSecond().get(QueryParameter.INFO));
+        Assert.assertEquals("AAAZZZ", poll.getSecond().get(QueryParameter.param).get(QueryParameter.NAME));
 
 
         HttpGet httpGetFile = new HttpGet("/query");
@@ -134,6 +139,9 @@ public class GlobHttpRequestHandlerTest {
         public static StringField NAME;
 
         public static StringArrayField INFO;
+
+        @Target(QueryParameter.class)
+        public static GlobField param;
 
         static {
             GlobTypeLoaderFactory.create(QueryParameter.class, true).load();

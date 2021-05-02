@@ -3,6 +3,7 @@ package org.globsframework.remote.shared.impl;
 import org.globsframework.directory.Cleanable;
 import org.globsframework.directory.Directory;
 import org.globsframework.metamodel.GlobModel;
+import org.globsframework.metamodel.annotations.AllAnnotations;
 import org.globsframework.metamodel.impl.DefaultGlobModel;
 import org.globsframework.model.*;
 import org.globsframework.model.utils.GlobMatcher;
@@ -22,7 +23,7 @@ import java.util.Set;
 
 public class DefaultSharedDataManager implements SharedDataManager, SharedDataService.SharedDataEventListener, Cleanable {
     static private final Logger LOGGER = LoggerFactory.getLogger(DefaultSharedDataManager.class);
-    public static final GlobModel GLOB_MODEL = new DefaultGlobModel(ShareDataManagerType.TYPE);
+    public static final GlobModel GLOB_MODEL = new DefaultGlobModel(AllAnnotations.MODEL, ShareDataManagerType.TYPE);
     private static final int INITIALIZATION_TIMEOUT = Integer.getInteger("org.globsframework.remote.shared.impl.DefaultSharedDataManager.initialization.timeout", 60 * 1000);
     private final String localHost;
     private final SharedDataService sharedDataService;

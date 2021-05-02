@@ -213,6 +213,56 @@ public class ServerSharedDataTest extends TestCase {
         });
     }
 
+    public void testExchangeType() throws InterruptedException {
+        GlobModel globModel = new DefaultGlobModel();
+        ServerSharedData serverSharedData = new DefaultServerSharedData(globModel, "localhost", 0, "/");
+        int port = serverSharedData.getPort();
+
+        final SharedDataService dataService1 = new ClientSharedData(globModel, AddressAccessor.FixAddressAccessor.create("localhost", port), ClientSharedData.OnStop.NULL, "/");
+        dataService1.write(new SharedDataService.SharedData() {
+            public void data(GlobRepository globRepository) {
+                globRepository.create(SourceLocation.TYPE,
+                        FieldValue.value(SourceLocation.ID, 1),
+                        FieldValue.value(SourceLocation.SHARED_ID, dataService1.getId()),
+                        FieldValue.value(SourceLocation.SOURCE_NAME, "data"),
+                        FieldValue.value(SourceLocation.URL, "here 1"));
+            }
+        });
+
+        final SharedDataService dataService2 = new ClientSharedData(globModel, AddressAccessor.FixAddressAccessor.create("localhost", port), ClientSharedData.OnStop.NULL, "/");
+        dataService2.write(new SharedDataService.SharedData() {
+            public void data(GlobRepository globRepository) {
+                globRepository.create(SourceLocation.TYPE,
+                        FieldValue.value(SourceLocation.ID, 1),
+                        FieldValue.value(SourceLocation.SHARED_ID, dataService2.getId()),
+                        FieldValue.value(SourceLocation.SOURCE_NAME, "data"),
+                        FieldValue.value(SourceLocation.URL, "here 2"));
+            }
+        });
+
+        // data are shared.
+        final GlobList all = new GlobList();
+        final OnceSet<SharedDataService> futureDataService = new OnceSet<>();
+        final SharedDataService dataService3 = new ClientSharedData(new DefaultGlobModel(SourceLocation.TYPE), AddressAccessor.FixAddressAccessor.create("localhost", port),
+                ClientSharedData.OnStop.NULL, "/", new AbstractSharedDataEventListener() {
+            public void reset() {
+                futureDataService.get().read(new SharedDataService.SharedData() {
+                    public void data(GlobRepository globRepository) {
+                        all.clear();
+                        all.addAll(globRepository.getAll(SourceLocation.TYPE));
+                    }
+                });
+            }
+        });
+        futureDataService.set(dataService3);
+
+        long l = System.currentTimeMillis() + 1000000;
+        while (all.size() != 2 && l > System.currentTimeMillis()) {
+            Thread.sleep(100);
+        }
+        assertEquals(2, all.size());
+    }
+
     private static class OnceSet<T> {
         private T item;
 

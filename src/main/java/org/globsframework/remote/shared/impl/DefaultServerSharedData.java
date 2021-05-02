@@ -5,6 +5,8 @@ import org.globsframework.directory.Directory;
 import org.globsframework.json.GSonUtils;
 import org.globsframework.metamodel.GlobModel;
 import org.globsframework.metamodel.GlobType;
+import org.globsframework.metamodel.MutableGlobModel;
+import org.globsframework.metamodel.annotations.KeyAnnotationType;
 import org.globsframework.metamodel.impl.DefaultGlobModel;
 import org.globsframework.model.*;
 import org.globsframework.model.repository.DefaultGlobRepository;
@@ -36,16 +38,16 @@ import java.util.*;
  */
 
 public class DefaultServerSharedData implements ChangeSetListener, ServerSharedData, Cleanable {
-    static private final Logger LOGGER = LoggerFactory.getLogger(DefaultServerSharedData.class);
     public static final boolean TCP_NO_DELAY = Boolean.parseBoolean(System.getProperty("org.globsframework.shared.setTcpNoDelay", "true"));
     public static final int MAX_MSG_TO_READ = 10;
+    static private final Logger LOGGER = LoggerFactory.getLogger(DefaultServerSharedData.class);
     private final ServerSocketChannel serverSocketChannel;
     private final String name;
     IntHashMap<RemoteRWState> stateMaps = new IntHashMap<>();
     private List<GlobType> typesToPublish = new ArrayList<>();
     private int currentChange = 1;
     private Selector selector;
-    private DefaultGlobModel globModel;
+    private MutableGlobModel globModel;
     private String host;
     private GlobRepository globRepository;
     private ReusableByteArrayOutputStream outputStream;
@@ -63,7 +65,7 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
     public DefaultServerSharedData(GlobModel globModel, final String host, int port, String name) {
         try {
             this.name = name;
-            this.globModel = new DefaultGlobModel(globModel);
+            this.globModel = new DefaultGlobModel(globModel, KeyAnnotationType.TYPE); // add keyannotation to use key in
             this.host = host != null ? host : getLocalHost();
             sharedModelType = new SharedModelType(globModel);
             this.selector = Selector.open();
@@ -79,14 +81,6 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
             thread.setDaemon(true);
             thread.start();
         } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static String getLocalHost() {
-        try {
-            return InetAddress.getLocalHost().getHostName();
-        } catch (UnknownHostException e) {
             throw new RuntimeException(e);
         }
     }
@@ -177,7 +171,7 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
                                 int globCount = globRepository.size();
                                 serializedOutput.write(globCount);
                                 globRepository.safeApply(new GlobFunctor() {
-                                    public void run(Glob glob, GlobRepository repository) throws Exception {
+                                    public void run(Glob glob, GlobRepository repository) {
                                         serializedOutput.writeGlob(glob);
                                     }
                                 });
@@ -376,6 +370,14 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
 
     public void clean(Directory directory) {
         stop();
+    }
+
+    private static String getLocalHost() {
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static class ServerSharedDataThread extends Thread {

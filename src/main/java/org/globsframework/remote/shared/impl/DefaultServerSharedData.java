@@ -2,6 +2,7 @@ package org.globsframework.remote.shared.impl;
 
 import org.globsframework.directory.Cleanable;
 import org.globsframework.directory.Directory;
+import org.globsframework.json.GSonUtils;
 import org.globsframework.metamodel.GlobModel;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.impl.DefaultGlobModel;
@@ -24,10 +25,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.UnknownHostException;
 import java.nio.channels.*;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 
 /**
  * format is :
@@ -38,12 +36,13 @@ import java.util.Set;
  */
 
 public class DefaultServerSharedData implements ChangeSetListener, ServerSharedData, Cleanable {
+    static private final Logger LOGGER = LoggerFactory.getLogger(DefaultServerSharedData.class);
     public static final boolean TCP_NO_DELAY = Boolean.parseBoolean(System.getProperty("org.globsframework.shared.setTcpNoDelay", "true"));
     public static final int MAX_MSG_TO_READ = 10;
-    static private Logger logger = LoggerFactory.getLogger(DefaultServerSharedData.class);
     private final ServerSocketChannel serverSocketChannel;
     private final String name;
     IntHashMap<RemoteRWState> stateMaps = new IntHashMap<>();
+    private List<GlobType> typesToPublish = new ArrayList<>();
     private int currentChange = 1;
     private Selector selector;
     private DefaultGlobModel globModel;
@@ -65,7 +64,7 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
         try {
             this.name = name;
             this.globModel = new DefaultGlobModel(globModel);
-            this.host = host;
+            this.host = host != null ? host : getLocalHost();
             sharedModelType = new SharedModelType(globModel);
             this.selector = Selector.open();
             serverSocketChannel = ServerSocketChannel.open();
@@ -100,23 +99,23 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
         try {
             serverSocketChannel.close();
         } catch (Exception e) {
-            logger.error("in close serverSocketChannel", e);
+            LOGGER.error("in close serverSocketChannel", e);
         }
         try {
             selector.close();
         } catch (Exception e) {
-            logger.error("in close selector", e);
+            LOGGER.error("in close selector", e);
         }
         try {
             thread.join();
         } catch (InterruptedException e) {
-            logger.error("in thread join", e);
+            LOGGER.error("in thread join", e);
         }
         for (RemoteRWState stateMap : stateMaps.values()) {
             try {
                 stateMap.cancel();
             } catch (Exception e) {
-                logger.error("in cancel statemap", e);
+                LOGGER.error("in cancel statemap", e);
             }
         }
     }
@@ -141,7 +140,7 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
             if (select > 0) {
                 Set<SelectionKey> selectionKeys = selector.selectedKeys();
                 if (selectionKeys.contains(serverSocketKey)) {
-                    logger.info("New client");
+                    LOGGER.info("New client");
                     SocketChannel socketChannel = serverSocketChannel.accept();
                     if (socketChannel != null) {
                         socketChannel.socket().setTcpNoDelay(TCP_NO_DELAY);
@@ -154,12 +153,12 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
                             remoteState.setSelectionKey(selectionKey);
                             remoteState.setClientId(clientId);
                             {
-                                ByteArrayOutputStream repoOutputStream = new ByteArrayOutputStream();
-                                final SerializedOutput serializedOutput = SerializedInputOutputFactory.initCompressed(repoOutputStream);
+                                ByteArrayOutputStream initOutputStream = new ByteArrayOutputStream();
+                                final SerializedOutput serializedOutput = SerializedInputOutputFactory.initCompressed(initOutputStream);
                                 serializedOutput.write(ClientSharedData.getSizeWithKey(8));
                                 serializedOutput.write(0);
                                 serializedOutput.write(clientId);
-                                remoteState.write(repoOutputStream.toByteArray(), 12);
+                                remoteState.write(initOutputStream.toByteArray(), 12);
                             }
                             if (currentRepo == null) {
                                 ReusableByteArrayOutputStream repoOutputStream = new ReusableByteArrayOutputStream();
@@ -167,6 +166,14 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
                                 final SerializedOutput serializedOutput = SerializedInputOutputFactory.initCompressed(repoOutputStream);
                                 serializedOutput.write(-currentChange);
                                 serializedOutput.write(0);
+
+
+                                //publish Model
+                                serializedOutput.write(globModel.getAll().size());
+                                for (GlobType globType : globModel) {
+                                    serializedOutput.writeUtf8String(GSonUtils.encodeGlobType(globType));
+                                }
+
                                 int globCount = globRepository.size();
                                 serializedOutput.write(globCount);
                                 globRepository.safeApply(new GlobFunctor() {
@@ -181,9 +188,9 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
                             }
                             remoteState.write(currentRepo, currentRepoLen);
                             stateMaps.put(clientId, remoteState);
-                            logger.info("Send repo to " + clientId);
+                            LOGGER.info("Send repo to " + clientId);
                         } catch (IOException e) {
-                            logger.info("fail to open connection to client");
+                            LOGGER.info("fail to open connection to client");
                             if (selectionKey != null) {
                                 selectionKey.cancel();
                             }
@@ -191,7 +198,7 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
                                 try {
                                     socketChannel.close();
                                 } catch (IOException e1) {
-                                    logger.info("Fail to close connection.");
+                                    LOGGER.info("Fail to close connection.");
                                 }
                             }
                         }
@@ -214,17 +221,27 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
                                                 int changeId = serializedInput.readNotNullInt();
                                                 int connectionId = serializedInput.readNotNullInt();
                                                 if (changeId > 0) {
-                                                    if (logger.isDebugEnabled()) {
-                                                        logger.debug("Receive changeSet " + connectionId + ":" + changeId);
+                                                    if (LOGGER.isDebugEnabled()) {
+                                                        LOGGER.debug("Receive changeSet " + connectionId + ":" + changeId);
                                                     }
+
+                                                    // read newGlobType
+                                                    //append them to typeToPublish for publication to other.
+                                                    readTypes(serializedInput);
+
                                                     ChangeSet changeSet = serializedInput.readChangeSet(globModel);
                                                     globRepository.apply(changeSet);
                                                 }
                                                 if (changeId < 0) {
+                                                    // read newGlobType
+                                                    //append them to typeToPublish for publication to other.
+                                                    readTypes(serializedInput);
+
                                                     int len = serializedInput.readNotNullInt();
-                                                    if (logger.isInfoEnabled()) {
-                                                        logger.info("Receive repo with " + len + " globs " + connectionId + ":" + changeId);
+                                                    if (LOGGER.isInfoEnabled()) {
+                                                        LOGGER.info("Receive repo with " + len + " globs " + connectionId + ":" + changeId);
                                                     }
+
                                                     GlobList globs = new GlobList(len);
                                                     while (len > 0) {
                                                         globs.add(serializedInput.readGlob(globModel));
@@ -245,11 +262,11 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
                                     remoteState.writeNext();
                                 }
                             } catch (IOException e) {
-                                logger.info("Client closed during io " + e.getMessage());
+                                LOGGER.info("Client closed during io " + e.getMessage());
                                 remoteState.cancel();
                             }
                             if (remoteState.isClosed() || !selectionKey.isValid()) {
-                                logger.info("Client closed");
+                                LOGGER.info("Client closed");
                                 clientToRemove.add(remoteState);
                             }
                         }
@@ -262,7 +279,7 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
                 globRepository.startChangeSet();
                 try {
                     for (RemoteRWState client : clientToRemove) {
-                        logger.info("Send delete for " + client.getClientId());
+                        LOGGER.info("Send delete for " + client.getClientId());
                         client.cancel();
                         removeClient(client);
                         sharedModelType.cleanThisId(globRepository, client.getClientId());
@@ -273,6 +290,20 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
                 clientToRemove.clear();
                 sendToAllClient(null, clientToRemove);
             }
+        }
+    }
+
+    private void readTypes(SerializedInput serializedInput) {
+        int lenTypesToRead = serializedInput.readNotNullInt();
+
+        while (lenTypesToRead > 0) {
+            String s = serializedInput.readUtf8String();
+            GlobType type = GSonUtils.decodeGlobType(s, globModel::findType, true);
+            if (!globModel.hasType(type.getName())) {
+                globModel.add(type);
+                typesToPublish.add(type);
+            }
+            lenTypesToRead--;
         }
     }
 
@@ -287,7 +318,7 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
 
     private void removeClient(RemoteRWState remoteState) {
         if (stateMaps.remove(remoteState.getClientId()) == null) {
-            logger.error(remoteState.getClientId() + " to remove not found");
+            LOGGER.error(remoteState.getClientId() + " to remove not found");
         }
     }
 
@@ -314,20 +345,26 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
     }
 
     public void globsChanged(ChangeSet changeSet, GlobRepository repository) {
-        if (logger.isTraceEnabled()) {
-            logger.trace("change set : " + changeSet.toString());
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("change set : " + changeSet.toString());
         }
         currentRepo = null;
         if (!changeSet.isEmpty()) {
             outputStream.setTo(4);
             SerializedOutput serializedOutput = SerializedInputOutputFactory.initCompressed(outputStream);
             serializedOutput.write(++currentChange);
-            serializedOutput.write(0);
+            serializedOutput.write(0); // connectionId => 0 all
+
+            serializedOutput.write(typesToPublish.size());
+            for (GlobType toPublish : typesToPublish) {
+                serializedOutput.writeUtf8String(GSonUtils.encodeGlobType(toPublish));
+            }
+
             serializedOutput.writeChangeSet(changeSet);
             int size = outputStream.size();
             outputStream.reset();
-            if (logger.isDebugEnabled()) {
-                logger.debug("Send changeSet " + 0 + ":" + currentChange);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Send changeSet " + 0 + ":" + currentChange);
             }
             serializedOutput.write(ClientSharedData.getSizeWithKey(size - 4));
             outputStream.setTo(size);
@@ -352,14 +389,14 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
 
         public void run() {
             try {
-                logger.info("starting shared data server on " + defaultServerSharedData.host + ":" + defaultServerSharedData.getPort());
+                LOGGER.info("starting shared data server on " + defaultServerSharedData.host + ":" + defaultServerSharedData.getPort());
                 defaultServerSharedData.run();
-                logger.info("Shared Data Server end");
+                LOGGER.info("Shared Data Server end");
             } catch (Exception e) {
                 if (!(e instanceof IOException) && !(e instanceof ClosedSelectorException)) {
-                    logger.error("Shared Data Server end", e);
+                    LOGGER.error("Shared Data Server end", e);
                 } else {
-                    logger.warn("Connection closed : " + e.getMessage());
+                    LOGGER.warn("Connection closed : " + e.getMessage());
                 }
             }
         }

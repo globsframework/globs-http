@@ -12,13 +12,13 @@ import java.util.LinkedList;
 import java.util.Queue;
 
 class RemoteRWState {
+    static private final Logger LOGGER = LoggerFactory.getLogger(RemoteRWState.class);
     public static final int MAX_MSG_SIZE = Integer.getInteger("org.globsframework.shared.max.size", 1024 * 1024 * 20);
     public static final int BUFFER_SIZE = Integer.getInteger("org.globsframework.shared.buffer.size", 1024 * 4);
     public static final int MARK = 0x54000000;
     public static final int MASK_FOR_MARK = 0xFC000000;
     public static final int MASK_FOR_SIZE = 0x3FFFFFF; //->67108863 -> 64Mo
     public static final int MAX_BUF_COUNT = 1024;
-    static private Logger logger = LoggerFactory.getLogger(RemoteRWState.class);
     private SocketChannel socketChannel;
     private SelectionKey selectionKey;
     private Queue<ByteBuffer> buffers;
@@ -45,7 +45,7 @@ class RemoteRWState {
             try {
                 socketChannel.close();
             } catch (IOException e) {
-                logger.error("Error on socket closed.");
+                LOGGER.error("Error on socket closed.");
             }
             closed = true;
         }
@@ -71,7 +71,7 @@ class RemoteRWState {
         // thrown only is no message at all were read.
         if (read < 0) {
             String msg = "Connection closed " + " client " + clientId;
-            logger.info(msg);
+            LOGGER.info(msg);
             throw new IOException(msg);
         }
         try {
@@ -89,7 +89,7 @@ class RemoteRWState {
                             currentMsgSize = DefaultSerializationInput.toInt(header[0] & 0xff, header[1] & 0xff, header[2] & 0xff, header[3] & 0xff);
                             if ((currentMsgSize & MASK_FOR_MARK) != MARK) {
                                 String message1 = "Bad message from " + socketChannel.socket().toString() + " client " + clientId;
-                                logger.warn(message1);
+                                LOGGER.warn(message1);
                                 socketChannel.close();
                                 throw new IOException(message1);
                             }
@@ -97,7 +97,7 @@ class RemoteRWState {
                             if (message.length < currentMsgSize) {
                                 if (currentMsgSize > MAX_MSG_SIZE) {
                                     String message1 = "Message too big " + (currentMsgSize / 1024 / 1024) + " Mo (more than " + (MAX_MSG_SIZE / 1024 / 1024) + " property 'globsframework.shared.max.size') " + " client " + clientId;
-                                    logger.error(message1);
+                                    LOGGER.error(message1);
                                     socketChannel.close();
                                     throw new IOException(message1);
                                 }
@@ -133,20 +133,20 @@ class RemoteRWState {
                     read = socketChannel.read(headerBuffer);
                 } catch (IOException e) {
                     // do not throw error to allow the previous message to be computed properly.
-                    logger.info("io exception connection will be closed for " + clientId);
+                    LOGGER.info("io exception connection will be closed for " + clientId);
                     return;
                 }
             }
         } catch (IOException e) {
             String msg = "receive io exception " + (e.getMessage() != null ? e.getMessage() : "") + " ; client " + clientId;
-            logger.info(msg);
+            LOGGER.info(msg);
             throw new IOException(msg, e);
         }
     }
 
     public boolean write(byte[] bytesToSend, int len) throws IOException {
         if (closed) {
-            logger.info("No write (closed), client " + clientId);
+            LOGGER.info("No write (closed), client " + clientId);
             return true;
         }
         try {
@@ -154,39 +154,39 @@ class RemoteRWState {
             if (buffers.isEmpty()) {
                 socketChannel.write(byteBuffer);
                 if (byteBuffer.hasRemaining()) {
-                    if (logger.isDebugEnabled()) {
-                        logger.debug("Buffer partially send, client " + clientId);
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("Buffer partially send, client " + clientId);
                     }
                     selectionKey.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
                     buffers.add(byteBuffer);
                     return false;
                 }
-                logger.debug("Buffer sent");
+                LOGGER.debug("Buffer sent");
                 return true;
             } else {
                 if (buffers.size() > MAX_BUF_COUNT) {
                     buffers.clear();
                     String msg = "Too slow reader : closing connection, client " + clientId;
-                    logger.error(msg);
+                    LOGGER.error(msg);
                     throw new IOException(msg);
                 }
-                logger.debug("Buffer send later");
+                LOGGER.debug("Buffer send later");
                 buffers.add(byteBuffer);
                 return false;
             }
         } catch (IOException e) {
-            logger.info("Can not write : " + e.getMessage());
+            LOGGER.info("Can not write : " + e.getMessage());
             throw e;
         }
     }
 
     public void writeNext() throws IOException {
         if (closed) {
-            logger.info("No write Next (closed)");
+            LOGGER.info("No write Next (closed)");
             return;
         }
         try {
-            logger.debug("Write next");
+            LOGGER.debug("Write next");
             ByteBuffer byteBuffer = buffers.peek();
             while (byteBuffer != null) {
                 socketChannel.write(byteBuffer);
@@ -198,7 +198,7 @@ class RemoteRWState {
             }
             selectionKey.interestOps(SelectionKey.OP_READ);
         } catch (IOException e) {
-            logger.info("Can not write : " + e.getMessage());
+            LOGGER.info("Can not write : " + e.getMessage());
             throw e;
         }
     }

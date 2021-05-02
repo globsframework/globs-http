@@ -21,14 +21,16 @@ import java.util.Map;
 import java.util.Set;
 
 public class DefaultSharedDataManager implements SharedDataManager, SharedDataService.SharedDataEventListener, Cleanable {
+    static private final Logger LOGGER = LoggerFactory.getLogger(DefaultSharedDataManager.class);
     public static final GlobModel GLOB_MODEL = new DefaultGlobModel(ShareDataManagerType.TYPE);
     private static final int INITIALIZATION_TIMEOUT = Integer.getInteger("org.globsframework.remote.shared.impl.DefaultSharedDataManager.initialization.timeout", 60 * 1000);
-    static private Logger logger = LoggerFactory.getLogger(DefaultSharedDataManager.class);
+    private final String localHost;
     private final SharedDataService sharedDataService;
     private final Map<Path, ServerSharedData> serverData = new HashMap<>();
     private final Map<Path, SharedDataService> sharedDataServices = new HashMap<>();
 
-    private DefaultSharedDataManager(SharedDataService sharedDataService) {
+    private DefaultSharedDataManager(String localHost, SharedDataService sharedDataService) {
+        this.localHost = localHost;
         this.sharedDataService = sharedDataService;
         sharedDataService.listen(this);
         sharedDataService.waitForInitialization(10000);
@@ -43,7 +45,11 @@ public class DefaultSharedDataManager implements SharedDataManager, SharedDataSe
     }
 
     static public SharedDataManager create(AddressAccessor addressAccessor) {
-        return new DefaultSharedDataManager(new ClientSharedData(GLOB_MODEL, addressAccessor, ClientSharedData.OnStop.NULL, "root"));
+        return new DefaultSharedDataManager(null, new ClientSharedData(GLOB_MODEL, addressAccessor, ClientSharedData.OnStop.NULL, "root"));
+    }
+
+    static public SharedDataManager create(AddressAccessor addressAccessor, String localHost) {
+        return new DefaultSharedDataManager(localHost, new ClientSharedData(GLOB_MODEL, addressAccessor, ClientSharedData.OnStop.NULL, "root"));
     }
 
     synchronized public void close() {
@@ -64,8 +70,8 @@ public class DefaultSharedDataManager implements SharedDataManager, SharedDataSe
         if (serverSharedData != null) {
             throw new AlreadyExist(path.toString());
         }
-        logger.info("create server shared data for " + path.getFullPath());
-        final ServerSharedData sharedData = new DefaultServerSharedData(model, path.getFullPath());
+        LOGGER.info("create server shared data for " + path.getFullPath());
+        final ServerSharedData sharedData = new DefaultServerSharedData(model, localHost, 0, path.getFullPath());
         serverData.put(path, sharedData);
         sharedDataService.write(new SharedDataService.SharedData() {
             public void data(GlobRepository globRepository) {
@@ -130,7 +136,7 @@ public class DefaultSharedDataManager implements SharedDataManager, SharedDataSe
                 }
             }
         }
-        logger.info("Shared data " + path + (url != null ? "" : " not ") + " available after " + chrono.getElapsedTimeInMS() + " ms.");
+        LOGGER.info("Shared data " + path + (url != null ? "" : " not ") + " available after " + chrono.getElapsedTimeInMS() + " ms.");
         return url;
     }
 

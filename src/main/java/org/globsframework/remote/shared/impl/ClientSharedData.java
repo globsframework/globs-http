@@ -1,5 +1,6 @@
 package org.globsframework.remote.shared.impl;
 
+import org.globsframework.json.GSonUtils;
 import org.globsframework.metamodel.GlobModel;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.model.ChangeSet;
@@ -26,16 +27,18 @@ import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class ClientSharedData implements SharedDataService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClientSharedData.class);
     private static final int MAX_MSG_TO_READ = Integer.getInteger("org.globsframework.remote.shared.ClientSharedData.max.message.per.round", 10);
     private static final int LOG_PROPAGATE = Integer.getInteger("org.globsframework.remote.shared.ClientSharedData.propagate.timeout", 1000);
-    private static Logger LOGGER = LoggerFactory.getLogger(ClientSharedData.class);
     private final Thread thread;
     private final AddressAccessor addressAccessor;
     private final OnStop onStop;
@@ -44,7 +47,6 @@ public class ClientSharedData implements SharedDataService {
     private final Object remoteRwLock = new Object();
     private Selector selector;
     private DefaultGlobRepository repository;
-    private GlobModel globModel;
     private ReadWriteLock readWriteLock = new ReentrantReadWriteLock(true);
     private volatile SharedDataEventListener[] sharedDataEventListeners;
     private volatile int connectionId; // volatile for test should be access only from read/write
@@ -58,7 +60,6 @@ public class ClientSharedData implements SharedDataService {
     private ReusableByteArrayOutputStream sendOutputStream;
 
     public ClientSharedData(GlobModel globModel, final AddressAccessor addressAccessor, OnStop onStop, final String debugInfo, SharedDataEventListener... listeners) {
-        this.globModel = globModel;
         this.addressAccessor = addressAccessor;
         this.onStop = onStop;
         repository = new DefaultGlobRepository(new DefaultGlobIdGenerator());
@@ -128,10 +129,20 @@ public class ClientSharedData implements SharedDataService {
                 repository.removeChangeListener(listener);
                 ChangeSet changeSet = listener.changeSet;
                 if (changeSet != null) {
+
+                    // extract new Type from changeSet and add them to globModel and
+                    GlobType[] changedTypes = changeSet.getChangedTypes();
+                    List<GlobType> typeToSend = new ArrayList<>();
+                    for (GlobType changedType : changedTypes) {
+                        if (sharedModelType.addType(changedType)) {
+                            typeToSend.add(changedType);
+                        }
+                    }
                     synchronized (remoteRwLock) {
                         ++changeId;
                         if (connected && remoteRWState != null) {
-                            sendChangeSet(remoteRWState, changeSet);
+                            sendChangeSet(remoteRWState, changeSet, typeToSend);
+                            typeToSend.clear();
                         }
                     }
                 }
@@ -287,13 +298,24 @@ public class ClientSharedData implements SharedDataService {
                                             lock = null;
                                         } else if (id < 0) {
                                             int remoteConnectionId = serializedInput.readNotNullInt(); //connectionId
+
+                                            //read new Types
+                                            //add them to SharedModelType
+
+                                            int typesToRead = serializedInput.readNotNullInt();
+                                            while (typesToRead > 0) {
+                                                GlobType globType = GSonUtils.decodeGlobType(serializedInput.readUtf8String(), sharedModelType.getGlobModel()::findType, true);
+                                                sharedModelType.addType(globType);
+                                                typesToRead--;
+                                            }
+
                                             int len = serializedInput.readNotNullInt();
                                             if (LOGGER.isInfoEnabled()) {
                                                 LOGGER.info("Received repo " + remoteConnectionId + ":" + id + " with " + len + " globs.");
                                             }
                                             repository.startChangeSetWithoutChange();
                                             while (len > 0) {
-                                                repository.add(serializedInput.readGlob(globModel));
+                                                repository.add(serializedInput.readGlob(sharedModelType.getGlobModel()));
                                                 --len;
                                             }
                                             repository.completeChangeSetWithoutTriggers();
@@ -309,7 +331,18 @@ public class ClientSharedData implements SharedDataService {
                                             }
                                         } else {
                                             int remoteConnectionId = serializedInput.readNotNullInt(); //connectionId
-                                            ChangeSet changeSet = serializedInput.readChangeSet(globModel);
+
+                                            //read new Types
+                                            //add them to SharedModelType
+                                            int typesToRead = serializedInput.readNotNullInt();
+                                            while (typesToRead > 0) {
+                                                GlobType globType = GSonUtils.decodeGlobType(serializedInput.readUtf8String(), sharedModelType.getGlobModel()::findType, true);
+                                                sharedModelType.addType(globType);
+                                                typesToRead--;
+                                            }
+
+
+                                            ChangeSet changeSet = serializedInput.readChangeSet(sharedModelType.getGlobModel());
                                             repository.startChangeSetWithoutChange();
                                             repository.apply(changeSet);
                                             repository.completeChangeSetWithoutTriggers();
@@ -392,11 +425,22 @@ public class ClientSharedData implements SharedDataService {
             LOGGER.debug("Send " + globCount + " globs to server");
         }
         if (globCount > 0) {
+
             ReusableByteArrayOutputStream outputStream = new ReusableByteArrayOutputStream();
             outputStream.setTo(4);
             final SerializedOutput serializedOutput = SerializedInputOutputFactory.initCompressed(outputStream);
+
             serializedOutput.write(-changeId);
             serializedOutput.write(connectionId);
+
+            //send all GlobTypes.
+            GlobModel globModel = sharedModelType.getGlobModel();
+            serializedOutput.write(globModel.getAll().size());
+            for (GlobType globType : globModel) {
+                String s = GSonUtils.encodeGlobType(globType);
+                serializedOutput.writeUtf8String(s);
+            }
+
             serializedOutput.write(globCount);
             repository.safeApply(new GlobFunctor() {
                 public void run(Glob glob, GlobRepository repository) throws Exception {
@@ -419,7 +463,7 @@ public class ClientSharedData implements SharedDataService {
         }
     }
 
-    private void sendChangeSet(RemoteRWState remoteRWState, ChangeSet changeSet) {
+    private void sendChangeSet(RemoteRWState remoteRWState, ChangeSet changeSet, List<GlobType> typeToSend) {
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("Send changeSet " + connectionId + ":" + changeId + changeSet.toString());
         }
@@ -430,6 +474,15 @@ public class ClientSharedData implements SharedDataService {
         SerializedOutput serializedOutput = SerializedInputOutputFactory.initCompressed(sendOutputStream);
         serializedOutput.write(changeId);
         serializedOutput.write(connectionId);
+
+        //send new Types.
+
+        serializedOutput.write(typeToSend.size());
+        for (GlobType globType : typeToSend) {
+            String s = GSonUtils.encodeGlobType(globType);
+            serializedOutput.writeUtf8String(s);
+        }
+
         serializedOutput.writeChangeSet(changeSet);
         int size = sendOutputStream.size();
         if (size > RemoteRWState.MAX_MSG_SIZE) {

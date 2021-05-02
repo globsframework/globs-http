@@ -3,7 +3,9 @@ package org.globsframework.remote.shared.impl;
 import org.globsframework.metamodel.Field;
 import org.globsframework.metamodel.GlobModel;
 import org.globsframework.metamodel.GlobType;
+import org.globsframework.metamodel.MutableGlobModel;
 import org.globsframework.metamodel.fields.IntegerField;
+import org.globsframework.metamodel.impl.DefaultGlobModel;
 import org.globsframework.model.Glob;
 import org.globsframework.model.GlobList;
 import org.globsframework.model.GlobRepository;
@@ -11,26 +13,42 @@ import org.globsframework.model.MutableGlob;
 import org.globsframework.model.utils.GlobFunctor;
 import org.globsframework.model.utils.GlobMatchers;
 import org.globsframework.remote.shared.SharedId;
-import org.globsframework.remote.shared.SharedId_;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SharedModelType {
-    private GlobModel globModel;
-    private Map<GlobType, IntegerField> globTypeToConnectionField = new HashMap<GlobType, IntegerField>();
+    private MutableGlobModel globModel;
+    private Map<GlobType, IntegerField> globTypeToConnectionField = new ConcurrentHashMap<>();
 
     public SharedModelType(GlobModel globModel) {
-        this.globModel = globModel;
+        this.globModel = new DefaultGlobModel(globModel);
+        initCache();
+    }
+
+    public boolean addType(GlobType globType) {
+        if (globModel.hasType(globType.getName())) {
+            return false;
+        }
+        extractSharedID(globType);
+        globModel.add(globType);
+        return true;
+    }
+
+    private void initCache() {
         Collection<GlobType> all = globModel.getAll();
         for (GlobType globType : all) {
-            for (Field field : globType.getFields()) {
-                if (field.hasAnnotation(SharedId.KEY)) {
-                    globTypeToConnectionField.put(globType, field.asIntegerField());
-                    break;
-                }
+            if (!globTypeToConnectionField.containsKey(globType)) {
+                extractSharedID(globType);
             }
+        }
+    }
+
+    private void extractSharedID(GlobType globType) {
+        Field field = globType.findFieldWithAnnotation(SharedId.KEY);
+        if (field != null) {
+            globTypeToConnectionField.put(globType, field.asIntegerField());
         }
     }
 
@@ -65,9 +83,9 @@ public class SharedModelType {
         }
     }
 
-    public IntegerField get(GlobType globType) {
-        return globTypeToConnectionField.get(globType);
-    }
+//    public IntegerField get(GlobType globType) {
+//        return globTypeToConnectionField.get(globType);
+//    }
 
     public void cleanThisId(GlobRepository globRepository, int clientId) {
         for (Map.Entry<GlobType, IntegerField> globTypeIntegerFieldEntry : globTypeToConnectionField.entrySet()) {
@@ -79,7 +97,7 @@ public class SharedModelType {
 
     public void updateRepoWith(GlobRepository repository, int connectionId) {
         for (Map.Entry<GlobType, IntegerField> globTypeIntegerFieldEntry : globTypeToConnectionField.entrySet()) {
-            if (globTypeIntegerFieldEntry.getValue().isKeyField()){
+            if (globTypeIntegerFieldEntry.getValue().isKeyField()) {
                 GlobList all = repository.getAll(globTypeIntegerFieldEntry.getKey());
                 GlobList newGlobs = new GlobList();
                 for (Glob glob : all) {
@@ -94,13 +112,16 @@ public class SharedModelType {
                 for (Glob newGlob : newGlobs) {
                     repository.create(newGlob);
                 }
-            }
-            else {
+            } else {
                 GlobList all = repository.getAll(globTypeIntegerFieldEntry.getKey());
                 for (Glob glob : all) {
                     repository.update(glob.getKey(), globTypeIntegerFieldEntry.getValue(), connectionId);
                 }
             }
         }
+    }
+
+    public GlobModel getGlobModel() {
+        return globModel;
     }
 }

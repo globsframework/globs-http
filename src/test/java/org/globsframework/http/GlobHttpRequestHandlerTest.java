@@ -69,7 +69,7 @@ public class GlobHttpRequestHandlerTest {
                 });
 
         httpServerRegister.register("/query", null)
-                .setGzipCompress()
+                //.setGzipCompress()
                 .post(BodyContent.TYPE, null, (body, url, queryParameters) -> {
                     return CompletableFuture.completedFuture(BodyContent.TYPE.instantiate()
                             .set(BodyContent.DATA, "some important information."));

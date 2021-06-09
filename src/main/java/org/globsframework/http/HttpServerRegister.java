@@ -310,6 +310,23 @@ public class HttpServerRegister {
                 p.set(ref);
             }
 
+            public void visitUnionGlob(GlobUnionField field) throws Exception {
+                MutableGlob ref = buildSchema(field.getTargetTypes().iterator().next(), schemas);
+                ref.set(OpenApiSchemaProperty.name, field.getName());
+//                        .set(OpenApiSchemaProperty.format, "binary")
+//                        .set(OpenApiSchemaProperty.type, "object");
+                p.set(ref);
+            }
+
+            public void visitUnionGlobArray(GlobArrayUnionField field) throws Exception {
+                MutableGlob ref = OpenApiSchemaProperty.TYPE.instantiate()
+                        .set(OpenApiSchemaProperty.name, field.getName())
+                        .set(OpenApiSchemaProperty.type, "array")
+                        .set(OpenApiSchemaProperty.items,
+                                buildSchema(field.getTargetTypes().iterator().next(), schemas));
+                p.set(ref);
+
+            }
             public void visitGlobArray(GlobArrayField field) throws Exception {
                 MutableGlob ref = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())

@@ -315,7 +315,11 @@ public class ClientSharedData implements SharedDataService {
                                             }
                                             repository.startChangeSetWithoutChange();
                                             while (len > 0) {
-                                                repository.add(serializedInput.readGlob(sharedModelType.getGlobModel()));
+                                                Glob glob = serializedInput.readGlob(sharedModelType.getGlobModel());
+                                                if (LOGGER.isDebugEnabled()) {
+                                                    LOGGER.debug("Receive : " + GSonUtils.encode(glob, true));
+                                                }
+                                                repository.add(glob);
                                                 --len;
                                             }
                                             repository.completeChangeSetWithoutTriggers();
@@ -337,6 +341,9 @@ public class ClientSharedData implements SharedDataService {
                                             int typesToRead = serializedInput.readNotNullInt();
                                             while (typesToRead > 0) {
                                                 GlobType globType = GSonUtils.decodeGlobType(serializedInput.readUtf8String(), sharedModelType.getGlobModel()::findType, true);
+                                                if (LOGGER.isDebugEnabled()) {
+                                                    LOGGER.debug("Receive type : " + GSonUtils.encodeGlobType(globType));
+                                                }
                                                 sharedModelType.addType(globType);
                                                 typesToRead--;
                                             }

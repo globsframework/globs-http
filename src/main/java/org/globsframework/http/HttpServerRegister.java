@@ -334,7 +334,14 @@ public class HttpServerRegister {
                         .set(OpenApiSchemaProperty.items,
                                 buildSchema(field.getTargetType(), schemas));
                 p.set(ref);
+            }
 
+            public void visitBlob(BlobField field) throws Exception {
+                MutableGlob ref = OpenApiSchemaProperty.TYPE.instantiate()
+                        .set(OpenApiSchemaProperty.name, field.getName())
+                        .set(OpenApiSchemaProperty.format, "binary")
+                        .set(OpenApiSchemaProperty.type, "object");
+                p.set(ref);
             }
         });
         return p.get();

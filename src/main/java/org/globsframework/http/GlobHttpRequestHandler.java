@@ -23,7 +23,6 @@ import org.globsframework.utils.Files;
 import org.globsframework.utils.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -35,6 +34,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+/**
+ * HttpAsyncRequestHandler for globs framework.
+ * */
 public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpRequest> {
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobHttpRequestHandler.class);
     private final UrlMatcher urlMatcher;
@@ -85,6 +87,11 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
         return new BasicAsyncRequestConsumer();
     }
 
+    /**
+     * Creates a regular expression based on the url pattern.
+     * For example /foo/{A}/bar becomes /foo/\*\/bar
+     * @return a regexp of the url pattern
+     */
     public String createRegExp() {
         String[] split = httpReceiver.getUrl().split("/");
         var stringBuilder = new StringBuilder();

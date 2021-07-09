@@ -27,8 +27,15 @@ import java.util.concurrent.CompletableFuture;
 
 public class HttpServerRegister {
     private static final Logger LOGGER = LoggerFactory.getLogger(HttpServerRegister.class);
+
+    private static final String DOUBLE_STR = "double";
+    private static final String NUMBER_STR = "number";
+    private static final String ARRAY_STR = "array";
+    private static final String BIG_DECIMAL_STR = "big-decimal";
+    private static final String STRING_STR = "string";
+
     final Map<String, Verb> verbMap = new HashMap<>();
-    private String serverInfo;
+    private final String serverInfo;
     private Glob openApiDoc;
 
     public HttpServerRegister(String serverInfo) {
@@ -36,9 +43,9 @@ public class HttpServerRegister {
     }
 
     public Verb register(String url, GlobType queryUrl) {
-        Verb current = verbMap.get(url);
+        var current = verbMap.get(url);
         if (current == null) {
-            Verb verb = new Verb(url, queryUrl);
+            var verb = new Verb(url, queryUrl);
             verbMap.put(url, verb);
             return verb;
         } else {
@@ -62,7 +69,7 @@ public class HttpServerRegister {
         Map<GlobType, Glob> schemas = new HashMap<>();
         List<Glob> paths = new ArrayList<>();
         for (Map.Entry<String, Verb> stringVerbEntry : verbMap.entrySet()) {
-            Verb verb = stringVerbEntry.getValue();
+            var verb = stringVerbEntry.getValue();
             MutableGlob path = OpenApiPath.TYPE.instantiate();
             paths.add(path);
             path.set(OpenApiPath.name, verb.url);
@@ -76,8 +83,8 @@ public class HttpServerRegister {
                 List<Glob> parameters = new ArrayList<>();
                 if (verb.queryUrl != null) {
                     for (Field field : verb.queryUrl.getFields()) {
-                        OpenApiFieldVisitor apiFieldVisitor = new OpenApiFieldVisitor(schemas);
-                        OpenApiFieldVisitor openApiFieldVisitor = field.safeVisit(apiFieldVisitor);
+                        var apiFieldVisitor = new OpenApiFieldVisitor(schemas);
+                        var openApiFieldVisitor = field.safeVisit(apiFieldVisitor);
                         parameters.add(OpenApiParameter.TYPE.instantiate()
                                 .set(OpenApiParameter.in, "path")
                                 .set(OpenApiParameter.name, field.getName())
@@ -175,44 +182,49 @@ public class HttpServerRegister {
         final Ref<Glob> p = new Ref<>();
         field.safeVisit(new FieldVisitor.AbstractWithErrorVisitor() {
 
+            @Override
             public void visitDouble(DoubleField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
-                        .set(OpenApiSchemaProperty.format, "double")
-                        .set(OpenApiSchemaProperty.type, "number");
+                        .set(OpenApiSchemaProperty.format, DOUBLE_STR)
+                        .set(OpenApiSchemaProperty.type, NUMBER_STR);
                 p.set(instantiate);
             }
 
+            @Override
             public void visitDoubleArray(DoubleArrayField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
-                        .set(OpenApiSchemaProperty.type, "array")
+                        .set(OpenApiSchemaProperty.type, ARRAY_STR)
                         .set(OpenApiSchemaProperty.items,
                                 OpenApiSchemaProperty.TYPE.instantiate()
-                                        .set(OpenApiSchemaProperty.format, "double")
-                                        .set(OpenApiSchemaProperty.type, "number"));
+                                        .set(OpenApiSchemaProperty.format, DOUBLE_STR)
+                                        .set(OpenApiSchemaProperty.type, NUMBER_STR));
                 p.set(instantiate);
             }
 
+            @Override
             public void visitBigDecimal(BigDecimalField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
-                        .set(OpenApiSchemaProperty.format, "big-decimal")
-                        .set(OpenApiSchemaProperty.type, "string");
+                        .set(OpenApiSchemaProperty.format, BIG_DECIMAL_STR)
+                        .set(OpenApiSchemaProperty.type, STRING_STR);
                 p.set(instantiate);
             }
 
+            @Override
             public void visitBigDecimalArray(BigDecimalArrayField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
-                        .set(OpenApiSchemaProperty.type, "array")
+                        .set(OpenApiSchemaProperty.type, ARRAY_STR)
                         .set(OpenApiSchemaProperty.items,
                                 OpenApiSchemaProperty.TYPE.instantiate()
-                                        .set(OpenApiSchemaProperty.format, "big-decimal")
-                                        .set(OpenApiSchemaProperty.type, "string"));
+                                        .set(OpenApiSchemaProperty.format, BIG_DECIMAL_STR)
+                                        .set(OpenApiSchemaProperty.type, STRING_STR));
                 p.set(instantiate);
             }
 
+            @Override
             public void visitInteger(IntegerField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
@@ -221,29 +233,33 @@ public class HttpServerRegister {
                 p.set(instantiate);
             }
 
+            @Override
             public void visitDate(DateField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
                         .set(OpenApiSchemaProperty.format, "date")
-                        .set(OpenApiSchemaProperty.type, "string");
+                        .set(OpenApiSchemaProperty.type, STRING_STR);
                 p.set(instantiate);
             }
 
+            @Override
             public void visitDateTime(DateTimeField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
                         .set(OpenApiSchemaProperty.format, "date-time")
-                        .set(OpenApiSchemaProperty.type, "string");
+                        .set(OpenApiSchemaProperty.type, STRING_STR);
                 p.set(instantiate);
             }
 
+            @Override
             public void visitString(StringField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
-                        .set(OpenApiSchemaProperty.type, "string");
+                        .set(OpenApiSchemaProperty.type, STRING_STR);
                 p.set(instantiate);
             }
 
+            @Override
             public void visitLong(LongField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
@@ -252,10 +268,11 @@ public class HttpServerRegister {
                 p.set(instantiate);
             }
 
+            @Override
             public void visitLongArray(LongArrayField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
-                        .set(OpenApiSchemaProperty.type, "array")
+                        .set(OpenApiSchemaProperty.type, ARRAY_STR)
                         .set(OpenApiSchemaProperty.items,
                                 OpenApiSchemaProperty.TYPE.instantiate()
                                         .set(OpenApiSchemaProperty.format, "int64")
@@ -263,10 +280,11 @@ public class HttpServerRegister {
                 p.set(instantiate);
             }
 
+            @Override
             public void visitIntegerArray(IntegerArrayField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
-                        .set(OpenApiSchemaProperty.type, "array")
+                        .set(OpenApiSchemaProperty.type, ARRAY_STR)
                         .set(OpenApiSchemaProperty.items,
                                 OpenApiSchemaProperty.TYPE.instantiate()
                                         .set(OpenApiSchemaProperty.format, "int32")
@@ -274,6 +292,7 @@ public class HttpServerRegister {
                 p.set(instantiate);
             }
 
+            @Override
             public void visitBoolean(BooleanField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
@@ -281,27 +300,29 @@ public class HttpServerRegister {
                 p.set(instantiate);
             }
 
+            @Override
             public void visitBooleanArray(BooleanArrayField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
-                        .set(OpenApiSchemaProperty.type, "array")
+                        .set(OpenApiSchemaProperty.type, ARRAY_STR)
                         .set(OpenApiSchemaProperty.items,
                                 OpenApiSchemaProperty.TYPE.instantiate()
                                         .set(OpenApiSchemaProperty.type, "boolean"));
                 p.set(instantiate);
             }
 
-
+            @Override
             public void visitStringArray(StringArrayField field) throws Exception {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
-                        .set(OpenApiSchemaProperty.type, "array")
+                        .set(OpenApiSchemaProperty.type, ARRAY_STR)
                         .set(OpenApiSchemaProperty.items,
                                 OpenApiSchemaProperty.TYPE.instantiate()
-                                        .set(OpenApiSchemaProperty.type, "string"));
+                                        .set(OpenApiSchemaProperty.type, STRING_STR));
                 p.set(instantiate);
             }
 
+            @Override
             public void visitGlob(GlobField field) throws Exception {
                 MutableGlob ref = buildSchema(field.getTargetType(), schemas);
                 ref.set(OpenApiSchemaProperty.name, field.getName());
@@ -310,6 +331,7 @@ public class HttpServerRegister {
                 p.set(ref);
             }
 
+            @Override
             public void visitUnionGlob(GlobUnionField field) throws Exception {
                 MutableGlob ref = buildSchema(field.getTargetTypes().iterator().next(), schemas);
                 ref.set(OpenApiSchemaProperty.name, field.getName());
@@ -318,24 +340,28 @@ public class HttpServerRegister {
                 p.set(ref);
             }
 
+            @Override
             public void visitUnionGlobArray(GlobArrayUnionField field) throws Exception {
                 MutableGlob ref = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
-                        .set(OpenApiSchemaProperty.type, "array")
+                        .set(OpenApiSchemaProperty.type, ARRAY_STR)
                         .set(OpenApiSchemaProperty.items,
                                 buildSchema(field.getTargetTypes().iterator().next(), schemas));
                 p.set(ref);
 
             }
+
+            @Override
             public void visitGlobArray(GlobArrayField field) throws Exception {
                 MutableGlob ref = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
-                        .set(OpenApiSchemaProperty.type, "array")
+                        .set(OpenApiSchemaProperty.type, ARRAY_STR)
                         .set(OpenApiSchemaProperty.items,
                                 buildSchema(field.getTargetType(), schemas));
                 p.set(ref);
             }
 
+            @Override
             public void visitBlob(BlobField field) throws Exception {
                 MutableGlob ref = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
@@ -351,7 +377,8 @@ public class HttpServerRegister {
         for (Map.Entry<String, Verb> stringVerbEntry : verbMap.entrySet()) {
             Verb verb = stringVerbEntry.getValue();
             GlobHttpRequestHandler globHttpRequestHandler = new GlobHttpRequestHandler(verb.complete(), verb.gzipCompress);
-            serverBootstrap.registerHandler(globHttpRequestHandler.createRegExp(), globHttpRequestHandler);
+            var regex = globHttpRequestHandler.createRegExp();
+            serverBootstrap.registerHandler(regex, globHttpRequestHandler);
             for (HttpOperation operation : stringVerbEntry.getValue().operations) {
 
                 MutableGlob logs = HttpAPIDesc.TYPE.instantiate()
@@ -361,7 +388,7 @@ public class HttpServerRegister {
                         .set(HttpAPIDesc.body, GSonUtils.encodeGlobType(operation.getBodyType()))
                         .set(HttpAPIDesc.returnType, GSonUtils.encodeGlobType(operation.getReturnType()))
                         .set(HttpAPIDesc.comment, operation.getComment());
-                LOGGER.info("Api : " + GSonUtils.encode(logs, false));
+                LOGGER.info("Api : {}", GSonUtils.encode(logs, false));
             }
         }
         if (Strings.isNotEmpty(serverInfo)) {
@@ -378,7 +405,7 @@ public class HttpServerRegister {
             InetSocketAddress address = (InetSocketAddress) server.getEndpoint().getAddress();
             int port = address.getPort();
             openApiDoc = createOpenApiDoc(port);
-            LOGGER.info("OpenApi doc : " + GSonUtils.encode(openApiDoc, false));
+            LOGGER.info("OpenApi doc : {}", GSonUtils.encode(openApiDoc, false));
             return Pair.makePair(server, port);
         } catch (Exception e) {
             String message = "Fail to start server" + serverInfo;
@@ -429,7 +456,7 @@ public class HttpServerRegister {
             this.schemas = schemas;
         }
 
-
+        @Override
         public void visitInteger(IntegerField field) throws Exception {
             createSchema("integer", "int32");
         }
@@ -447,71 +474,86 @@ public class HttpServerRegister {
             return set;
         }
 
+        @Override
         public void visitDouble(DoubleField field) throws Exception {
-            createSchema("number", "double");
+            createSchema(NUMBER_STR, DOUBLE_STR);
         }
 
+        @Override
         public void visitString(StringField field) throws Exception {
-            createSchema("string", null);
+            createSchema(STRING_STR, null);
         }
 
+        @Override
         public void visitBoolean(BooleanField field) throws Exception {
             createSchema("boolean", null);
         }
 
+        @Override
         public void visitLong(LongField field) throws Exception {
             createSchema("integer", "int64");
         }
 
+        @Override
         public void visitStringArray(StringArrayField field) throws Exception {
-            createArray("string", null);
+            createArray(STRING_STR, null);
         }
 
+        @Override
         public void visitDoubleArray(DoubleArrayField field) throws Exception {
-            createArray("number", "double");
+            createArray(NUMBER_STR, DOUBLE_STR);
         }
 
+        @Override
         public void visitIntegerArray(IntegerArrayField field) throws Exception {
             createArray("integer", "int32");
         }
 
+        @Override
         public void visitLongArray(LongArrayField field) throws Exception {
             createArray("integer", "int64");
         }
 
+        @Override
         public void visitDate(DateField field) throws Exception {
-            createSchema("string", "date");
+            createSchema(STRING_STR, "date");
         }
 
+        @Override
         public void visitDateTime(DateTimeField field) throws Exception {
-            createSchema("string", "date-time");
+            createSchema(STRING_STR, "date-time");
         }
 
+        @Override
         public void visitBooleanArray(BooleanArrayField field) throws Exception {
             createArray("boolean", null);
         }
 
+        @Override
         public void visitBigDecimal(BigDecimalField field) throws Exception {
-            createSchema("string", "big-decimal");
+            createSchema(STRING_STR, BIG_DECIMAL_STR);
         }
 
+        @Override
         public void visitBigDecimalArray(BigDecimalArrayField field) throws Exception {
-            createArray("string", "big-decimal");
+            createArray(STRING_STR, BIG_DECIMAL_STR);
         }
 
         private void createArray(String type, String format) {
             schema = OpenApiSchemaProperty.TYPE.instantiate()
-                    .set(OpenApiSchemaProperty.type, "array")
+                    .set(OpenApiSchemaProperty.type, ARRAY_STR)
                     .set(OpenApiSchemaProperty.items, create(type, format));
         }
 
+        @Override
         public void visitGlob(GlobField field) throws Exception {
             schema = buildSchema(field.getGlobType(), schemas);
         }
 
+        @Override
         public void visitGlobArray(GlobArrayField field) throws Exception {
             schema = OpenApiSchemaProperty.TYPE.instantiate()
-                    .set(OpenApiSchemaProperty.type, "array")
+                    .set(OpenApiSchemaProperty.type, ARRAY_STR)
                     .set(OpenApiSchemaProperty.items, buildSchema(field.getTargetType(), schemas));
 
         }

@@ -17,11 +17,11 @@ class DefaultUrlMatcher implements UrlMatcher {
         this.globType = globType;
         this.fullUrl = fullUrl;
         String[] split = fullUrl.split("/");
-        for (int i = 0; i < split.length; i++) {
+        for (var i = 0; i < split.length; i++) {
             String s = split[i];
             if (s.startsWith("{") && s.endsWith("}")) {
-                Field field = globType.getField(s.substring(1, s.length() - 1));
-                GlobHttpUtils.FromStringConverter fromStringConverter = GlobHttpUtils.createConverter(field, "");
+                var field = globType.getField(s.substring(1, s.length() - 1));
+                var fromStringConverter = GlobHttpUtils.createConverter(field, "");
                 argByPosition.put(i, fromStringConverter);
             }
         }
@@ -31,6 +31,11 @@ class DefaultUrlMatcher implements UrlMatcher {
 //        return true;
 //    }
 
+    /**
+     * Parses the url and returns a glob with the path params.
+     * @param url - the url passed to the http server
+     * @return a glob with the path params
+     */
     public Glob parse(String url) {
         String[] split = url.split("/");
         MutableGlob instantiate = globType.instantiate();

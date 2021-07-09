@@ -27,6 +27,21 @@ public class DefaultUrlMatcherTest {
         Assert.assertEquals("3F", url.get(TEST_1.D));
     }
 
+    @Test
+    public void name3() {
+        DefaultUrlMatcher defaultUrlMatcher = new DefaultUrlMatcher(TEST_2.TYPE, "/XX/{A}/XXX");
+        Glob url = defaultUrlMatcher.parse("/XX/AAA/XXX");
+        Assert.assertEquals("AAA", url.get(TEST_2.A));
+    }
+
+    @Test
+    public void name4() {
+        DefaultUrlMatcher defaultUrlMatcher = new DefaultUrlMatcher(URLParameterCustomerWorkflow.TYPE, "/the-oz/glinda/1.0.0/customer/{customerId}/workflow/{workflowId}");
+        Glob url = defaultUrlMatcher.parse("/the-oz/glinda/1.0.0/customer/1111111/workflow/12343212345");
+        Assert.assertEquals("1111111", url.get(URLParameterCustomerWorkflow.customerId));
+        Assert.assertEquals("12343212345", url.get(URLParameterCustomerWorkflow.workflowId));
+    }
+
     public static class TEST_1 {
         public static GlobType TYPE;
 
@@ -36,6 +51,30 @@ public class DefaultUrlMatcherTest {
 
         static {
             GlobTypeLoaderFactory.create(TEST_1.class).load();
+        }
+    }
+
+    public static class TEST_2 {
+        public static GlobType TYPE;
+
+        public static StringField A;
+
+        static {
+            GlobTypeLoaderFactory.create(TEST_2.class).load();
+        }
+    }
+
+    public static class URLParameterCustomerWorkflow {
+        public static GlobType TYPE;
+
+        //       @FieldNameAnnotation("id")
+        public static StringField customerId;
+        public static StringField workflowId;
+
+        private URLParameterCustomerWorkflow(){} //Hiding default public constructor
+
+        static {
+            GlobTypeLoaderFactory.create(URLParameterCustomerWorkflow.class, true).load();
         }
     }
 }

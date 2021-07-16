@@ -1,7 +1,14 @@
 package org.globsframework.http;
 
+import org.apache.http.HttpException;
+import org.apache.http.HttpRequest;
 import org.apache.http.impl.nio.bootstrap.HttpServer;
 import org.apache.http.impl.nio.bootstrap.ServerBootstrap;
+import org.apache.http.nio.protocol.BasicAsyncRequestConsumer;
+import org.apache.http.nio.protocol.HttpAsyncExchange;
+import org.apache.http.nio.protocol.HttpAsyncRequestConsumer;
+import org.apache.http.nio.protocol.HttpAsyncRequestHandler;
+import org.apache.http.protocol.HttpContext;
 import org.globsframework.http.openapi.model.*;
 import org.globsframework.json.GSonUtils;
 import org.globsframework.json.annottations.IsJsonContentAnnotation;
@@ -18,11 +25,9 @@ import org.globsframework.utils.collections.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 public class HttpServerRegister {
@@ -374,11 +379,13 @@ public class HttpServerRegister {
     }
 
     public HttpServer init(ServerBootstrap serverBootstrap) {
+        HttpRequestHttpAsyncRequestHandlerTree handler = new HttpRequestHttpAsyncRequestHandlerTree();
+        serverBootstrap.registerHandler("*", handler);
         for (Map.Entry<String, Verb> stringVerbEntry : verbMap.entrySet()) {
             Verb verb = stringVerbEntry.getValue();
             GlobHttpRequestHandler globHttpRequestHandler = new GlobHttpRequestHandler(verb.complete(), verb.gzipCompress);
-            var regex = globHttpRequestHandler.createRegExp();
-            serverBootstrap.registerHandler(regex, globHttpRequestHandler);
+            var path = globHttpRequestHandler.createRegExp();
+            handler.register(path, globHttpRequestHandler);
             for (HttpOperation operation : stringVerbEntry.getValue().operations) {
 
                 MutableGlob logs = HttpAPIDesc.TYPE.instantiate()
@@ -446,6 +453,74 @@ public class HttpServerRegister {
             GlobTypeLoaderFactory.create(HttpAPIDesc.class).load();
         }
 
+    }
+
+    private static class HttpRequestHttpAsyncRequestHandlerTree implements HttpAsyncRequestHandler<HttpRequest> {
+        StrNode[] nodes = new StrNode[0];
+        public HttpAsyncRequestConsumer<HttpRequest> processRequest(HttpRequest httpRequest, HttpContext httpContext)  {
+            return new BasicAsyncRequestConsumer();
+        }
+
+        public void handle(HttpRequest httpRequest, HttpAsyncExchange httpExchange, HttpContext context) throws HttpException, IOException {
+            var requestLine = httpRequest.getRequestLine();
+            String uri = requestLine.getUri();
+            int i = uri.indexOf("?");
+            var urlStr = uri.substring(1, i == -1 ? uri.length() : i); // remove first /
+            String paramStr = i == -1 ? null : uri.substring(i + 1);
+            String[] split = urlStr.split("/");
+            nodes[split.length].dispatch(split, paramStr, httpRequest, httpExchange, context);
+        }
+
+        public void register(Collection<String> path, GlobHttpRequestHandler globHttpRequestHandler) {
+            int length = nodes.length;
+            if (length <= path.size()) {
+                nodes = Arrays.copyOf(nodes, path.size() + 1);
+                for (; length < nodes.length; length++) {
+                    nodes[length] = new StrNode();
+                }
+            }
+            nodes[path.size()].register(path, globHttpRequestHandler);
+        }
+    }
+
+    static class StrNode {
+        private SubStrNode[] subStrNodes = new SubStrNode[0];
+        public void dispatch(String[] path, String paramStr, HttpRequest httpRequest, HttpAsyncExchange httpExchange, HttpContext context) throws IOException {
+            for (SubStrNode subStrNode : this.subStrNodes) {
+                if (subStrNode.match(path)) {
+                    subStrNode.globHttpRequestHandler.handle(path, paramStr, httpRequest, httpExchange, context);
+                    return;
+                }
+            }
+        }
+
+        public void register(Collection<String> path, GlobHttpRequestHandler globHttpRequestHandler) {
+            subStrNodes = Arrays.copyOf(subStrNodes, subStrNodes.length + 1);
+            subStrNodes[subStrNodes.length - 1] = new SubStrNode(path, globHttpRequestHandler);
+        }
+    }
+
+    static class SubStrNode {
+        private String[] path;
+        private GlobHttpRequestHandler globHttpRequestHandler;
+
+        public SubStrNode(Collection<String> path, GlobHttpRequestHandler globHttpRequestHandler) {
+            this.path = path.toArray(String[]::new);
+            this.globHttpRequestHandler = globHttpRequestHandler;
+        }
+
+        boolean match(String[] path) {
+            String[] strings = this.path;
+            for (int i = 0, stringsLength = strings.length; i < stringsLength; i++) {
+                String s = strings[i];
+                if (s != null) {
+                    if (!s.equals(path[i])) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
     }
 
     private class OpenApiFieldVisitor extends FieldVisitor.AbstractWithErrorVisitor {

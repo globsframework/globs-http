@@ -26,10 +26,7 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -37,7 +34,7 @@ import java.util.zip.GZIPOutputStream;
 /**
  * HttpAsyncRequestHandler for globs framework.
  * */
-public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpRequest> {
+public class GlobHttpRequestHandler  {
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobHttpRequestHandler.class);
     private final UrlMatcher urlMatcher;
     private final boolean gzipCompress;
@@ -55,7 +52,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
             urlMatcher = new DefaultUrlMatcher(httpReceiver.getUrlType(), httpReceiver.getUrl());
         } else {
             urlMatcher = new UrlMatcher() {
-                public Glob parse(String url) {
+                public Glob parse(String[] split1) {
                     return null;
                 }
             };
@@ -83,33 +80,32 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
         }
     }
 
-    public HttpAsyncRequestConsumer<HttpRequest> processRequest(HttpRequest httpRequest, HttpContext httpContext) throws HttpException, IOException {
-        return new BasicAsyncRequestConsumer();
-    }
-
     /**
      * Creates a regular expression based on the url pattern.
      * For example /foo/{A}/bar becomes /foo/\*\/bar
      * @return a regexp of the url pattern
      */
-    public String createRegExp() {
+
+
+    public Collection<String> createRegExp() {
         String[] split = httpReceiver.getUrl().split("/");
+        List<String> matcher = new ArrayList<>();
         var stringBuilder = new StringBuilder();
         for (String s : split) {
             if (!s.isEmpty()) {
-                stringBuilder.append("/");
                 if (s.startsWith("{") && s.endsWith("}")) {
-                    stringBuilder.append("*");
+                    matcher.add(null);
                 } else {
+                    matcher.add(s);
                     stringBuilder.append(s);
                 }
             }
         }
         LOGGER.debug("regex: {}", stringBuilder);
-        return stringBuilder.toString();
+        return matcher;
     }
 
-    public void handle(HttpRequest httpRequest, HttpAsyncExchange httpAsyncExchange, HttpContext httpContext) throws HttpException, IOException {
+    public void handle(String[] path, String paramStr, HttpRequest httpRequest, HttpAsyncExchange httpAsyncExchange, HttpContext httpContext) throws HttpException, IOException {
         var requestLine = httpRequest.getRequestLine();
         String method = requestLine.getMethod().toUpperCase(Locale.ROOT);
         LOGGER.info("Receive : {} : {}", method, requestLine.getUri());
@@ -117,16 +113,16 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
         try {
             switch (method) {
                 case "DELETE":
-                    treatOp(requestLine, httpAsyncExchange, httpRequest, response, onDelete);
+                    treatOp(path, paramStr, requestLine, httpAsyncExchange, httpRequest, response, onDelete);
                     break;
                 case "POST":
-                    treatOp(requestLine, httpAsyncExchange, httpRequest, response, onPost);
+                    treatOp(path, paramStr, requestLine, httpAsyncExchange, httpRequest, response, onPost);
                     break;
                 case "PUT":
-                    treatOp(requestLine, httpAsyncExchange, httpRequest, response, onPut);
+                    treatOp(path, paramStr, requestLine, httpAsyncExchange, httpRequest, response, onPut);
                     break;
                 case "GET":
-                    treatOp(requestLine, httpAsyncExchange, httpRequest, response, onGet);
+                    treatOp(path, paramStr, requestLine, httpAsyncExchange, httpRequest, response, onGet);
                     break;
                 case "OPTIONS":
                     response.setStatusCode(HttpStatus.SC_OK);
@@ -146,7 +142,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
         LOGGER.info("done {}", requestLine.getUri());
     }
 
-    private void treatOp(RequestLine requestLine, HttpAsyncExchange httpAsyncExchange, HttpRequest httpRequest,
+    private void treatOp(String[] path, String paramStr, RequestLine requestLine, HttpAsyncExchange httpAsyncExchange, HttpRequest httpRequest,
                          HttpResponse response, HttpHandler httpHandler) throws IOException {
         try {
             if (httpHandler == null) {
@@ -188,11 +184,7 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                     deleteFile = () -> {
                     };
                 }
-                String uri = requestLine.getUri();
-                int i = uri.indexOf("?");
-                var urlStr = uri.substring(0, i == -1 ? uri.length() : i);
-                String paramStr = i == -1 ? null : uri.substring(i + 1);
-                Glob url = urlMatcher.parse(urlStr);
+                Glob url = urlMatcher.parse(path);
                 Glob queryParam = httpHandler.teatParam(paramStr);
                 CompletableFuture<Glob> future = operation.consume(data, url, queryParam);
                 if (future != null) {
@@ -273,12 +265,8 @@ public class GlobHttpRequestHandler implements HttpAsyncRequestHandler<HttpReque
                     httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
                 }
             } else if (httpRequest instanceof BasicHttpRequest) { //GET
-                String uri = requestLine.getUri();
                 HttpOperation operation = httpHandler.operation;
-                int i = uri.indexOf("?");
-                var urlStr = uri.substring(0, i == -1 ? uri.length() : i);
-                String paramStr = i == -1 ? null : uri.substring(i + 1);
-                Glob url = urlMatcher.parse(urlStr);
+                Glob url = urlMatcher.parse(path);
                 Glob queryParam = httpHandler.teatParam(paramStr);
                 CompletableFuture<Glob> glob = operation.consume(null, url, queryParam);
                 if (glob != null) {

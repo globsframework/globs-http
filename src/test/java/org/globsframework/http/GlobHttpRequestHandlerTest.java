@@ -35,6 +35,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.sql.Time;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -69,14 +71,14 @@ public class GlobHttpRequestHandlerTest {
 
 
         HttpServerRegister httpServerRegister = new HttpServerRegister("PriceServer/1.1");
-//        httpServerRegister.register("/test/{id}/TOTO/{subId}", URLParameter.TYPE)
-//                .get(QueryParameter.TYPE, new HttpTreatment() {
-//                    public CompletableFuture<Glob> consume(Glob body, Glob url, Glob queryParameters) throws Exception {
-//                        pairs.add(Pair.makePair(url, queryParameters));
-//                        activeId[0] = "/test/{id}/TOTO/{subId}";
-//                        return null;
-//                    }
-//                });
+        httpServerRegister.register("/test/{id}/TOTO/{subId}", URLParameter.TYPE)
+                .get(QueryParameter.TYPE, new HttpTreatment() {
+                    public CompletableFuture<Glob> consume(Glob body, Glob url, Glob queryParameters) throws Exception {
+                        pairs.add(Pair.makePair(url, queryParameters));
+                        activeId[0] = "/test/{id}/TOTO/{subId}";
+                        return null;
+                    }
+                });
 
         httpServerRegister.register("/test/{id}", URLOneParameter.TYPE)
                 .get(QueryParameter.TYPE, new HttpTreatment() {
@@ -124,26 +126,30 @@ public class GlobHttpRequestHandlerTest {
 
         HttpHost target = new HttpHost("localhost", port, "http");
 
-//        HttpGet httpGet = GlobHttpUtils.createGet("/test/123/TOTO/4567", QueryParameter.TYPE.instantiate()
-//                .set(QueryParameter.NAME, "ZERZE").set(QueryParameter.INFO, new String[]{"A", "B", "C", "D"})
-//                .set(QueryParameter.param, QueryParameter.TYPE.instantiate().set(QueryParameter.NAME, "AAAZZZ")));
-//        HttpResponse httpResponse = httpclient.execute(target, httpGet);
-//        Assert.assertEquals(200, httpResponse.getStatusLine().getStatusCode());
-//        Pair<Glob, Glob> poll = pairs.poll(2, TimeUnit.SECONDS);
-//        Assert.assertNotNull(poll);
-//        Assert.assertEquals(123, poll.getFirst().get(URLParameter.ID, 0));
-//        Assert.assertEquals(4567, poll.getFirst().get(URLParameter.SUBID, 0));
-//        Assert.assertEquals("ZERZE", poll.getSecond().get(QueryParameter.NAME));
-//        Assert.assertArrayEquals(new String[]{"A", "B", "C", "D"}, poll.getSecond().get(QueryParameter.INFO));
-//        Assert.assertEquals("AAAZZZ", poll.getSecond().get(QueryParameter.param).get(QueryParameter.NAME));
-//        Assert.assertEquals("/test/{id}/TOTO/{subId}", activeId[0]);
+        {
+            HttpGet httpGet = GlobHttpUtils.createGet("/test/123/TOTO/4567", QueryParameter.TYPE.instantiate()
+                    .set(QueryParameter.NAME, "ZERZE").set(QueryParameter.INFO, new String[]{"A", "B", "C", "D"})
+                    .set(QueryParameter.param, QueryParameter.TYPE.instantiate().set(QueryParameter.NAME, "AAAZZZ")));
+            HttpResponse httpResponse = httpclient.execute(target, httpGet);
+            Assert.assertEquals(200, httpResponse.getStatusLine().getStatusCode());
+            Pair<Glob, Glob> poll = pairs.poll(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(poll);
+            Assert.assertEquals(123, poll.getFirst().get(URLParameter.ID, 0));
+            Assert.assertEquals(4567, poll.getFirst().get(URLParameter.SUBID, 0));
+            Assert.assertEquals("ZERZE", poll.getSecond().get(QueryParameter.NAME));
+            Assert.assertArrayEquals(new String[]{"A", "B", "C", "D"}, poll.getSecond().get(QueryParameter.INFO));
+            Assert.assertEquals("AAAZZZ", poll.getSecond().get(QueryParameter.param).get(QueryParameter.NAME));
+            Assert.assertEquals("/test/{id}/TOTO/{subId}", activeId[0]);
+        }
 
-        HttpGet httpGet = GlobHttpUtils.createGet("/test/123", QueryParameter.TYPE.instantiate()
-                .set(QueryParameter.NAME, "ZERZE").set(QueryParameter.INFO, new String[]{"A", "B", "C", "D"})
-                .set(QueryParameter.param, QueryParameter.TYPE.instantiate().set(QueryParameter.NAME, "AAAZZZ")));
-        HttpResponse httpResponse = httpclient.execute(target, httpGet);
-        Assert.assertEquals(200, httpResponse.getStatusLine().getStatusCode());
-        Assert.assertEquals("/test/{id}", activeId[0]);
+        {
+            HttpGet httpGet = GlobHttpUtils.createGet("/test/123", QueryParameter.TYPE.instantiate()
+                    .set(QueryParameter.NAME, "ZERZE").set(QueryParameter.INFO, new String[]{"A", "B", "C", "D"})
+                    .set(QueryParameter.param, QueryParameter.TYPE.instantiate().set(QueryParameter.NAME, "AAAZZZ")));
+            HttpResponse httpResponse = httpclient.execute(target, httpGet);
+            Assert.assertEquals(200, httpResponse.getStatusLine().getStatusCode());
+            Assert.assertEquals("/test/{id}", activeId[0]);
+        }
 
         HttpGet httpGetFile = new HttpGet("/query");
         HttpResponse httpFileResponse = httpclient.execute(target, httpGetFile);
@@ -218,7 +224,6 @@ public class GlobHttpRequestHandlerTest {
 
         var localServer = ServerBootstrap.bootstrap()
             //    .setHttpProcessor(getHttpProcessor())
-                .setListenerPort(8080)
                 .registerHandler("/", new HttpAsyncRequestHandler<String>() {
 
                     @Override
@@ -284,6 +289,7 @@ public class GlobHttpRequestHandlerTest {
 
         localServer.start();
         localServer.getEndpoint().waitFor();
+        InetSocketAddress address = (InetSocketAddress) localServer.getEndpoint().getAddress();
         Thread mainThread = new Thread(() -> {
             logger.info("starting server");
             try{
@@ -297,7 +303,7 @@ public class GlobHttpRequestHandlerTest {
 
         mainThread.start();
 
-        var header = "http://localhost:8080";
+        var header = "http://localhost:" + address.getPort();
 
         HttpClient httpClient = HttpClients.createDefault();
         HttpGet httpGet = new HttpGet(header + "/with/nested");

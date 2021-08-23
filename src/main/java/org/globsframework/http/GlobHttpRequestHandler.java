@@ -174,6 +174,9 @@ public class GlobHttpRequestHandler  {
                         }
                     };
                 } else {
+                    //find mimetype (if xml => produce xml)
+//                    Arrays.stream(entity.getContentType().getElements())
+//                            .filter(headerElement -> headerElement.getName().equals())
                     String str = Files.read(entity.getContent(), StandardCharsets.UTF_8);
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug("receive : {}", str);

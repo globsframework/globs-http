@@ -271,7 +271,7 @@ public class ClientSharedData implements SharedDataService {
             remoteRWState.setSelectionKey(selectionKey);
 
             while (!stop) {
-                int select = selector.select();
+                int select = selector.select(1000);
                 if (select > 0) {
                     Set<SelectionKey> selectionKeys = selector.selectedKeys();
                     if (selectionKeys.remove(selectionKey)) {

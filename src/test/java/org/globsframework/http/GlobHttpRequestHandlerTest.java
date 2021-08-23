@@ -166,6 +166,35 @@ public class GlobHttpRequestHandlerTest {
         httpServerIntegerPair.getFirst().shutdown(0, TimeUnit.DAYS);
     }
 
+    @Test
+    public void xmlInOut() throws IOException {
+        final IOReactorConfig config = IOReactorConfig.custom()
+                .setSoReuseAddress(true)
+                .setSoTimeout(15000)
+                .setTcpNoDelay(true)
+                .build();
+
+        ServerBootstrap bootstrap = ServerBootstrap.bootstrap()
+                .setListenerPort(0)
+                .setIOReactorConfig(config);
+
+        File httpContent = File.createTempFile("httpContent", ".xml");
+        httpContent.deleteOnExit();
+        Files.dumpStringToFile(httpContent, "[]");
+        String absolutePath = httpContent.getAbsolutePath();
+
+        BlockingQueue<Pair<Glob, Glob>> pairs = new LinkedBlockingDeque<>();
+        HttpServerRegister httpServerRegister = new HttpServerRegister("PriceServer/1.1");
+        httpServerRegister.register("/test/{id}/TOTO/{subId}", URLParameter.TYPE)
+                .get(QueryParameter.TYPE, new HttpTreatment() {
+                    public CompletableFuture<Glob> consume(Glob body, Glob url, Glob queryParameters) throws Exception {
+                        pairs.add(Pair.makePair(url, queryParameters));
+                        return null;
+                    }
+                });
+
+    }
+
     static public class URLParameter {
         public static GlobType TYPE;
 

@@ -65,7 +65,7 @@
         <dependency>
             <groupId>org.globsframework</groupId>
             <artifactId>globs</artifactId>
-            <version>3.0-RELEASE</version>
+            <version>3.0</version>
         </dependency>
         <dependency>
             <groupId>org.globsframework</groupId>
@@ -137,7 +137,7 @@
         <dependency>
             <groupId>org.globsframework</groupId>
             <artifactId>globs</artifactId>
-            <version>3.0-RELEASE</version>
+            <version>3.0</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>

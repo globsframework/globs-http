@@ -4,7 +4,7 @@
     <packaging>jar</packaging>
     <artifactId>globs-http</artifactId>
     <name>Generic Lightweight ObjectS http</name>
-    <version>3.0</version>
+    <version>3.1</version>
 
     <repositories>
         <repository>
@@ -65,12 +65,12 @@
         <dependency>
             <groupId>org.globsframework</groupId>
             <artifactId>globs</artifactId>
-            <version>3.0</version>
+            <version>3.1</version>
         </dependency>
         <dependency>
             <groupId>org.globsframework</groupId>
             <artifactId>globs-gson</artifactId>
-            <version>3.0</version>
+            <version>3.1</version>
         </dependency>
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
@@ -137,7 +137,7 @@
         <dependency>
             <groupId>org.globsframework</groupId>
             <artifactId>globs</artifactId>
-            <version>3.0</version>
+            <version>3.1</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>

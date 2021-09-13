@@ -1,5 +1,6 @@
 package org.globsframework.http;
 
+import org.globsframework.metamodel.Field;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.model.Glob;
 import org.globsframework.model.MutableGlob;
@@ -22,12 +23,11 @@ class DefaultUrlMatcher implements UrlMatcher {
             split = fullUrl.split("/");
         }
         argByPosition = new GlobHttpUtils.FromStringConverter[split.length];
-        for (var i = 0; i < split.length; i++) {
+        for (int i = 0; i < split.length; i++) {
             String s = split[i];
             if (s.startsWith("{") && s.endsWith("}")) {
-                var field = globType.getField(s.substring(1, s.length() - 1));
-                var fromStringConverter = GlobHttpUtils.createConverter(field, "");
-                argByPosition[i] = fromStringConverter;
+                Field field = globType.getField(s.substring(1, s.length() - 1));
+                argByPosition[i] = GlobHttpUtils.createConverter(field, "");
             }
             else {
                 argByPosition[i] = null;

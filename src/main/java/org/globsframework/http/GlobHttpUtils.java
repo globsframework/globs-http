@@ -15,8 +15,7 @@ import org.globsframework.model.MutableGlob;
 import org.globsframework.utils.StringConverter;
 
 import java.nio.charset.StandardCharsets;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -204,13 +203,16 @@ public class GlobHttpUtils {
         public void convert(MutableGlob glob, String str) {
             if (str != null) {
                 if (str.contains("T")) {
-                    glob.set(dateTimeField, ZonedDateTime.parse(str));
+                    if (str.contains("+")) {
+                        glob.set(dateTimeField, ZonedDateTime.parse(str));
+                    }
+                    else {
+                        glob.set(dateTimeField, ZonedDateTime.of(LocalDateTime.parse(str), ZoneId.systemDefault()));
+                    }
                 }
                 else {
-                    if (str.length() > 6) {
-                        ZoneId zoneId = ZoneId.systemDefault();
-                        ZonedDateTime.parse(str);
-                    }
+                    LocalDate parse = LocalDate.parse(str);
+                    glob.set(dateTimeField, ZonedDateTime.of(parse, LocalTime.MIDNIGHT, ZoneId.systemDefault()));
                 }
             }
         }

@@ -90,7 +90,7 @@ public class GlobHttpRequestHandler  {
     public Collection<String> createRegExp() {
         String[] split = httpReceiver.getUrl().split("/");
         List<String> matcher = new ArrayList<>();
-        var stringBuilder = new StringBuilder();
+        StringBuilder stringBuilder = new StringBuilder();
         for (String s : split) {
             if (!s.isEmpty()) {
                 if (s.startsWith("{") && s.endsWith("}")) {
@@ -106,7 +106,7 @@ public class GlobHttpRequestHandler  {
     }
 
     public void handle(String[] path, String paramStr, HttpRequest httpRequest, HttpAsyncExchange httpAsyncExchange, HttpContext httpContext) throws HttpException, IOException {
-        var requestLine = httpRequest.getRequestLine();
+        RequestLine requestLine = httpRequest.getRequestLine();
         String method = requestLine.getMethod().toUpperCase(Locale.ROOT);
         LOGGER.info("Receive : {} : {}", method, requestLine.getUri());
         final HttpResponse response = httpAsyncExchange.getResponse();
@@ -155,15 +155,15 @@ public class GlobHttpRequestHandler  {
                 Glob data;
                 Runnable deleteFile;
                 if (operation.getBodyType() == GlobHttpContent.TYPE) {
-                    var outputStream = new ByteArrayOutputStream();
+                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
                     Files.copyStream(entity.getContent(), outputStream);
                     data = GlobHttpContent.TYPE.instantiate()
                             .set(GlobHttpContent.content, outputStream.toByteArray());
                     deleteFile = () -> {
                     };
                 } else if (operation.getBodyType() == GlobFile.TYPE) {
-                    var tempFile = File.createTempFile("http", ".data");
-                    try (var outputStream = new FileOutputStream(tempFile)) {
+                    File tempFile = File.createTempFile("http", ".data");
+                    try (FileOutputStream outputStream = new FileOutputStream(tempFile)) {
                         Files.copyStream(entity.getContent(), outputStream);
                     }
 
@@ -199,7 +199,7 @@ public class GlobHttpRequestHandler  {
                                                 glob.get(GlobHttpContent.charset) != null ? Charset.forName(glob.get(GlobHttpContent.charset)) : null)));
                             } else if (glob.getType() == GlobFile.TYPE) {
                                 NFileEntity returnEntity;
-                                final var file = new File(glob.get(GlobFile.file));
+                                final File file = new File(glob.get(GlobFile.file));
                                 if (glob.get(GlobFile.removeWhenDelivered, !LOGGER.isTraceEnabled())) {
                                     returnEntity = new NFileEntity(file,
                                             ContentType.create(glob.get(GlobFile.mimeType, "application/json"), StandardCharsets.UTF_8)) {
@@ -219,8 +219,8 @@ public class GlobHttpRequestHandler  {
                             } else {
                                 if (gzipCompress) {
                                     try {
-                                        var out = new ArrayOutputInputStream();
-                                        var writer = new OutputStreamWriter(new GZIPOutputStream(out), StandardCharsets.UTF_8);
+                                        ArrayOutputInputStream out = new ArrayOutputInputStream();
+                                        OutputStreamWriter writer = new OutputStreamWriter(new GZIPOutputStream(out), StandardCharsets.UTF_8);
                                         GSonUtils.encode(writer, glob, false);
                                         writer.close();
                                         response.setHeader(new BasicHeader(HTTP.CONTENT_ENCODING, "gzip"));
@@ -281,7 +281,7 @@ public class GlobHttpRequestHandler  {
                                                 res.get(GlobHttpContent.charset) != null ? Charset.forName(res.get(GlobHttpContent.charset)) : null)));
                             } else if (res.getType() == GlobFile.TYPE) {
                                 NFileEntity entity;
-                                final var file = new File(res.get(GlobFile.file));
+                                final File file = new File(res.get(GlobFile.file));
                                 if (res.get(GlobFile.removeWhenDelivered, !LOGGER.isTraceEnabled())) {
                                     entity = new NFileEntity(file,
                                             ContentType.create(res.get(GlobFile.mimeType, "application/json"), StandardCharsets.UTF_8)) {
@@ -300,7 +300,7 @@ public class GlobHttpRequestHandler  {
                                 response.setEntity(entity);
                             } else {
                                 if (gzipCompress) {
-                                    var out = new ArrayOutputInputStream();
+                                    ArrayOutputInputStream out = new ArrayOutputInputStream();
                                     GSonUtils.encode(new OutputStreamWriter(out, StandardCharsets.UTF_8), res, false);
                                     response.setHeader(new BasicHeader(HTTP.CONTENT_ENCODING, "gzip"));
                                     try {
@@ -409,7 +409,7 @@ public class GlobHttpRequestHandler  {
                 MutableGlob instantiate = paramType.instantiate();
                 List<NameValuePair> parse = URLEncodedUtils.parse(queryParams, StandardCharsets.UTF_8);
                 for (NameValuePair nameValuePair : parse) {
-                    var fromStringConverter = converterMap.get(nameValuePair.getName());
+                    GlobHttpUtils.FromStringConverter fromStringConverter = converterMap.get(nameValuePair.getName());
                     if (fromStringConverter != null) {
                         fromStringConverter.convert(instantiate, nameValuePair.getValue());
                     } else {

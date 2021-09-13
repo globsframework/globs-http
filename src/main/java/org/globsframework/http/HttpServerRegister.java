@@ -1,13 +1,10 @@
 package org.globsframework.http;
 
+import org.apache.http.*;
 import org.apache.http.HttpException;
-import org.apache.http.HttpRequest;
 import org.apache.http.impl.nio.bootstrap.HttpServer;
 import org.apache.http.impl.nio.bootstrap.ServerBootstrap;
-import org.apache.http.nio.protocol.BasicAsyncRequestConsumer;
-import org.apache.http.nio.protocol.HttpAsyncExchange;
-import org.apache.http.nio.protocol.HttpAsyncRequestConsumer;
-import org.apache.http.nio.protocol.HttpAsyncRequestHandler;
+import org.apache.http.nio.protocol.*;
 import org.apache.http.protocol.HttpContext;
 import org.globsframework.http.openapi.model.*;
 import org.globsframework.json.GSonUtils;
@@ -48,9 +45,9 @@ public class HttpServerRegister {
     }
 
     public Verb register(String url, GlobType queryUrl) {
-        var current = verbMap.get(url);
+        Verb current = verbMap.get(url);
         if (current == null) {
-            var verb = new Verb(url, queryUrl);
+            Verb verb = new Verb(url, queryUrl);
             verbMap.put(url, verb);
             return verb;
         } else {
@@ -74,7 +71,7 @@ public class HttpServerRegister {
         Map<GlobType, Glob> schemas = new HashMap<>();
         List<Glob> paths = new ArrayList<>();
         for (Map.Entry<String, Verb> stringVerbEntry : verbMap.entrySet()) {
-            var verb = stringVerbEntry.getValue();
+            Verb verb = stringVerbEntry.getValue();
             MutableGlob path = OpenApiPath.TYPE.instantiate();
             paths.add(path);
             path.set(OpenApiPath.name, verb.url);
@@ -88,8 +85,8 @@ public class HttpServerRegister {
                 List<Glob> parameters = new ArrayList<>();
                 if (verb.queryUrl != null) {
                     for (Field field : verb.queryUrl.getFields()) {
-                        var apiFieldVisitor = new OpenApiFieldVisitor(schemas);
-                        var openApiFieldVisitor = field.safeVisit(apiFieldVisitor);
+                        OpenApiFieldVisitor apiFieldVisitor = new OpenApiFieldVisitor(schemas);
+                        OpenApiFieldVisitor openApiFieldVisitor = field.safeVisit(apiFieldVisitor);
                         parameters.add(OpenApiParameter.TYPE.instantiate()
                                 .set(OpenApiParameter.in, "path")
                                 .set(OpenApiParameter.name, field.getName())
@@ -384,7 +381,7 @@ public class HttpServerRegister {
         for (Map.Entry<String, Verb> stringVerbEntry : verbMap.entrySet()) {
             Verb verb = stringVerbEntry.getValue();
             GlobHttpRequestHandler globHttpRequestHandler = new GlobHttpRequestHandler(verb.complete(), verb.gzipCompress);
-            var path = globHttpRequestHandler.createRegExp();
+            Collection<String> path = globHttpRequestHandler.createRegExp();
             handler.register(path, globHttpRequestHandler);
             for (HttpOperation operation : stringVerbEntry.getValue().operations) {
 
@@ -455,20 +452,20 @@ public class HttpServerRegister {
 
     }
 
-    private static class HttpRequestHttpAsyncRequestHandlerTree implements HttpAsyncRequestHandler<HttpRequest> {
+    public static class HttpRequestHttpAsyncRequestHandlerTree implements HttpAsyncRequestHandler<HttpRequest> {
         StrNode[] nodes = new StrNode[0];
         public HttpAsyncRequestConsumer<HttpRequest> processRequest(HttpRequest httpRequest, HttpContext httpContext)  {
             return new BasicAsyncRequestConsumer();
         }
 
         public void handle(HttpRequest httpRequest, HttpAsyncExchange httpExchange, HttpContext context) throws HttpException, IOException {
-            var requestLine = httpRequest.getRequestLine();
+            RequestLine requestLine = httpRequest.getRequestLine();
             String uri = requestLine.getUri();
             int i = uri.indexOf("?");
-            var urlStr = uri.substring(1, i == -1 ? uri.length() : i); // remove first /
+            String urlStr = uri.substring(1, i == -1 ? uri.length() : i); // remove first /
             String paramStr = i == -1 ? null : uri.substring(i + 1);
             String[] split = urlStr.split("/");
-            nodes[split.length].dispatch(split, paramStr, httpRequest, httpExchange, context);
+            nodes[Math.min(split.length, nodes.length - 1)].dispatch(split, paramStr, httpRequest, httpExchange, context);
         }
 
         public void register(Collection<String> path, GlobHttpRequestHandler globHttpRequestHandler) {
@@ -492,6 +489,11 @@ public class HttpServerRegister {
                     return;
                 }
             }
+            // No Match.
+            HttpResponse response = httpExchange.getResponse();
+            response.setStatusCode(HttpStatus.SC_FORBIDDEN);
+            httpExchange.submitResponse(new BasicAsyncResponseProducer(response));
+            LOGGER.warn("Unexpected : " + Arrays.toString(path));
         }
 
         public void register(Collection<String> path, GlobHttpRequestHandler globHttpRequestHandler) {

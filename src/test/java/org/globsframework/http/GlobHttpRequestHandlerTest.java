@@ -151,15 +151,26 @@ public class GlobHttpRequestHandlerTest {
             Assert.assertEquals("/test/{id}", activeId[0]);
         }
 
-        HttpGet httpGetFile = new HttpGet("/query");
-        HttpResponse httpFileResponse = httpclient.execute(target, httpGetFile);
-        Assert.assertEquals(200, httpFileResponse.getStatusLine().getStatusCode());
-        Assert.assertEquals("[]", Files.loadStreamToString(httpFileResponse.getEntity().getContent(), "UTF-8"));
+        {
+            HttpGet httpGetFile = new HttpGet("/query");
+            HttpResponse httpFileResponse = httpclient.execute(target, httpGetFile);
+            Assert.assertEquals(200, httpFileResponse.getStatusLine().getStatusCode());
+            Assert.assertEquals("[]", Files.loadStreamToString(httpFileResponse.getEntity().getContent(), "UTF-8"));
+        }
 
-        HttpPost httpPostFile = new HttpPost("/query");
-        HttpResponse httpPostResponse = httpclient.execute(target, httpPostFile);
-        Assert.assertEquals(200, httpPostResponse.getStatusLine().getStatusCode());
-        Assert.assertEquals("{\"DATA\":\"some important information.\"}", Files.loadStreamToString(httpPostResponse.getEntity().getContent(), "UTF-8"));
+        {
+            HttpPost httpPostFile = new HttpPost("/query");
+            HttpResponse httpPostResponse = httpclient.execute(target, httpPostFile);
+            Assert.assertEquals(200, httpPostResponse.getStatusLine().getStatusCode());
+            Assert.assertEquals("{\"DATA\":\"some important information.\"}", Files.loadStreamToString(httpPostResponse.getEntity().getContent(), "UTF-8"));
+        }
+
+        {
+            //check longer query.
+            HttpGet httpGetFile = new HttpGet("/query/with/additional/unexpectedPath");
+            HttpResponse httpFileResponse = httpclient.execute(target, httpGetFile);
+            Assert.assertEquals(403, httpFileResponse.getStatusLine().getStatusCode());
+        }
 
         server.shutdown(0, TimeUnit.MINUTES);
         Assert.assertFalse(httpContent.exists());
@@ -251,7 +262,7 @@ public class GlobHttpRequestHandlerTest {
 
         final String[] responder = {""};
 
-        var localServer = ServerBootstrap.bootstrap()
+        HttpServer localServer = ServerBootstrap.bootstrap()
             //    .setHttpProcessor(getHttpProcessor())
                 .registerHandler("/", new HttpAsyncRequestHandler<String>() {
 
@@ -332,7 +343,7 @@ public class GlobHttpRequestHandlerTest {
 
         mainThread.start();
 
-        var header = "http://localhost:" + address.getPort();
+        String header = "http://localhost:" + address.getPort();
 
         HttpClient httpClient = HttpClients.createDefault();
         HttpGet httpGet = new HttpGet(header + "/with/nested");

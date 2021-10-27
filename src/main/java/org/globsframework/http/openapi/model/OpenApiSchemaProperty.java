@@ -21,6 +21,9 @@ public class OpenApiSchemaProperty {
     @Comment_("string, number, integer, boolean, array, object")
     public static StringField type;
 
+    @Target(OpenApiSchemaProperty.class)
+    public static GlobArrayField anyOf;
+
     @Comment_("For String: date (2017-07-21), date-time (2017-07-21T17:32:28Z), password, byte (base-64), binary")
     public static StringField format;
 

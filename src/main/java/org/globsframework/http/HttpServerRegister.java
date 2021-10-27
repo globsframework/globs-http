@@ -9,9 +9,7 @@ import org.apache.http.protocol.HttpContext;
 import org.globsframework.http.openapi.model.*;
 import org.globsframework.json.GSonUtils;
 import org.globsframework.json.annottations.IsJsonContentAnnotation;
-import org.globsframework.metamodel.Field;
-import org.globsframework.metamodel.GlobType;
-import org.globsframework.metamodel.GlobTypeLoaderFactory;
+import org.globsframework.metamodel.*;
 import org.globsframework.metamodel.annotations.CommentType;
 import org.globsframework.metamodel.fields.*;
 import org.globsframework.model.Glob;
@@ -335,25 +333,43 @@ public class HttpServerRegister {
 
             @Override
             public void visitUnionGlob(GlobUnionField field) throws Exception {
-                MutableGlob ref = buildSchema(field.getTargetTypes().iterator().next(), schemas);
-                ref.set(OpenApiSchemaProperty.name, field.getName());
+                List<Glob> sub = extractUnion(field.getTargetTypes());
+
+                MutableGlob schema = OpenApiSchemaProperty.TYPE.instantiate();
+                schema.set(OpenApiSchemaProperty.name, field.getName());
+                schema.set(OpenApiSchemaProperty.anyOf, sub.toArray(Glob[]::new));
+//                ref.set(OpenApiSchemaProperty.name, field.getName());
 //                        .set(OpenApiSchemaProperty.format, "binary")
 //                        .set(OpenApiSchemaProperty.type, "object");
-                p.set(ref);
+                p.set(schema);
             }
 
-            @Override
+            private List<Glob> extractUnion(Collection<GlobType> targetTypes) {
+                List<Glob> sub = new ArrayList<>();
+                for (GlobType targetType : targetTypes) {
+                    String name = targetType.getName() + "_union";
+                    var first = schemas.entrySet().stream().filter(e -> e.getKey().getName().equals(name)).findFirst();
+                    sub.add(first.map(entry ->
+                                    OpenApiSchemaProperty.TYPE.instantiate()
+                                            .set(OpenApiSchemaProperty.ref, "#/components/schemas/" + entry.getKey().getName()))
+                            .orElseGet(() -> buildSchema(
+                            GlobTypeBuilderFactory.create(name)
+                                    .addGlobField(targetType.getName(), Collections.emptyList(), targetType).get(), schemas)));
+                }
+                return sub;
+            }
+
             public void visitUnionGlobArray(GlobArrayUnionField field) throws Exception {
+                List<Glob> sub = extractUnion(field.getTargetTypes());
                 MutableGlob ref = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
                         .set(OpenApiSchemaProperty.type, ARRAY_STR)
-                        .set(OpenApiSchemaProperty.items,
-                                buildSchema(field.getTargetTypes().iterator().next(), schemas));
+                        .set(OpenApiSchemaProperty.items, OpenApiSchemaProperty.TYPE.instantiate()
+                                .set(OpenApiSchemaProperty.anyOf, sub.toArray(Glob[]::new))
+                );
                 p.set(ref);
-
             }
 
-            @Override
             public void visitGlobArray(GlobArrayField field) throws Exception {
                 MutableGlob ref = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())

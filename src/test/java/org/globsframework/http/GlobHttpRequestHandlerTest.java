@@ -21,10 +21,8 @@ import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.GlobTypeLoaderFactory;
 import org.globsframework.metamodel.annotations.FieldNameAnnotation;
 import org.globsframework.metamodel.annotations.Target;
-import org.globsframework.metamodel.fields.GlobField;
-import org.globsframework.metamodel.fields.LongField;
-import org.globsframework.metamodel.fields.StringArrayField;
-import org.globsframework.metamodel.fields.StringField;
+import org.globsframework.metamodel.annotations.Targets;
+import org.globsframework.metamodel.fields.*;
 import org.globsframework.model.Glob;
 import org.globsframework.utils.Files;
 import org.globsframework.utils.collections.Pair;
@@ -252,8 +250,32 @@ public class GlobHttpRequestHandlerTest {
 
         public static StringField DATA;
 
+        @Targets({U1.class, U2.class})
+        public static GlobUnionField testUnion;
+
+        @Targets({U1.class, U2.class})
+        public static GlobArrayUnionField testUnions;
+
         static {
             GlobTypeLoaderFactory.create(BodyContent.class).load();
+        }
+    }
+
+    static public class U1{
+        public static GlobType TYPE;
+
+        public static StringField someValue;
+        static {
+            GlobTypeLoaderFactory.create(U1.class).load();
+        }
+    }
+
+    static public class U2{
+        public static GlobType TYPE;
+
+        public static StringField someOtherValue;
+        static {
+            GlobTypeLoaderFactory.create(U2.class).load();
         }
     }
 

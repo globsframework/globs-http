@@ -22,8 +22,8 @@ import java.util.Map;
 import java.util.Set;
 
 public class DefaultSharedDataManager implements SharedDataManager, SharedDataService.SharedDataEventListener, Cleanable {
-    static private final Logger LOGGER = LoggerFactory.getLogger(DefaultSharedDataManager.class);
     public static final GlobModel GLOB_MODEL = new DefaultGlobModel(AllAnnotations.MODEL, ShareDataManagerType.TYPE);
+    static private final Logger LOGGER = LoggerFactory.getLogger(DefaultSharedDataManager.class);
     private static final int INITIALIZATION_TIMEOUT = Integer.getInteger("org.globsframework.remote.shared.impl.DefaultSharedDataManager.initialization.timeout", 60 * 1000);
     private final String localHost;
     private final SharedDataService sharedDataService;
@@ -66,13 +66,17 @@ public class DefaultSharedDataManager implements SharedDataManager, SharedDataSe
         serverData.clear();
     }
 
-    synchronized public void create(final Path path, GlobModel model) throws AlreadyExist {
+    public void create(final Path path, GlobModel model) throws AlreadyExist {
+        create(path, model, 0);
+    }
+
+    synchronized public void create(final Path path, GlobModel model, int port) throws AlreadyExist {
         ServerSharedData serverSharedData = serverData.get(path);
         if (serverSharedData != null) {
             throw new AlreadyExist(path.toString());
         }
         LOGGER.info("create server shared data for " + path.getFullPath());
-        final ServerSharedData sharedData = new DefaultServerSharedData(model, localHost, 0, path.getFullPath());
+        final ServerSharedData sharedData = new DefaultServerSharedData(model, localHost, port, path.getFullPath());
         serverData.put(path, sharedData);
         sharedDataService.write(new SharedDataService.SharedData() {
             public void data(GlobRepository globRepository) {

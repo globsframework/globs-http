@@ -6,6 +6,8 @@ public interface SharedDataManager {
 
     void create(Path path, GlobModel model) throws AlreadyExist;
 
+    void create(Path path, GlobModel model, int port) throws AlreadyExist;
+
     SharedDataService getSharedDataService(Path path, GlobModel model);
 
     SharedDataService getSharedDataServiceSync(Path path, GlobModel model);

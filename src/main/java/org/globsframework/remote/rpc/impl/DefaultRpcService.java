@@ -50,12 +50,16 @@ public class DefaultRpcService implements RpcService, Cleanable {
     private List<SerializerAccessor> serializerAccessors = new ArrayList<>();
 
     public DefaultRpcService(String workerName, DirectoryProvider directoryProvider, SharedDataManager sharedDataManager, PeerToPeer peerToPeer) {
+        this(0, workerName, directoryProvider, sharedDataManager, peerToPeer);
+    }
+
+    public DefaultRpcService(int port, String workerName, DirectoryProvider directoryProvider, SharedDataManager sharedDataManager, PeerToPeer peerToPeer) {
         this.workerName = workerName;
         this.directoryProvider = directoryProvider;
         GlobModel globModel = new DefaultGlobModel(ServiceType.TYPE);
         sharedDataService = sharedDataManager.getSharedDataServiceSync(SharedPathBuilder.create(SERVICES), globModel);
         this.peerToPeer = peerToPeer;
-        serverListener = this.peerToPeer.createServerListener(1, new PeerToPeer.ServerRequestFactory() {
+        serverListener = this.peerToPeer.createServerListener(port, 1, new PeerToPeer.ServerRequestFactory() {
             public PeerToPeer.ServerRequestProcessor createServerRequest() {
                 return new PeerToPeer.ServerRequestProcessor() {
                     public void receive(PeerToPeer.ServerRequest serverRequest, PeerToPeer.ServerResponseBuilder response) {
@@ -83,6 +87,11 @@ public class DefaultRpcService implements RpcService, Cleanable {
     public static void registerRpcNamingServiceHere(SharedDataManager sharedDataManager) {
         logger.info("Init rpc naming service server.");
         sharedDataManager.create(SharedPathBuilder.create(SERVICES), new DefaultGlobModel(ServiceType.TYPE));
+    }
+
+    public static void registerRpcNamingServiceHere(SharedDataManager sharedDataManager, int port) {
+        logger.info("Init rpc naming service server.");
+        sharedDataManager.create(SharedPathBuilder.create(SERVICES), new DefaultGlobModel(ServiceType.TYPE), port);
     }
 
     private static void writeThrowable(Throwable e, SerializedOutput serializedOutput) {

@@ -38,6 +38,7 @@ public class GlobHttpRequestHandler  {
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobHttpRequestHandler.class);
     private final UrlMatcher urlMatcher;
     private final boolean gzipCompress;
+    private String serverInfo;
     private final HttpReceiver httpReceiver;
     private HttpHandler onPost;
     private HttpHandler onPut;
@@ -45,7 +46,8 @@ public class GlobHttpRequestHandler  {
     private HttpHandler onGet;
     private HttpHandler onOption;
 
-    public GlobHttpRequestHandler(HttpReceiver httpReceiver, boolean gzipCompress) {
+    public GlobHttpRequestHandler(String serverInfo, HttpReceiver httpReceiver, boolean gzipCompress) {
+        this.serverInfo = serverInfo;
         this.httpReceiver = httpReceiver;
         this.gzipCompress = gzipCompress;
         if (httpReceiver.getUrlType() != null) {
@@ -60,19 +62,19 @@ public class GlobHttpRequestHandler  {
         for (HttpOperation operation : httpReceiver.getOperations()) {
             switch (operation.verb()) {
                 case post:
-                    onPost = new HttpHandler(operation);
+                    onPost = new HttpHandler(serverInfo, operation);
                     break;
                 case put:
-                    onPut = new HttpHandler(operation);
+                    onPut = new HttpHandler(serverInfo, operation);
                     break;
                 case delete:
-                    onDelete = new HttpHandler(operation);
+                    onDelete = new HttpHandler(serverInfo, operation);
                     break;
                 case get:
-                    onGet = new HttpHandler(operation);
+                    onGet = new HttpHandler(serverInfo, operation);
                     break;
                 case option:
-                    onOption = new HttpHandler(operation);
+                    onOption = new HttpHandler(serverInfo, operation);
                     break;
                 default:
                     throw new IllegalStateException("Unexpected value: " + operation.verb());
@@ -101,14 +103,14 @@ public class GlobHttpRequestHandler  {
                 }
             }
         }
-        LOGGER.debug("regex: {}", stringBuilder);
+        LOGGER.debug(serverInfo + " regex: {}", stringBuilder);
         return matcher;
     }
 
     public void handle(String[] path, String paramStr, HttpRequest httpRequest, HttpAsyncExchange httpAsyncExchange, HttpContext httpContext) throws HttpException, IOException {
         RequestLine requestLine = httpRequest.getRequestLine();
         String method = requestLine.getMethod().toUpperCase(Locale.ROOT);
-        LOGGER.info("Receive : {} : {}", method, requestLine.getUri());
+        LOGGER.info("{} Receive : {} : {}", serverInfo, method, requestLine.getUri());
         final HttpResponse response = httpAsyncExchange.getResponse();
         try {
             switch (method) {
@@ -135,18 +137,18 @@ public class GlobHttpRequestHandler  {
                     break;
             }
         } catch (Exception e) {
-            LOGGER.error("For " + requestLine.getUri(), e);
+            LOGGER.error(serverInfo + " For " + requestLine.getUri(), e);
             response.setStatusCode(HttpStatus.SC_EXPECTATION_FAILED);
             httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
         }
-        LOGGER.info("done {}", requestLine.getUri());
+        LOGGER.info("{} done {}", serverInfo, requestLine.getUri());
     }
 
     private void treatOp(String[] path, String paramStr, RequestLine requestLine, HttpAsyncExchange httpAsyncExchange, HttpRequest httpRequest,
                          HttpResponse response, HttpHandler httpHandler) throws IOException {
         try {
             if (httpHandler == null) {
-                LOGGER.error("Receive unexpected request ({})", requestLine.getMethod());
+                LOGGER.error("{} : Receive unexpected request ({})", serverInfo, requestLine.getMethod());
                 response.setStatusCode(HttpStatus.SC_FORBIDDEN);
                 httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
             } else if (httpRequest instanceof HttpEntityEnclosingRequest) {
@@ -170,7 +172,7 @@ public class GlobHttpRequestHandler  {
                     data = GlobFile.TYPE.instantiate().set(GlobFile.file, tempFile.getAbsolutePath());
                     deleteFile = () -> {
                         if (tempFile.exists() && !tempFile.delete()) {
-                            LOGGER.error("Fail to delete {}", tempFile.getAbsolutePath());
+                            LOGGER.error("{} : Fail to delete {}", serverInfo, tempFile.getAbsolutePath());
                         }
                     };
                 } else {
@@ -179,9 +181,9 @@ public class GlobHttpRequestHandler  {
 //                            .filter(headerElement -> headerElement.getName().equals())
                     String str = Files.read(entity.getContent(), StandardCharsets.UTF_8);
                     if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("receive : {}", str);
+                        LOGGER.debug("{} : receive : {}", serverInfo, str);
                     } else {
-                        LOGGER.info("receive : {}", str.substring(0, Math.min(1000, str.length())));
+                        LOGGER.info("{} : receive : {}", serverInfo, str.substring(0, Math.min(1000, str.length())));
                     }
                     data = (Strings.isNullOrEmpty(str) || operation.getBodyType() == null) ? null : GSonUtils.decode(str, operation.getBodyType());
                     deleteFile = () -> {
@@ -207,7 +209,7 @@ public class GlobHttpRequestHandler  {
                                         public void close() throws IOException {
                                             super.close();
                                             if (!file.delete() && file.exists()) {
-                                                LOGGER.error("Fail to delete {}", file.getAbsolutePath());
+                                                LOGGER.error("{} : Fail to delete {}", serverInfo, file.getAbsolutePath());
                                             }
                                         }
                                     };
@@ -227,7 +229,7 @@ public class GlobHttpRequestHandler  {
                                         response.setEntity(new InputStreamEntity(out.getInputStream()));
                                         response.setStatusCode(HttpStatus.SC_OK);
                                     } catch (IOException e) {
-                                        LOGGER.error("Bug io error", e);
+                                        LOGGER.error(serverInfo + " : Bug io error", e);
                                         response.setStatusCode(HttpStatus.SC_METHOD_FAILURE);
                                     }
                                 } else {
@@ -238,20 +240,20 @@ public class GlobHttpRequestHandler  {
                             }
                         } else {
                             if (throwable != null) {
-                                LOGGER.error("Request fail", throwable);
+                                LOGGER.error(serverInfo + " : Request fail", throwable);
                                 if (throwable instanceof HttpException) {
                                     int statusCode = ((HttpException) throwable).code;
-                                    LOGGER.error("return status: {}", statusCode);
+                                    LOGGER.error("{} : return status: {}", serverInfo, statusCode);
                                     response.setStatusCode(statusCode);
                                     response.setReasonPhrase(((HttpException) throwable).message);
                                 } else if (throwable instanceof HttpExceptionWithContent) {
                                     response.setEntity(new StringEntity(GSonUtils.encode(((HttpExceptionWithContent) throwable).message, false),
                                             ContentType.create("application/json", StandardCharsets.UTF_8)));
                                     int statusCode = ((HttpExceptionWithContent) throwable).code;
-                                    LOGGER.error("return status: {}", statusCode);
+                                    LOGGER.error("{} : return status: {}", serverInfo, statusCode);
                                     response.setStatusCode(statusCode);
                                 } else {
-                                    LOGGER.error("return status: " + HttpStatus.SC_INTERNAL_SERVER_ERROR);
+                                    LOGGER.error(serverInfo +" : return status: " + HttpStatus.SC_INTERNAL_SERVER_ERROR);
                                     response.setStatusCode(HttpStatus.SC_INTERNAL_SERVER_ERROR);
                                 }
                             } else {
@@ -289,7 +291,7 @@ public class GlobHttpRequestHandler  {
                                         public void close() throws IOException {
                                             super.close();
                                             if (!file.delete() && file.exists()) {
-                                                LOGGER.error("Fail to delete {}", file.getAbsolutePath());
+                                                LOGGER.error("{} : Fail to delete {}", serverInfo, file.getAbsolutePath());
                                             }
                                         }
                                     };
@@ -316,14 +318,14 @@ public class GlobHttpRequestHandler  {
                                     response.setStatusCode(HttpStatus.SC_OK);
                                 }
                                 if (LOGGER.isDebugEnabled()) {
-                                    LOGGER.debug("response {}", GSonUtils.encode(res, false));
+                                    LOGGER.debug("{} : response {}", serverInfo, GSonUtils.encode(res, false));
                                 }
                             }
                             response.setStatusCode(HttpStatus.SC_OK);
                         } else {
                             if (throwable != null) {
-                                LOGGER.error("Request fail", throwable);
-                                LOGGER.error("return status: " + HttpStatus.SC_INTERNAL_SERVER_ERROR);
+                                LOGGER.error(serverInfo + " : Request fail", throwable);
+                                LOGGER.error(serverInfo + " : return status: " + HttpStatus.SC_INTERNAL_SERVER_ERROR);
                                 response.setStatusCode(HttpStatus.SC_INTERNAL_SERVER_ERROR);
                             } else {
                                 response.setStatusCode(HttpStatus.SC_OK);
@@ -338,14 +340,14 @@ public class GlobHttpRequestHandler  {
                     httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
                 }
             } else {
-                LOGGER.error("Unexpected type {}", httpRequest.getClass().getName());
-                LOGGER.error("return status: {}", HttpStatus.SC_INTERNAL_SERVER_ERROR);
+                LOGGER.error("{} : Unexpected type {}", serverInfo, httpRequest.getClass().getName());
+                LOGGER.error("{} : return status: {}", serverInfo, HttpStatus.SC_INTERNAL_SERVER_ERROR);
                 response.setStatusCode(HttpStatus.SC_INTERNAL_SERVER_ERROR);
                 httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
             }
         } catch (Exception e) {
-            LOGGER.error("request error", e);
-            LOGGER.error("return status: {}", HttpStatus.SC_FORBIDDEN);
+            LOGGER.error(serverInfo + " : request error", e);
+            LOGGER.error("{} return status: {}", serverInfo, HttpStatus.SC_FORBIDDEN);
             response.setStatusCode(HttpStatus.SC_FORBIDDEN);
             httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
         }
@@ -380,12 +382,14 @@ public class GlobHttpRequestHandler  {
     }
 
     public static class HttpHandler {
+        private final String serverInfo;
         private final HttpOperation operation;
         private final ParamProcessor paramProcessor;
 
-        public HttpHandler(HttpOperation operation) {
+        public HttpHandler(String serverInfo, HttpOperation operation) {
+            this.serverInfo = serverInfo;
             this.operation = operation;
-            paramProcessor = operation.getQueryParamType() == null ? allHeaders -> null : new DefaultParamProcessor(operation.getQueryParamType());
+            paramProcessor = operation.getQueryParamType() == null ? allHeaders -> null : new DefaultParamProcessor(this.serverInfo, operation.getQueryParamType());
         }
 
         public Glob teatParam(String queryParam) {
@@ -394,10 +398,12 @@ public class GlobHttpRequestHandler  {
     }
 
     public static class DefaultParamProcessor implements ParamProcessor {
+        private final String serverInfo;
         GlobType paramType;
         Map<String, GlobHttpUtils.FromStringConverter> converterMap = new HashMap<>();
 
-        public DefaultParamProcessor(GlobType paramType) {
+        public DefaultParamProcessor(String serverInfo, GlobType paramType) {
+            this.serverInfo = serverInfo;
             this.paramType = paramType;
             for (Field field : paramType.getFields()) {
                 converterMap.put(FieldNameAnnotationType.getName(field), GlobHttpUtils.createConverter(field, ","));
@@ -413,7 +419,7 @@ public class GlobHttpRequestHandler  {
                     if (fromStringConverter != null) {
                         fromStringConverter.convert(instantiate, nameValuePair.getValue());
                     } else {
-                        LOGGER.error("unexpected param {}", nameValuePair.getName());
+                        LOGGER.error("{} : unexpected param {}", serverInfo, nameValuePair.getName());
                     }
                 }
                 return instantiate;

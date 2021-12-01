@@ -50,7 +50,7 @@ public class HttpServerRegister {
             return verb;
         } else {
             if (current.queryUrl != queryUrl) {
-                throw new RuntimeException("Same query Type is expected for same url on different verb (" + url + ")");
+                throw new RuntimeException(serverInfo +": Same query Type is expected for same url on different verb (" + url + ")");
             }
         }
         return current;
@@ -392,11 +392,11 @@ public class HttpServerRegister {
     }
 
     public HttpServer init(ServerBootstrap serverBootstrap) {
-        HttpRequestHttpAsyncRequestHandlerTree handler = new HttpRequestHttpAsyncRequestHandlerTree();
+        HttpRequestHttpAsyncRequestHandlerTree handler = new HttpRequestHttpAsyncRequestHandlerTree(serverInfo);
         serverBootstrap.registerHandler("*", handler);
         for (Map.Entry<String, Verb> stringVerbEntry : verbMap.entrySet()) {
             Verb verb = stringVerbEntry.getValue();
-            GlobHttpRequestHandler globHttpRequestHandler = new GlobHttpRequestHandler(verb.complete(), verb.gzipCompress);
+            GlobHttpRequestHandler globHttpRequestHandler = new GlobHttpRequestHandler(serverInfo, verb.complete(), verb.gzipCompress);
             Collection<String> path = globHttpRequestHandler.createRegExp();
             handler.register(path, globHttpRequestHandler);
             for (HttpOperation operation : stringVerbEntry.getValue().operations) {
@@ -408,7 +408,7 @@ public class HttpServerRegister {
                         .set(HttpAPIDesc.body, GSonUtils.encodeGlobType(operation.getBodyType()))
                         .set(HttpAPIDesc.returnType, GSonUtils.encodeGlobType(operation.getReturnType()))
                         .set(HttpAPIDesc.comment, operation.getComment());
-                LOGGER.info("Api : {}", GSonUtils.encode(logs, false));
+                LOGGER.info(serverInfo + " Api : {}", GSonUtils.encode(logs, false));
             }
         }
         if (Strings.isNotEmpty(serverInfo)) {
@@ -425,10 +425,10 @@ public class HttpServerRegister {
             InetSocketAddress address = (InetSocketAddress) server.getEndpoint().getAddress();
             int port = address.getPort();
             openApiDoc = createOpenApiDoc(port);
-            LOGGER.info("OpenApi doc : {}", GSonUtils.encode(openApiDoc, false));
+            LOGGER.info(serverInfo + " OpenApi doc : {}", GSonUtils.encode(openApiDoc, false));
             return Pair.makePair(server, port);
         } catch (Exception e) {
-            String message = "Fail to start server" + serverInfo;
+            String message = serverInfo + " Fail to start server" + serverInfo;
             LOGGER.error(message);
             throw new RuntimeException(message, e);
         }
@@ -469,7 +469,13 @@ public class HttpServerRegister {
     }
 
     public static class HttpRequestHttpAsyncRequestHandlerTree implements HttpAsyncRequestHandler<HttpRequest> {
-        StrNode[] nodes = new StrNode[0];
+        private final String serverInfo;
+        private StrNode[] nodes = new StrNode[0];
+
+        public HttpRequestHttpAsyncRequestHandlerTree(String serverInfo) {
+            this.serverInfo = serverInfo;
+        }
+
         public HttpAsyncRequestConsumer<HttpRequest> processRequest(HttpRequest httpRequest, HttpContext httpContext)  {
             return new BasicAsyncRequestConsumer();
         }
@@ -489,7 +495,7 @@ public class HttpServerRegister {
             if (length <= path.size()) {
                 nodes = Arrays.copyOf(nodes, path.size() + 1);
                 for (; length < nodes.length; length++) {
-                    nodes[length] = new StrNode();
+                    nodes[length] = new StrNode(serverInfo);
                 }
             }
             nodes[path.size()].register(path, globHttpRequestHandler);
@@ -497,7 +503,13 @@ public class HttpServerRegister {
     }
 
     static class StrNode {
+        private final String serverInfo;
         private SubStrNode[] subStrNodes = new SubStrNode[0];
+
+        StrNode(String serverInfo) {
+            this.serverInfo = serverInfo;
+        }
+
         public void dispatch(String[] path, String paramStr, HttpRequest httpRequest, HttpAsyncExchange httpExchange, HttpContext context) throws IOException {
             for (SubStrNode subStrNode : this.subStrNodes) {
                 if (subStrNode.match(path)) {
@@ -509,7 +521,7 @@ public class HttpServerRegister {
             HttpResponse response = httpExchange.getResponse();
             response.setStatusCode(HttpStatus.SC_FORBIDDEN);
             httpExchange.submitResponse(new BasicAsyncResponseProducer(response));
-            LOGGER.warn("Unexpected : " + Arrays.toString(path));
+            LOGGER.warn(serverInfo + " Unexpected : " + Arrays.toString(path));
         }
 
         public void register(Collection<String> path, GlobHttpRequestHandler globHttpRequestHandler) {

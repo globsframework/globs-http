@@ -20,6 +20,9 @@ public class OpenApiPath {
     public static GlobField post;
 
     @Target(OpenApiPathDsc.class)
+    public static GlobField patch;
+
+    @Target(OpenApiPathDsc.class)
     public static GlobField get;
 
     @Target(OpenApiPathDsc.class)

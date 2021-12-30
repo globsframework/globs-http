@@ -6,6 +6,7 @@ import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPatch;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.nio.bootstrap.HttpServer;
@@ -111,7 +112,7 @@ public class GlobHttpRequestHandlerTest {
                 .declareReturnType(BodyContent.TYPE);
 
         httpServerRegister.register("/test-custom-status-code", null)
-                .post(BodyContent.TYPE, null, (body, url, queryParameters) -> {
+                .patch(BodyContent.TYPE, null, (body, url, queryParameters) -> {
                     return CompletableFuture.completedFuture(CustomBodyWithStatusCode.TYPE.instantiate()
                             .set(CustomBodyWithStatusCode.field1, 201)
                             .set(CustomBodyWithStatusCode.field2, BodyContent.TYPE.instantiate()
@@ -174,8 +175,8 @@ public class GlobHttpRequestHandlerTest {
         }
 
         {
-            HttpPost httpPostFile = new HttpPost("/test-custom-status-code");
-            HttpResponse httpPostResponse = httpclient.execute(target, httpPostFile);
+            HttpPatch httpPatch = new HttpPatch("/test-custom-status-code");
+            HttpResponse httpPostResponse = httpclient.execute(target, httpPatch);
             Assert.assertEquals(201, httpPostResponse.getStatusLine().getStatusCode());
             Assert.assertEquals("{\"DATA\":\"custom data works\"}", Files.loadStreamToString(httpPostResponse.getEntity().getContent(), "UTF-8"));
         }

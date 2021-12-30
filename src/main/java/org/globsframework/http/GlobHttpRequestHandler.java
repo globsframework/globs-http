@@ -12,11 +12,18 @@ import org.apache.http.nio.entity.NFileEntity;
 import org.apache.http.nio.protocol.*;
 import org.apache.http.protocol.HTTP;
 import org.apache.http.protocol.HttpContext;
+import org.globsframework.http.model.DataAnnotationType;
+import org.globsframework.http.model.StatusCode;
+import org.globsframework.http.model.StatusCodeAnnotationType;
 import org.globsframework.json.GSonUtils;
 import org.globsframework.metamodel.Field;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.GlobTypeLoaderFactory;
 import org.globsframework.metamodel.annotations.FieldNameAnnotationType;
+import org.globsframework.metamodel.annotations.RequiredAnnotationType;
+import org.globsframework.metamodel.fields.GlobArrayField;
+import org.globsframework.metamodel.fields.GlobField;
+import org.globsframework.metamodel.fields.IntegerField;
 import org.globsframework.model.Glob;
 import org.globsframework.model.MutableGlob;
 import org.globsframework.utils.Files;
@@ -36,6 +43,7 @@ import java.util.zip.GZIPOutputStream;
  * */
 public class GlobHttpRequestHandler  {
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobHttpRequestHandler.class);
+
     private final UrlMatcher urlMatcher;
     private final boolean gzipCompress;
     private String serverInfo;
@@ -195,11 +203,13 @@ public class GlobHttpRequestHandler  {
                 if (future != null) {
                     future.whenComplete((glob, throwable) -> {
                         if (glob != null) {
-                            if (glob.getType() == GlobHttpContent.TYPE) {
+                            GlobType globType = glob.getType();
+
+                            if (globType == GlobHttpContent.TYPE) {
                                 response.setEntity(new ByteArrayEntity(glob.get(GlobHttpContent.content),
                                         ContentType.create(glob.get(GlobHttpContent.mimeType, "application/octet-stream"),
                                                 glob.get(GlobHttpContent.charset) != null ? Charset.forName(glob.get(GlobHttpContent.charset)) : null)));
-                            } else if (glob.getType() == GlobFile.TYPE) {
+                            } else if (globType == GlobFile.TYPE) {
                                 NFileEntity returnEntity;
                                 final File file = new File(glob.get(GlobFile.file));
                                 if (glob.get(GlobFile.removeWhenDelivered, !LOGGER.isTraceEnabled())) {
@@ -233,9 +243,28 @@ public class GlobHttpRequestHandler  {
                                         response.setStatusCode(HttpStatus.SC_METHOD_FAILURE);
                                     }
                                 } else {
-                                    response.setEntity(new StringEntity(GSonUtils.encode(glob, false),
+                                    Field fieldWithStatusCode = globType.findFieldWithAnnotation(StatusCodeAnnotationType.UNIQUE_KEY);
+                                    Field fieldWithData = globType.findFieldWithAnnotation(DataAnnotationType.UNIQUE_KEY);
+
+                                    Integer statusCode;
+                                    String strData;
+                                    if (fieldWithStatusCode instanceof IntegerField
+                                            && (fieldWithData instanceof GlobField || fieldWithData instanceof GlobArrayField)) {
+                                        statusCode = glob.get((IntegerField) fieldWithStatusCode);
+
+                                        if (fieldWithData instanceof GlobField) {
+                                            strData = GSonUtils.encode(glob.get((GlobField) fieldWithData), false);
+                                        } else {
+                                            strData = GSonUtils.encode(glob.get((GlobArrayField) fieldWithData), false);
+                                        }
+                                    } else {
+                                        statusCode = HttpStatus.SC_OK;
+                                        strData = GSonUtils.encode(glob, false);
+                                    }
+
+                                    response.setEntity(new StringEntity(strData,
                                             ContentType.create("application/json", StandardCharsets.UTF_8)));
-                                    response.setStatusCode(HttpStatus.SC_OK);
+                                    response.setStatusCode(statusCode);
                                 }
                             }
                         } else {

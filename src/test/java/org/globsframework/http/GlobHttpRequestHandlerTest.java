@@ -15,7 +15,8 @@ import org.apache.http.nio.protocol.HttpAsyncExchange;
 import org.apache.http.nio.protocol.HttpAsyncRequestConsumer;
 import org.apache.http.nio.protocol.HttpAsyncRequestHandler;
 import org.apache.http.protocol.HttpContext;
-import org.apache.http.protocol.HttpRequestHandler;
+import org.globsframework.http.model.Data;
+import org.globsframework.http.model.StatusCode;
 import org.globsframework.json.GSonUtils;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.GlobTypeLoaderFactory;
@@ -34,8 +35,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.sql.Time;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -111,6 +110,17 @@ public class GlobHttpRequestHandlerTest {
                 })
                 .declareReturnType(BodyContent.TYPE);
 
+        httpServerRegister.register("/test-custom-status-code", null)
+                .post(BodyContent.TYPE, null, (body, url, queryParameters) -> {
+                    return CompletableFuture.completedFuture(CustomBodyWithStatusCode.TYPE.instantiate()
+                            .set(CustomBodyWithStatusCode.field1, 201)
+                            .set(CustomBodyWithStatusCode.field2, BodyContent.TYPE.instantiate()
+                                    .set(BodyContent.DATA, "custom data works")
+                            )
+                    );
+                })
+                .declareReturnType(BodyContent.TYPE);
+
         Pair<HttpServer, Integer> httpServerIntegerPair = httpServerRegister.startAndWaitForStartup(bootstrap);
         int port = httpServerIntegerPair.getSecond();
         server = httpServerIntegerPair.getFirst();
@@ -161,6 +171,13 @@ public class GlobHttpRequestHandlerTest {
             HttpResponse httpPostResponse = httpclient.execute(target, httpPostFile);
             Assert.assertEquals(200, httpPostResponse.getStatusLine().getStatusCode());
             Assert.assertEquals("{\"DATA\":\"some important information.\"}", Files.loadStreamToString(httpPostResponse.getEntity().getContent(), "UTF-8"));
+        }
+
+        {
+            HttpPost httpPostFile = new HttpPost("/test-custom-status-code");
+            HttpResponse httpPostResponse = httpclient.execute(target, httpPostFile);
+            Assert.assertEquals(201, httpPostResponse.getStatusLine().getStatusCode());
+            Assert.assertEquals("{\"DATA\":\"custom data works\"}", Files.loadStreamToString(httpPostResponse.getEntity().getContent(), "UTF-8"));
         }
 
         {
@@ -258,6 +275,21 @@ public class GlobHttpRequestHandlerTest {
 
         static {
             GlobTypeLoaderFactory.create(BodyContent.class).load();
+        }
+    }
+
+    static public class CustomBodyWithStatusCode {
+        public static GlobType TYPE;
+
+        @StatusCode
+        public static IntegerField field1;
+
+        @Target(BodyContent.class)
+        @Data
+        public static GlobField field2;
+
+        static {
+            GlobTypeLoaderFactory.create(CustomBodyWithStatusCode.class).load();
         }
     }
 

@@ -50,6 +50,7 @@ public class GlobHttpRequestHandler  {
     private final HttpReceiver httpReceiver;
     private HttpHandler onPost;
     private HttpHandler onPut;
+    private HttpHandler onPatch;
     private HttpHandler onDelete;
     private HttpHandler onGet;
     private HttpHandler onOption;
@@ -74,6 +75,9 @@ public class GlobHttpRequestHandler  {
                     break;
                 case put:
                     onPut = new HttpHandler(serverInfo, operation);
+                    break;
+                case patch:
+                    onPatch = new HttpHandler(serverInfo, operation);
                     break;
                 case delete:
                     onDelete = new HttpHandler(serverInfo, operation);
@@ -130,6 +134,9 @@ public class GlobHttpRequestHandler  {
                     break;
                 case "PUT":
                     treatOp(path, paramStr, requestLine, httpAsyncExchange, httpRequest, response, onPut);
+                    break;
+                case "PATCH":
+                    treatOp(path, paramStr, requestLine, httpAsyncExchange, httpRequest, response, onPatch);
                     break;
                 case "GET":
                     treatOp(path, paramStr, requestLine, httpAsyncExchange, httpRequest, response, onGet);

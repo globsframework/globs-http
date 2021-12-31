@@ -138,6 +138,9 @@ public class HttpServerRegister {
                     case put:
                         path.set(OpenApiPath.put, desc);
                         break;
+                    case patch:
+                        path.set(OpenApiPath.patch, desc);
+                        break;
                     case delete:
                         path.set(OpenApiPath.delete, desc);
                         break;
@@ -701,6 +704,12 @@ public class HttpServerRegister {
 
         public OperationInfo put(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
             DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.put, bodyParam, paramType, httpTreatment);
+            operations.add(operation);
+            return new DefaultOperationInfo(operation);
+        }
+
+        public OperationInfo patch(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.patch, bodyParam, paramType, httpTreatment);
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }

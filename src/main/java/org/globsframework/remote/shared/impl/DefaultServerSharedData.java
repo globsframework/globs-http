@@ -67,6 +67,7 @@ public class DefaultServerSharedData implements ChangeSetListener, ServerSharedD
             this.name = name;
             this.globModel = new DefaultGlobModel(globModel, KeyAnnotationType.TYPE); // add keyannotation to use key in
             this.host = host != null ? host : getLocalHost();
+            LOGGER.info("Start share serveur on " + host + ":" + port);
             sharedModelType = new SharedModelType(globModel);
             this.selector = Selector.open();
             serverSocketChannel = ServerSocketChannel.open();

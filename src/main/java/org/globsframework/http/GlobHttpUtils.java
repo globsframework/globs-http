@@ -3,6 +3,7 @@ package org.globsframework.http;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
@@ -24,6 +25,19 @@ public class GlobHttpUtils {
     public static HttpPost createPost(String route, Glob parameters) {
         String format = formatURL(parameters);
         return new HttpPost(createURL(route, format));
+    }
+
+    public static HttpPut createPut(String route, Glob parameters) {
+        String format = formatURL(parameters);
+        return new HttpPut(createURL(route, format));
+    }
+
+    public static HttpPut createPut(String route, Glob parameters, Glob body) {
+        String format = formatURL(parameters);
+        HttpPut httpPut = new HttpPut(createURL(route, format));
+        String encode = GSonUtils.encode(body, true);
+        httpPut.setEntity(new StringEntity(encode, ContentType.APPLICATION_JSON));
+        return httpPut;
     }
 
     private static String createURL(String route, String format) {

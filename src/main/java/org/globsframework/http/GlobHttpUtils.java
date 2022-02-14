@@ -22,6 +22,30 @@ import java.util.stream.Collectors;
 
 public class GlobHttpUtils {
 
+    public static String createRoute(String route, Glob urlParam) {
+        String[] split = route.split("/");
+        StringBuilder r = new StringBuilder();
+        r.append("/");
+        for (String s : split) {
+            if (s.length() != 0) {
+                if (s.startsWith("{") && s.endsWith("}")) {
+                    String param = s.substring(1, s.length() - 1);
+                    Field field = urlParam.getType().getField(param);
+                    Object value = urlParam.getValue(field);
+                    if (value == null) {
+                        throw new RuntimeException("Invalide url " + route + " " + GSonUtils.encode(urlParam, true));
+                    }
+                    r.append(value);
+                }
+                else {
+                    r.append(s);
+                }
+                r.append("/");
+            }
+        }
+        return r.deleteCharAt(r.length() - 1).toString();
+    }
+
     public static HttpPost createPost(String route, Glob parameters) {
         String format = formatURL(parameters);
         return new HttpPost(createURL(route, format));
@@ -63,7 +87,7 @@ public class GlobHttpUtils {
         }
         List<NameValuePair> nameValuePairList = new ArrayList<>();
         for (Field field : parameters.getType().getFields()) {
-            if (parameters.isSet(field)) {
+            if (!parameters.isNull(field)) {
                 if (!field.getDataType().isPrimive()) {
                     var visitor = new FieldValueVisitor.AbstractWithErrorVisitor() {
                         String out;

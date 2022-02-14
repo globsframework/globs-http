@@ -49,7 +49,29 @@ public class GlobHttpUtilsTest {
         converter.convert(TEST.TYPE.instantiate(), "2021-09-01T14:55:43+02:00");
         converter.convert(TEST.TYPE.instantiate(), "2021-09-01T14:55:43");
         converter.convert(TEST.TYPE.instantiate(), "2021-09-01");
+    }
 
+    @Test
+    public void createRoute() {
+        String r = GlobHttpUtils.createRoute("/xxx/{code}/yy/{userId}", Url.TYPE.instantiate().set(Url.code, "aCode").set(Url.userId, 33));
+        Assert.assertEquals("/xxx/aCode/yy/33", r);
+
+        String r2 = GlobHttpUtils.createRoute("xxx//{code}/yy/{userId}", Url.TYPE.instantiate().set(Url.code, "aCode").set(Url.userId, 33));
+        Assert.assertEquals("/xxx/aCode/yy/33", r2);
+        String r3 = GlobHttpUtils.createRoute("{code}/{userId}", Url.TYPE.instantiate().set(Url.code, "aCode").set(Url.userId, 33));
+        Assert.assertEquals("/aCode/33", r3);
+    }
+
+    static public class Url {
+        public static GlobType TYPE;
+
+        public static StringField code;
+
+        public static LongField userId;
+
+        static {
+            GlobTypeLoaderFactory.create(Url.class).load();
+        }
     }
 
     static public class PARAM {

@@ -20,10 +20,21 @@ public class EtcDSharedDataAccessTest extends TestCase {
     public static final String[] ETCD = new String[]{"http://localhost:2379"}; //, "http://localhost:4001"
 
 
-    public void testName() throws ExecutionException, InterruptedException, TimeoutException {
+    public void testNameBin() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();
 
-        SharedDataAccess etcDSharedDataAccess = new EtcDSharedDataAccess(client);
+        SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createBin(client);
+        checkPutGet(etcDSharedDataAccess);
+    }
+
+    public void testNameJson() throws ExecutionException, InterruptedException, TimeoutException {
+        Client client = Client.builder().endpoints(ETCD).build();
+
+        SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createJson(client);
+        checkPutGet(etcDSharedDataAccess);
+    }
+
+    private void checkPutGet(SharedDataAccess etcDSharedDataAccess) throws InterruptedException, ExecutionException, TimeoutException {
         MutableGlob data = Data1.TYPE.instantiate()
                 .set(Data1.shop, "mg.the-oz.com")
                 .set(Data1.workerName, "w1")
@@ -82,10 +93,19 @@ public class EtcDSharedDataAccessTest extends TestCase {
     }
 
 
-    public void testLease() throws ExecutionException, InterruptedException, TimeoutException {
+    public void testLeaseBin() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();
+        SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createBin(client);
+        checkLease(etcDSharedDataAccess);
+    }
 
-        SharedDataAccess etcDSharedDataAccess = new EtcDSharedDataAccess(client);
+    public void testLeaseJson() throws ExecutionException, InterruptedException, TimeoutException {
+        Client client = Client.builder().endpoints(ETCD).build();
+        SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createJson(client);
+        checkLease(etcDSharedDataAccess);
+    }
+
+    private void checkLease(SharedDataAccess etcDSharedDataAccess) throws InterruptedException, ExecutionException, TimeoutException {
         MutableGlob data = Data1.TYPE.instantiate()
                 .set(Data1.shop, "mg.the-oz.com")
                 .set(Data1.workerName, "w1")

@@ -8,6 +8,7 @@ import io.etcd.jetcd.options.GetOption;
 import io.etcd.jetcd.options.PutOption;
 import io.etcd.jetcd.options.WatchOption;
 import io.etcd.jetcd.watch.WatchEvent;
+import org.globsframework.json.GSonUtils;
 import org.globsframework.metamodel.Field;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.GlobTypeResolver;
@@ -22,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -33,27 +35,62 @@ import java.util.stream.Collectors;
 public class EtcDSharedDataAccess implements SharedDataAccess {
     private final static Logger LOGGER = LoggerFactory.getLogger(EtcDSharedDataAccess.class);
     private final Client client;
-    private final BinWriterFactory binWriterFactory;
-    private final BinReaderFactory binReaderFactory;
     private final Watch watchClient;
     private final KV kv;
     private final Lease leaseClient;
+    private final GlobSerializer serializer;
+    private final GlobDeserializer deserializer;
 
-    public EtcDSharedDataAccess(Client client) {
+    interface GlobSerializer {
+        byte[] write(Glob glob);
+    }
+
+    interface GlobDeserializer {
+        Deserializer with(GlobTypeResolver resolvers);
+        interface Deserializer{
+            Optional<Glob> read(byte[] data);
+        }
+    }
+
+    static SharedDataAccess createJson(Client client) {
+        GlobSerializer serializer = glob -> {
+            String encode = GSonUtils.encode(glob, true);
+            return encode.getBytes(StandardCharsets.UTF_8);
+        };
+        GlobDeserializer deserializer = resolvers -> data -> Optional.ofNullable(
+                GSonUtils.decode(new InputStreamReader(new ByteArrayInputStream(data), StandardCharsets.UTF_8), resolvers));
+        return new EtcDSharedDataAccess(client, serializer, deserializer);
+    }
+
+    static SharedDataAccess createBin(Client client) {
+        final BinWriterFactory binWriterFactory = BinWriterFactory.create();
+        final BinReaderFactory binReaderFactory = BinReaderFactory.create();
+        GlobSerializer serializer = glob -> {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            binWriterFactory.create(outputStream).write(glob);
+            return outputStream.toByteArray();
+        };
+        GlobDeserializer deserializer = resolvers -> {
+            GlobBinReader globBinReader = binReaderFactory.createGlobBinReader(resolvers);
+            return data -> globBinReader.read(new ByteArrayInputStream(data));
+        };
+        return new EtcDSharedDataAccess(client, serializer, deserializer);
+    }
+
+
+    public EtcDSharedDataAccess(Client client, GlobSerializer serializer, GlobDeserializer deserializer) {
         this.client = client;
         kv = client.getKVClient();
         watchClient = client.getWatchClient();
         leaseClient = client.getLeaseClient();
-        binWriterFactory = BinWriterFactory.create();
-        binReaderFactory = BinReaderFactory.create();
+        this.serializer = serializer;
+        this.deserializer = deserializer;
     }
 
     public CompletableFuture<Void> register(Glob glob) {
         GlobType type = glob.getType();
         String path = extractPath(glob, type);
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        binWriterFactory.create(outputStream).write(glob);
-        CompletableFuture<PutResponse> put = kv.put(ByteSequence.from(path, StandardCharsets.UTF_8), ByteSequence.from(outputStream.toByteArray()));
+        CompletableFuture<PutResponse> put = kv.put(ByteSequence.from(path, StandardCharsets.UTF_8), ByteSequence.from(serializer.write(glob)));
         return put.thenApply(putResponse -> null);
     }
 
@@ -82,11 +119,9 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     public CompletableFuture<UnLeaser> registerWithLease(Glob glob, int timeOut, TimeUnit unit) {
         GlobType type = glob.getType();
         String path = extractPath(glob, type);
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        binWriterFactory.create(outputStream).write(glob);
 
         ByteSequence k = ByteSequence.from(path, StandardCharsets.UTF_8);
-        ByteSequence v = ByteSequence.from(outputStream.toByteArray());
+        ByteSequence v = ByteSequence.from(serializer.write(glob));
 
         return leaseClient.grant(unit.toSeconds(timeOut))
                 .thenApply(LeaseGrantResponse::getID)
@@ -106,8 +141,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                 LOGGER.warn("Many value return " + kvs.size());
             }
             ByteSequence value = kvs.get(0).getValue();
-            GlobBinReader globBinReader = binReaderFactory.createGlobBinReader(GlobTypeResolver.from(type));
-            return globBinReader.read(new ByteArrayInputStream(value.getBytes()));
+            return deserializer.with(GlobTypeResolver.from(type)).read(value.getBytes());
         });
     }
 
@@ -122,8 +156,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
             List<Glob> data = new ArrayList<>();
             for (KeyValue keyValue : kvs) {
                 ByteSequence value = keyValue.getValue();
-                GlobBinReader globBinReader = binReaderFactory.createGlobBinReader(GlobTypeResolver.from(type));
-                globBinReader.read(new ByteArrayInputStream(value.getBytes()))
+                deserializer.with(GlobTypeResolver.from(type)).read(value.getBytes())
                         .ifPresent(data::add);
             }
             return data;
@@ -131,15 +164,15 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     }
 
     public void listen(GlobType type, Listener listener, FieldValues orderedPath) {
-        GlobBinReader globBinReader = binReaderFactory.createGlobBinReader(GlobTypeResolver.from(type));
+        GlobDeserializer.Deserializer globBinReader = deserializer.with(GlobTypeResolver.from(type));
         watchClient.watch(ByteSequence.from(extractPath(orderedPath, type), StandardCharsets.UTF_8),
                 watchResponse -> {
                     for (WatchEvent event : watchResponse.getEvents()) {
                         if (event.getEventType() == WatchEvent.EventType.DELETE) {
-                            globBinReader.read(new ByteArrayInputStream(event.getPrevKV().getValue().getBytes()))
+                            globBinReader.read(event.getPrevKV().getValue().getBytes())
                                     .ifPresent(listener::delete);
                         } else if (event.getEventType() == WatchEvent.EventType.PUT) {
-                            globBinReader.read(new ByteArrayInputStream(event.getKeyValue().getValue().getBytes()))
+                            globBinReader.read(event.getKeyValue().getValue().getBytes())
                                     .ifPresent(listener::put);
                         }
                     }
@@ -147,15 +180,15 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     }
 
     public void listenUnder(GlobType type, Listener listener, FieldValues orderedPath) {
-        GlobBinReader globBinReader = binReaderFactory.createGlobBinReader(GlobTypeResolver.from(type));
+        GlobDeserializer.Deserializer globBinReader = deserializer.with(GlobTypeResolver.from(type));
         watchClient.watch(ByteSequence.from(extractPath(orderedPath, type), StandardCharsets.UTF_8), WatchOption.newBuilder().isPrefix(true).build(),
                 watchResponse -> {
                     for (WatchEvent event : watchResponse.getEvents()) {
                         if (event.getEventType() == WatchEvent.EventType.DELETE) {
-                            globBinReader.read(new ByteArrayInputStream(event.getPrevKV().getValue().getBytes()))
+                            globBinReader.read(event.getPrevKV().getValue().getBytes())
                                     .ifPresent(listener::delete);
                         } else if (event.getEventType() == WatchEvent.EventType.PUT) {
-                            globBinReader.read(new ByteArrayInputStream(event.getKeyValue().getValue().getBytes()))
+                            globBinReader.read(event.getKeyValue().getValue().getBytes())
                                     .ifPresent(listener::put);
                         }
                     }

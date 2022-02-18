@@ -52,7 +52,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         }
     }
 
-    static SharedDataAccess createJson(Client client) {
+    public static SharedDataAccess createJson(Client client) {
         GlobSerializer serializer = glob -> {
             String encode = GSonUtils.encode(glob, true);
             return encode.getBytes(StandardCharsets.UTF_8);
@@ -62,7 +62,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         return new EtcDSharedDataAccess(client, serializer, deserializer);
     }
 
-    static SharedDataAccess createBin(Client client) {
+    public static SharedDataAccess createBin(Client client) {
         final BinWriterFactory binWriterFactory = BinWriterFactory.create();
         final BinReaderFactory binReaderFactory = BinReaderFactory.create();
         GlobSerializer serializer = glob -> {
@@ -77,8 +77,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         return new EtcDSharedDataAccess(client, serializer, deserializer);
     }
 
-
-    public EtcDSharedDataAccess(Client client, GlobSerializer serializer, GlobDeserializer deserializer) {
+    private EtcDSharedDataAccess(Client client, GlobSerializer serializer, GlobDeserializer deserializer) {
         this.client = client;
         kv = client.getKVClient();
         watchClient = client.getWatchClient();

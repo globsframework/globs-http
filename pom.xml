@@ -84,6 +84,11 @@
             <version>3.3-SNAPSHOT</version>
         </dependency>
         <dependency>
+            <groupId>org.globsframework</groupId>
+            <artifactId>globs-bin-serialisation</artifactId>
+            <version>3.3-SNAPSHOT</version>
+        </dependency>
+        <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpasyncclient</artifactId>
             <version>4.1.4</version>

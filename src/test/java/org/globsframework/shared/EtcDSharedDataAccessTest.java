@@ -10,7 +10,7 @@ import org.globsframework.metamodel.fields.StringField;
 import org.globsframework.model.FieldValuesBuilder;
 import org.globsframework.model.Glob;
 import org.globsframework.model.MutableGlob;
-import org.globsframework.serialisation.model.FieldNumber;
+import org.globsframework.serialisation.model.FieldNumber_;
 import org.globsframework.shared.model.PathIndex_;
 
 import java.util.List;
@@ -149,19 +149,19 @@ public class EtcDSharedDataAccessTest extends TestCase {
 
     public static class Data1 {
         public static GlobType TYPE;
-        @FieldNumber(1)
+        @FieldNumber_(1)
         @PathIndex_(1)
         public static StringField shop;
 
-        @FieldNumber(2)
+        @FieldNumber_(2)
         @PathIndex_(2)
         public static StringField workerName;
 
-        @FieldNumber(3)
+        @FieldNumber_(3)
         @PathIndex_(3)
         public static IntegerField num;
 
-        @FieldNumber(4)
+        @FieldNumber_(4)
         public static StringField someData;
 
         static {

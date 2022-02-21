@@ -13,14 +13,16 @@ import org.globsframework.model.MutableGlob;
 import org.globsframework.serialisation.model.FieldNumber_;
 import org.globsframework.shared.model.PathIndex_;
 import org.junit.Ignore;
+import org.junit.Test;
 
 import java.util.List;
 import java.util.concurrent.*;
 
-public class EtcDSharedDataAccessTest extends TestCase {
+public class EtcDSharedDataAccessTest {
     public static final String[] ETCD = new String[]{"http://localhost:2379"}; //, "http://localhost:4001"
 
 
+    @Test
     @Ignore
     public void testNameBin() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();
@@ -29,6 +31,7 @@ public class EtcDSharedDataAccessTest extends TestCase {
         checkPutGet(etcDSharedDataAccess);
     }
 
+    @Test
     @Ignore
     public void testNameJson() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();
@@ -96,6 +99,7 @@ public class EtcDSharedDataAccessTest extends TestCase {
     }
 
 
+    @Test
     @Ignore
     public void testLeaseBin() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();
@@ -103,6 +107,7 @@ public class EtcDSharedDataAccessTest extends TestCase {
         checkLease(etcDSharedDataAccess);
     }
 
+    @Test
     @Ignore
     public void testLeaseJson() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();

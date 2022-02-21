@@ -15,6 +15,8 @@ public interface SharedDataAccess {
 
     CompletableFuture<UnLeaser> registerWithLease(Glob glob, int timeOut, TimeUnit unit);
 
+    UnLeaser getUnleaser(long leaseId);
+
     CompletableFuture<Optional<Glob>> get(GlobType type, FieldValues path);
 
     CompletableFuture<List<Glob>> getUnder(GlobType type, FieldValues path);
@@ -35,6 +37,9 @@ public interface SharedDataAccess {
 
     interface UnLeaser {
         void touch();
+
+        long getLeaseId();
+
     }
 
     interface Listener {

@@ -126,7 +126,26 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                 .thenApply(LeaseGrantResponse::getID)
                 .thenCompose(leaseId ->
                         kv.put(k, v, PutOption.newBuilder().withLeaseId(leaseId).build())
-                        .thenApply(putResponse -> () -> leaseClient.keepAliveOnce(leaseId)));
+                        .thenApply(putResponse -> new UnLeaser() {
+                            public void touch() {
+                                leaseClient.keepAliveOnce(leaseId);
+                            }
+
+                            public long getLeaseId() {
+                                return leaseId;
+                            }
+                        }));
+    }
+
+    public UnLeaser getUnleaser(long leaseId) {
+        return new UnLeaser() {
+            public void touch() {
+                leaseClient.keepAliveOnce(leaseId);
+            }
+            public long getLeaseId() {
+                return leaseId;
+            }
+        };
     }
 
     public CompletableFuture<Optional<Glob>> get(GlobType type, FieldValues path) {

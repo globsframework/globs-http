@@ -193,6 +193,8 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                         } else if (event.getEventType() == WatchEvent.EventType.PUT) {
                             globBinReader.read(event.getKeyValue().getValue().getBytes())
                                     .ifPresent(logListener::put);
+                        } else {
+                            LOGGER.info("event not unrecognized");
                         }
                     }
                 });
@@ -210,6 +212,8 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                         } else if (event.getEventType() == WatchEvent.EventType.PUT) {
                             globBinReader.read(event.getKeyValue().getValue().getBytes())
                                     .ifPresent(logListener::put);
+                        } else {
+                            LOGGER.info("event not unrecognized");
                         }
                     }
                 });

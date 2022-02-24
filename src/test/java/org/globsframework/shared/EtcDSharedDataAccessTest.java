@@ -113,6 +113,11 @@ public class EtcDSharedDataAccessTest {
                 .get(10, TimeUnit.SECONDS);
         Assert.assertEquals(2, actual.size());
 
+        etcDSharedDataAccess.delete(Data1.TYPE, actual.get(0));
+        etcDSharedDataAccess.delete(Data1.TYPE, actual.get(1));
+
+        Assert.assertNotNull(deletes.poll(10, TimeUnit.SECONDS));
+
         etcDSharedDataAccess.end();
         sharedDataAccessRead.end();
     }

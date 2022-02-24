@@ -185,17 +185,24 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         Listener logListener = new LoggerListener(listener);
         GlobDeserializer.Deserializer globBinReader = deserializer.with(GlobTypeResolver.from(type));
         watchClient.watch(ByteSequence.from(extractPath(orderedPath, type), StandardCharsets.UTF_8),
+                WatchOption.newBuilder()
+                        .withPrevKV(true)
+                        .build(),
                 watchResponse -> {
-                    for (WatchEvent event : watchResponse.getEvents()) {
-                        if (event.getEventType() == WatchEvent.EventType.DELETE) {
-                            globBinReader.read(event.getPrevKV().getValue().getBytes())
-                                    .ifPresent(logListener::delete);
-                        } else if (event.getEventType() == WatchEvent.EventType.PUT) {
-                            globBinReader.read(event.getKeyValue().getValue().getBytes())
-                                    .ifPresent(logListener::put);
-                        } else {
-                            LOGGER.info("event not unrecognized");
+                    try {
+                        for (WatchEvent event : watchResponse.getEvents()) {
+                            if (event.getEventType() == WatchEvent.EventType.DELETE) {
+                                globBinReader.read(event.getPrevKV().getValue().getBytes())
+                                        .ifPresent(logListener::delete);
+                            } else if (event.getEventType() == WatchEvent.EventType.PUT) {
+                                globBinReader.read(event.getKeyValue().getValue().getBytes())
+                                        .ifPresent(logListener::put);
+                            } else {
+                                LOGGER.info("event not unrecognized");
+                            }
                         }
+                    } catch (Exception e) {
+                        LOGGER.error("Exception in watch callback", e);
                     }
                 });
     }
@@ -203,18 +210,24 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     public void listenUnder(GlobType type, Listener listener, FieldValues orderedPath) {
         Listener logListener = new LoggerListener(listener);
         GlobDeserializer.Deserializer globBinReader = deserializer.with(GlobTypeResolver.from(type));
-        watchClient.watch(ByteSequence.from(extractPath(orderedPath, type), StandardCharsets.UTF_8), WatchOption.newBuilder().isPrefix(true).build(),
+        watchClient.watch(ByteSequence.from(extractPath(orderedPath, type), StandardCharsets.UTF_8), WatchOption.newBuilder()
+                        .withPrevKV(true)
+                        .isPrefix(true).build(),
                 watchResponse -> {
-                    for (WatchEvent event : watchResponse.getEvents()) {
-                        if (event.getEventType() == WatchEvent.EventType.DELETE) {
-                            globBinReader.read(event.getPrevKV().getValue().getBytes())
-                                    .ifPresent(logListener::delete);
-                        } else if (event.getEventType() == WatchEvent.EventType.PUT) {
-                            globBinReader.read(event.getKeyValue().getValue().getBytes())
-                                    .ifPresent(logListener::put);
-                        } else {
-                            LOGGER.info("event not unrecognized");
+                    try {
+                        for (WatchEvent event : watchResponse.getEvents()) {
+                            if (event.getEventType() == WatchEvent.EventType.DELETE) {
+                                globBinReader.read(event.getPrevKV().getValue().getBytes())
+                                        .ifPresent(logListener::delete);
+                            } else if (event.getEventType() == WatchEvent.EventType.PUT) {
+                                globBinReader.read(event.getKeyValue().getValue().getBytes())
+                                        .ifPresent(logListener::put);
+                            } else {
+                                LOGGER.info("event not unrecognized");
+                            }
                         }
+                    } catch (Exception e) {
+                        LOGGER.error("Exception in watch callback", e);
                     }
                 });
     }
@@ -245,9 +258,9 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         }
 
         public void delete(Glob glob) {
-            LOGGER.info("Receive detete " + GSonUtils.encode(glob, true));
+            LOGGER.info("Receive delete " + GSonUtils.encode(glob, true));
             try {
-                listener.put(glob);
+                listener.delete(glob);
             } catch (Exception e) {
                 LOGGER.error("Got exception", e);
             }

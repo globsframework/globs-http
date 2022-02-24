@@ -2,7 +2,6 @@ package org.globsframework.shared;
 
 import io.etcd.jetcd.Client;
 import junit.framework.Assert;
-import junit.framework.TestCase;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.GlobTypeLoaderFactory;
 import org.globsframework.metamodel.fields.IntegerField;
@@ -12,7 +11,6 @@ import org.globsframework.model.Glob;
 import org.globsframework.model.MutableGlob;
 import org.globsframework.serialisation.model.FieldNumber_;
 import org.globsframework.shared.model.PathIndex_;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
@@ -23,24 +21,24 @@ public class EtcDSharedDataAccessTest {
 
 
     @Test
-    @Ignore
     public void testNameBin() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();
+        Client clientRead = Client.builder().endpoints(ETCD).build();
 
         SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createBin(client);
-        checkPutGet(etcDSharedDataAccess);
+        checkPutGet(etcDSharedDataAccess, EtcDSharedDataAccess.createBin(clientRead));
     }
 
     @Test
-    @Ignore
     public void testNameJson() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();
+        Client clientRead = Client.builder().endpoints(ETCD).build();
 
         SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createJson(client);
-        checkPutGet(etcDSharedDataAccess);
+        checkPutGet(etcDSharedDataAccess, EtcDSharedDataAccess.createJson(clientRead));
     }
 
-    private void checkPutGet(SharedDataAccess etcDSharedDataAccess) throws InterruptedException, ExecutionException, TimeoutException {
+    private void checkPutGet(SharedDataAccess etcDSharedDataAccess, SharedDataAccess sharedDataAccessRead) throws InterruptedException, ExecutionException, TimeoutException {
         MutableGlob data = Data1.TYPE.instantiate()
                 .set(Data1.shop, "mg.the-oz.com")
                 .set(Data1.workerName, "w1")
@@ -49,7 +47,7 @@ public class EtcDSharedDataAccessTest {
 
         BlockingQueue<Glob> puts = new ArrayBlockingQueue<>(10);
         BlockingQueue<Glob> deletes = new ArrayBlockingQueue<>(10);
-        etcDSharedDataAccess.listenUnder(Data1.TYPE, new SharedDataAccess.Listener() {
+        sharedDataAccessRead.listenUnder(Data1.TYPE, new SharedDataAccess.Listener() {
             public void put(Glob glob) {
                 puts.add(glob);
             }
@@ -59,8 +57,23 @@ public class EtcDSharedDataAccessTest {
             }
         });
 
+        BlockingQueue<Glob> puts2 = new ArrayBlockingQueue<>(10);
+        BlockingQueue<Glob> deletes2 = new ArrayBlockingQueue<>(10);
+        sharedDataAccessRead.listenUnder(Data2.TYPE, new SharedDataAccess.Listener() {
+            public void put(Glob glob) {
+                puts2.add(glob);
+            }
+
+            public void delete(Glob glob) {
+                deletes2.add(glob);
+            }
+        });
+
 
         etcDSharedDataAccess.register(data)
+                .get(1, TimeUnit.MINUTES);
+
+        etcDSharedDataAccess.register(Data2.TYPE.instantiate())
                 .get(1, TimeUnit.MINUTES);
 
         Assert.assertEquals("blabla", etcDSharedDataAccess.get(Data1.TYPE, FieldValuesBuilder.init()
@@ -68,13 +81,15 @@ public class EtcDSharedDataAccessTest {
                         .set(Data1.workerName, "w1")
                         .set(Data1.num, 1)
                         .get())
-                .get(1, TimeUnit.MINUTES)
+                .get(10, TimeUnit.SECONDS)
                 .orElseThrow().get(Data1.someData));
 
-        Assert.assertNotNull(puts.poll(1, TimeUnit.MINUTES));
+        Assert.assertNotNull(puts.poll(10, TimeUnit.SECONDS));
+
+        Assert.assertNotNull(puts2.poll(10, TimeUnit.SECONDS));
 
         data.set(Data1.num, 2);
-        etcDSharedDataAccess.listen(Data1.TYPE, new SharedDataAccess.Listener() {
+        sharedDataAccessRead.listen(Data1.TYPE, new SharedDataAccess.Listener() {
             public void put(Glob glob) {
                 puts.add(glob);
             }
@@ -84,23 +99,23 @@ public class EtcDSharedDataAccessTest {
             }
         }, data);
 
-        etcDSharedDataAccess.register(data);
+        etcDSharedDataAccess.registerWithLease(data, 1, TimeUnit.MINUTES);
 
-        Assert.assertNotNull(puts.poll(1, TimeUnit.MINUTES));
+        Assert.assertNotNull(puts.poll(10, TimeUnit.SECONDS));
 
         List<Glob> actual = etcDSharedDataAccess.getUnder(Data1.TYPE, FieldValuesBuilder.init()
                         .set(Data1.shop, "mg.the-oz.com")
                         .set(Data1.workerName, "w1")
                         .get())
-                .get(1, TimeUnit.MINUTES);
+                .get(10, TimeUnit.SECONDS);
         Assert.assertEquals(2, actual.size());
 
         etcDSharedDataAccess.end();
+        sharedDataAccessRead.end();
     }
 
 
     @Test
-    @Ignore
     public void testLeaseBin() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();
         SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createBin(client);
@@ -108,7 +123,6 @@ public class EtcDSharedDataAccessTest {
     }
 
     @Test
-    @Ignore
     public void testLeaseJson() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();
         SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createJson(client);
@@ -177,6 +191,26 @@ public class EtcDSharedDataAccessTest {
         static {
             GlobTypeLoaderFactory.create(Data1.class).load();
         }
+    }
+    public static class Data2 {
+        public static GlobType TYPE;
+        @FieldNumber_(1)
+        @PathIndex_(1)
+        public static StringField shop;
 
+        @FieldNumber_(2)
+        @PathIndex_(2)
+        public static StringField workerName;
+
+        @FieldNumber_(3)
+        @PathIndex_(3)
+        public static IntegerField num;
+
+        @FieldNumber_(4)
+        public static StringField someData;
+
+        static {
+            GlobTypeLoaderFactory.create(Data2.class).load();
+        }
     }
 }

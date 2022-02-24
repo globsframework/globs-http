@@ -182,32 +182,34 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     }
 
     public void listen(GlobType type, Listener listener, FieldValues orderedPath) {
+        Listener logListener = new LoggerListener(listener);
         GlobDeserializer.Deserializer globBinReader = deserializer.with(GlobTypeResolver.from(type));
         watchClient.watch(ByteSequence.from(extractPath(orderedPath, type), StandardCharsets.UTF_8),
                 watchResponse -> {
                     for (WatchEvent event : watchResponse.getEvents()) {
                         if (event.getEventType() == WatchEvent.EventType.DELETE) {
                             globBinReader.read(event.getPrevKV().getValue().getBytes())
-                                    .ifPresent(listener::delete);
+                                    .ifPresent(logListener::delete);
                         } else if (event.getEventType() == WatchEvent.EventType.PUT) {
                             globBinReader.read(event.getKeyValue().getValue().getBytes())
-                                    .ifPresent(listener::put);
+                                    .ifPresent(logListener::put);
                         }
                     }
                 });
     }
 
     public void listenUnder(GlobType type, Listener listener, FieldValues orderedPath) {
+        Listener logListener = new LoggerListener(listener);
         GlobDeserializer.Deserializer globBinReader = deserializer.with(GlobTypeResolver.from(type));
         watchClient.watch(ByteSequence.from(extractPath(orderedPath, type), StandardCharsets.UTF_8), WatchOption.newBuilder().isPrefix(true).build(),
                 watchResponse -> {
                     for (WatchEvent event : watchResponse.getEvents()) {
                         if (event.getEventType() == WatchEvent.EventType.DELETE) {
                             globBinReader.read(event.getPrevKV().getValue().getBytes())
-                                    .ifPresent(listener::delete);
+                                    .ifPresent(logListener::delete);
                         } else if (event.getEventType() == WatchEvent.EventType.PUT) {
                             globBinReader.read(event.getKeyValue().getValue().getBytes())
-                                    .ifPresent(listener::put);
+                                    .ifPresent(logListener::put);
                         }
                     }
                 });
@@ -220,5 +222,31 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
 
     public void end() {
         client.close();
+    }
+
+    private static class LoggerListener implements Listener {
+        private final Listener listener;
+
+        public LoggerListener(Listener listener) {
+            this.listener = listener;
+        }
+
+        public void put(Glob glob) {
+            LOGGER.info("Receive put " + GSonUtils.encode(glob, true));
+            try {
+                listener.put(glob);
+            } catch (Exception e) {
+                LOGGER.error("Got exception", e);
+            }
+        }
+
+        public void delete(Glob glob) {
+            LOGGER.info("Receive detete " + GSonUtils.encode(glob, true));
+            try {
+                listener.put(glob);
+            } catch (Exception e) {
+                LOGGER.error("Got exception", e);
+            }
+        }
     }
 }

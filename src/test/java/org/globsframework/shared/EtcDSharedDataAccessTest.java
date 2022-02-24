@@ -11,6 +11,7 @@ import org.globsframework.model.Glob;
 import org.globsframework.model.MutableGlob;
 import org.globsframework.serialisation.model.FieldNumber_;
 import org.globsframework.shared.model.PathIndex_;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
@@ -21,6 +22,7 @@ public class EtcDSharedDataAccessTest {
 
 
     @Test
+    @Ignore("integration test to be filtered later")
     public void testNameBin() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();
         Client clientRead = Client.builder().endpoints(ETCD).build();
@@ -30,6 +32,7 @@ public class EtcDSharedDataAccessTest {
     }
 
     @Test
+    @Ignore("integration test to be filtered later")
     public void testNameJson() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();
         Client clientRead = Client.builder().endpoints(ETCD).build();
@@ -116,6 +119,7 @@ public class EtcDSharedDataAccessTest {
 
 
     @Test
+    @Ignore("integration test to be filtered later")
     public void testLeaseBin() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();
         SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createBin(client);
@@ -123,6 +127,7 @@ public class EtcDSharedDataAccessTest {
     }
 
     @Test
+    @Ignore("integration test to be filtered later")
     public void testLeaseJson() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();
         SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createJson(client);

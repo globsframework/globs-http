@@ -30,6 +30,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class EtcDSharedDataAccess implements SharedDataAccess {
@@ -163,25 +164,43 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         });
     }
 
+    record ResultAndRevision(List<Glob> data, long revision) {
+    }
+
     public CompletableFuture<List<Glob>> getUnder(GlobType type, FieldValues path) {
+        return getUnderWithRevision(type, path).thenApply(ResultAndRevision::data);
+    }
+
+    public CompletableFuture<ResultAndRevision> getUnderWithRevision(GlobType type, FieldValues path) {
         CompletableFuture<GetResponse> getResponseCompletableFuture =
                 kv.get(ByteSequence.from(extractPath(path, type), StandardCharsets.UTF_8), GetOption.newBuilder().isPrefix(true).build());
         return getResponseCompletableFuture.thenApply(getResponse -> {
             List<KeyValue> kvs = getResponse.getKvs();
             if (kvs.isEmpty()) {
-                return List.of();
+                return new ResultAndRevision(List.of(), 0);
             }
             List<Glob> data = new ArrayList<>();
+            long revision = 0;
             for (KeyValue keyValue : kvs) {
                 ByteSequence value = keyValue.getValue();
                 deserializer.with(GlobTypeResolver.from(type)).read(value.getBytes())
                         .ifPresent(data::add);
+                revision = Math.max(revision, keyValue.getModRevision());
             }
-            return data;
+            return new ResultAndRevision(data, revision);
         });
     }
 
-    public void listen(GlobType type, Listener listener, FieldValues orderedPath) {
+    public CompletableFuture<ListenerCtrl> getAndListenUnder(GlobType type, FieldValues path, Consumer<List<Glob>> pastData, Listener newData) {
+        return getUnderWithRevision(type, path)
+                .thenApply(resultAndRevision -> {
+                    pastData.accept(resultAndRevision.data);
+                    return resultAndRevision.revision + 1;
+                })
+                .thenApply(revision -> listenUnder(type, newData, path, revision));
+    }
+
+    public ListenerCtrl listen(GlobType type, Listener listener, FieldValues orderedPath) {
         Listener logListener = new LoggerListener(listener);
         GlobDeserializer.Deserializer globBinReader = deserializer.with(GlobTypeResolver.from(type));
         watchClient.watch(ByteSequence.from(extractPath(orderedPath, type), StandardCharsets.UTF_8),
@@ -205,14 +224,27 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                         LOGGER.error("Exception in watch callback", e);
                     }
                 });
+        return new ListenerCtrl() {
+            @Override
+            public void close() {
+                watchClient.close();
+            }
+        };
+    }
+    public ListenerCtrl listenUnder(GlobType type, Listener listener, FieldValues orderedPath) {
+        return listenUnder(type, listener, orderedPath, -1);
     }
 
-    public void listenUnder(GlobType type, Listener listener, FieldValues orderedPath) {
+    public ListenerCtrl listenUnder(GlobType type, Listener listener, FieldValues orderedPath, long startAtRevision) {
         Listener logListener = new LoggerListener(listener);
         GlobDeserializer.Deserializer globBinReader = deserializer.with(GlobTypeResolver.from(type));
-        watchClient.watch(ByteSequence.from(extractPath(orderedPath, type), StandardCharsets.UTF_8), WatchOption.newBuilder()
-                        .withPrevKV(true)
-                        .isPrefix(true).build(),
+        WatchOption.Builder option = WatchOption.newBuilder()
+                .withPrevKV(true)
+                .isPrefix(true);
+        if (startAtRevision != -1) {
+            option.withRevision(startAtRevision);
+        }
+        Watch.Watcher watch = watchClient.watch(ByteSequence.from(extractPath(orderedPath, type), StandardCharsets.UTF_8), option.build(),
                 watchResponse -> {
                     try {
                         for (WatchEvent event : watchResponse.getEvents()) {
@@ -230,15 +262,27 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                         LOGGER.error("Exception in watch callback", e);
                     }
                 });
+        return new ListenerCtrl() {
+            @Override
+            public void close() {
+                watch.close();
+            }
+        };
     }
 
     public CompletableFuture<Void> delete(GlobType type, FieldValues values) {
-        return kv.delete(ByteSequence.from(extractPath(values, type), StandardCharsets.UTF_8))
-                .thenApply(deleteResponse -> null);
+        String source = extractPath(values, type);
+        LOGGER.info("Delete call on " + source);
+        return kv.delete(ByteSequence.from(source, StandardCharsets.UTF_8))
+                .whenComplete((deleteResponse, throwable) -> {
+                    if (throwable != null) {
+                        LOGGER.error("delete on error " + type.getName() + " => " + source, throwable);
+                    }
+                })
+                .thenAccept(deleteResponse -> {});
     }
 
     public void end() {
-        client.close();
     }
 
     private static class LoggerListener implements Listener {

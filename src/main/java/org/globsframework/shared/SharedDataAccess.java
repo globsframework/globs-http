@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 public interface SharedDataAccess {
 
@@ -15,25 +16,33 @@ public interface SharedDataAccess {
 
     CompletableFuture<UnLeaser> registerWithLease(Glob glob, int timeOut, TimeUnit unit);
 
+//    CompletableFuture<UnLeaser> registerWithAutoLease(Glob glob, int timeOut, TimeUnit unit);
+
     UnLeaser getUnleaser(long leaseId);
 
     CompletableFuture<Optional<Glob>> get(GlobType type, FieldValues path);
 
     CompletableFuture<List<Glob>> getUnder(GlobType type, FieldValues path);
 
-    default void listen(GlobType type, Listener listener) {
-        listen(type, listener, FieldValues.EMPTY);
+    CompletableFuture<ListenerCtrl> getAndListenUnder(GlobType type, FieldValues path, Consumer<List<Glob>> pastData, Listener newData);
+
+    default ListenerCtrl listen(GlobType type, Listener listener) {
+        return listen(type, listener, FieldValues.EMPTY);
     }
 
-    default void listenUnder(GlobType type, Listener listener) {
-        listenUnder(type, listener, FieldValues.EMPTY);
+    default ListenerCtrl listenUnder(GlobType type, Listener listener) {
+        return listenUnder(type, listener, FieldValues.EMPTY);
     }
 
-    void listen(GlobType type, Listener listener, FieldValues orderedPath);
+    ListenerCtrl listen(GlobType type, Listener listener, FieldValues orderedPath);
 
-    void listenUnder(GlobType type, Listener listener, FieldValues orderedPath);
+    ListenerCtrl listenUnder(GlobType type, Listener listener, FieldValues orderedPath);
 
     CompletableFuture<Void> delete(GlobType type, FieldValues values);
+
+    interface ListenerCtrl {
+        void close();
+    }
 
     interface UnLeaser {
         void touch();

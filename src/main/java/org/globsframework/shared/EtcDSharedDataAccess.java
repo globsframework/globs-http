@@ -94,7 +94,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         return put.thenApply(putResponse -> null);
     }
 
-    private String extractPath(FieldValues glob, GlobType type) {
+    public static String extractPath(FieldValues glob, GlobType type) {
         List<Field> orderedField = type.streamFields().filter(field -> field.hasAnnotation(PathIndex.KEY))
                 .sorted(Comparator.comparing(field1 -> field1.getAnnotation(PathIndex.KEY).get(PathIndex.index)))
                 .collect(Collectors.toList());

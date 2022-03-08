@@ -3,11 +3,8 @@ package org.globsframework.shared;
 import io.etcd.jetcd.ByteSequence;
 import io.etcd.jetcd.Client;
 import io.etcd.jetcd.KV;
-import io.etcd.jetcd.KeyValue;
 import io.etcd.jetcd.options.DeleteOption;
-import io.etcd.jetcd.options.GetOption;
 import junit.framework.Assert;
-import org.globsframework.json.GSonUtils;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.GlobTypeLoaderFactory;
 import org.globsframework.metamodel.fields.IntegerField;
@@ -43,10 +40,10 @@ public class EtcDSharedDataAccessTest {
         Client client = Client.builder().endpoints(ETCD).build();
         deleteAll(client);
         client.close();
-        }
+    }
 
     @Test
-        @Ignore("integration test to be filtered later")
+    @Ignore("integration test to be filtered later")
     public void getUnderAndListen() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();
 
@@ -66,8 +63,7 @@ public class EtcDSharedDataAccessTest {
         CompletableFuture<List<Glob>> res = new CompletableFuture<>();
         SharedDataAccess.ListenerCtrl listenerCtrl = etcDSharedDataAccess.getAndListenUnder(Data1.TYPE, FieldValues.EMPTY, new Consumer<List<Glob>>() {
             public void accept(List<Glob> globs) {
-                data.set(Data1.num, 3);
-                etcDSharedDataAccess.register(data);
+                etcDSharedDataAccess.register(data.duplicate().set(Data1.num, 3));
                 res.complete(globs);
             }
         }, new SharedDataAccess.Listener() {
@@ -95,8 +91,8 @@ public class EtcDSharedDataAccessTest {
         Assert.assertNotNull(poll1);
         Assert.assertEquals(2, poll1.get(Data1.num).intValue());
         listenerCtrl.close();
-        deleteAll(client);
-        client.close();
+//        deleteAll(client);
+//        client.close();
     }
 
     private void deleteAll(Client client) throws InterruptedException, ExecutionException {
@@ -310,6 +306,7 @@ public class EtcDSharedDataAccessTest {
             GlobTypeLoaderFactory.create(Data1.class).load();
         }
     }
+
     public static class Data2 {
         public static GlobType TYPE;
         @FieldNumber_(1)

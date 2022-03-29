@@ -1,9 +1,13 @@
 package org.globsframework.shared;
 
+import org.globsframework.json.GSonUtils;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.model.FieldValues;
 import org.globsframework.model.Glob;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -13,11 +17,21 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 public class InMemorySharedDataAccess implements SharedDataAccess {
+    private static final Logger LOGGER = LoggerFactory.getLogger(InMemorySharedDataAccess.class);
     private final Map<String, Glob> paths = new ConcurrentHashMap<>();
     private final List<SimpleListener> listeners = new ArrayList<>();
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
     private final AtomicLong id = new AtomicLong(0);
     private final Map<Long, UnLeaser> leasers = new ConcurrentHashMap<>();
+    private final String prefix;
+
+    public InMemorySharedDataAccess() {
+        this(null);
+    }
+
+    public InMemorySharedDataAccess(String prefix) {
+        this.prefix = prefix;
+    }
 
     public static class SimpleListener {
         private final Listener listener;
@@ -58,7 +72,7 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
     }
 
     public CompletableFuture<Void> register(Glob glob) {
-        String path = EtcDSharedDataAccess.extractPath(glob, glob.getType());
+        String path = EtcDSharedDataAccess.extractPath(prefix, glob, glob.getType());
         paths.put(path, glob.duplicate());
         for (SimpleListener listener : listeners) {
             listener.putOn(path, glob);
@@ -66,29 +80,25 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
         return CompletableFuture.completedFuture(null);
     }
 
-    @Override
-    public CompletableFuture<UnLeaser> registerWithLease(Glob glob, int timeOut, TimeUnit unit) {
+    public CompletableFuture<UnLeaser> registerWithLease(Glob glob, Duration duration) {
         register(glob);
         long key = id.incrementAndGet();
-        InMemoryUnLeaser value = new InMemoryUnLeaser(glob, key, timeOut, unit);
+        InMemoryUnLeaser value = new InMemoryUnLeaser(glob, key, duration);
         leasers.put(key, value);
         return CompletableFuture.completedFuture(value);
     }
 
-    @Override
     public UnLeaser getUnleaser(long leaseId) {
         return leasers.get(leaseId);
     }
 
-    @Override
     public CompletableFuture<Optional<Glob>> get(GlobType type, FieldValues path) {
-        String p = EtcDSharedDataAccess.extractPath(path, type);
+        String p = EtcDSharedDataAccess.extractPath(prefix, path, type);
         return CompletableFuture.completedFuture(Optional.ofNullable(paths.get(p)));
     }
 
-    @Override
     public CompletableFuture<List<Glob>> getUnder(GlobType type, FieldValues path) {
-        String p = EtcDSharedDataAccess.extractPath(path, type);
+        String p = EtcDSharedDataAccess.extractPath(prefix, path, type);
         List<Glob> globs = new ArrayList<>();
         for (Map.Entry<String, Glob> stringGlobEntry : paths.entrySet()) {
             if (stringGlobEntry.getKey().startsWith(p)) {
@@ -98,33 +108,33 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
         return CompletableFuture.completedFuture(globs);
     }
 
-    @Override
     public CompletableFuture<ListenerCtrl> getAndListenUnder(GlobType type, FieldValues path, Consumer<List<Glob>> pastData, Listener newData) {
         CompletableFuture<List<Glob>> under = getUnder(type, path);
         CompletableFuture<ListenerCtrl> listenerCtrlCompletableFuture = CompletableFuture.completedFuture(listenUnder(type, newData));
         under.thenAccept(pastData);
+        listenerCtrlCompletableFuture.exceptionally(throwable -> {
+            LOGGER.error("unexpected exception", throwable);
+            return null;
+        });
         return listenerCtrlCompletableFuture;
     }
 
-    @Override
     public ListenerCtrl listen(GlobType type, Listener listener, FieldValues orderedPath) {
-        String p = EtcDSharedDataAccess.extractPath(orderedPath, type);
+        String p = EtcDSharedDataAccess.extractPath(prefix, orderedPath, type);
         SimpleListener e = new SimpleListener(listener, p, false);
         listeners.add(e);
         return () -> listeners.remove(e);
     }
 
-    @Override
     public ListenerCtrl listenUnder(GlobType type, Listener listener, FieldValues orderedPath) {
-        String p = EtcDSharedDataAccess.extractPath(orderedPath, type);
+        String p = EtcDSharedDataAccess.extractPath(prefix, orderedPath, type);
         SimpleListener e = new SimpleListener(listener, p, true);
         listeners.add(e);
         return () -> listeners.remove(e);
     }
 
-    @Override
     public CompletableFuture<Void> delete(GlobType type, FieldValues values) {
-        String p = EtcDSharedDataAccess.extractPath(values, type);
+        String p = EtcDSharedDataAccess.extractPath(prefix, values, type);
         Glob glob = paths.remove(p);
         if (glob != null) {
             for (SimpleListener listener : listeners) {
@@ -137,29 +147,26 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
         }
     }
 
-    @Override
     public void end() {
 
     }
 
     private class InMemoryUnLeaser implements UnLeaser, Callable<Void> {
         private  ScheduledFuture<?> schedule;
-        private int timeOut;
-        private TimeUnit unit;
+        private Duration duration;
         private Glob glob;
         long id;
 
-        public InMemoryUnLeaser(Glob glob, long id, int timeOut, TimeUnit unit) {
+        public InMemoryUnLeaser(Glob glob, long id, Duration duration) {
             this.glob = glob;
             this.id = id;
-            this.schedule = scheduledExecutorService.schedule(this, timeOut, unit);
-            this.timeOut = timeOut;
-            this.unit = unit;
+            this.schedule = scheduledExecutorService.schedule(this, duration.toSeconds(), TimeUnit.SECONDS);
+            this.duration = duration;
         }
 
         public void touch() {
             schedule.cancel(false);
-            schedule = scheduledExecutorService.schedule(this, timeOut, unit);
+            schedule = scheduledExecutorService.schedule(this, duration.toSeconds(), TimeUnit.SECONDS);
         }
 
         public long getLeaseId() {
@@ -168,6 +175,7 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
 
         public Void call() throws Exception {
             if (glob != null) {
+                LOGGER.info("timeout deleting " + GSonUtils.encode(glob, true));
                 delete(glob.getType(), glob);
                 leasers.remove(id);
             }

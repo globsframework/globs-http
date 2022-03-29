@@ -4,6 +4,7 @@ import org.globsframework.metamodel.GlobType;
 import org.globsframework.model.FieldValues;
 import org.globsframework.model.Glob;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -14,7 +15,11 @@ public interface SharedDataAccess {
 
     CompletableFuture<Void> register(Glob glob);
 
-    CompletableFuture<UnLeaser> registerWithLease(Glob glob, int timeOut, TimeUnit unit);
+    default CompletableFuture<UnLeaser> registerWithLease(Glob glob, int timeOut, TimeUnit unit){
+        return registerWithLease(glob, Duration.ofSeconds(unit.toSeconds(timeOut)));
+    }
+
+    CompletableFuture<UnLeaser> registerWithLease(Glob glob, Duration duration);
 
 //    CompletableFuture<UnLeaser> registerWithAutoLease(Glob glob, int timeOut, TimeUnit unit);
 

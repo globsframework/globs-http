@@ -171,21 +171,20 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         return getUnderWithRevision(type, path).thenApply(ResultAndRevision::data);
     }
 
-    public CompletableFuture<ResultAndRevision> getUnderWithRevision(GlobType type, FieldValues path) {
+    private CompletableFuture<ResultAndRevision> getUnderWithRevision(GlobType type, FieldValues path) {
         CompletableFuture<GetResponse> getResponseCompletableFuture =
                 kv.get(ByteSequence.from(extractPath(prefix, path, type), StandardCharsets.UTF_8), GetOption.newBuilder().isPrefix(true).build());
         CompletableFuture<ResultAndRevision> completableFuture = getResponseCompletableFuture.thenApply(getResponse -> {
             List<KeyValue> kvs = getResponse.getKvs();
+            long revision = getResponse.getHeader().getRevision();
             if (kvs.isEmpty()) {
-                return new ResultAndRevision(List.of(), 0);
+                return new ResultAndRevision(List.of(), revision);
             }
             List<Glob> data = new ArrayList<>();
-            long revision = 0;
             for (KeyValue keyValue : kvs) {
                 ByteSequence value = keyValue.getValue();
                 deserializer.with(GlobTypeResolver.from(type)).read(value.getBytes())
                         .ifPresent(data::add);
-                revision = Math.max(revision, keyValue.getModRevision());
             }
             return new ResultAndRevision(data, revision);
         });

@@ -14,6 +14,7 @@ public class DefaultHttpOperation implements HttpOperation {
     GlobType bodyType;
     GlobType queryType;
     GlobType returnType;
+    String[] tags;
     HttpTreatment httpTreatment;
     private String comment;
     private final Map<String, String> headers = new HashMap<>();
@@ -40,6 +41,10 @@ public class DefaultHttpOperation implements HttpOperation {
         this.returnType = type;
     }
 
+    void withTags(String[] tags){
+        this.tags = tags;
+    }
+
     public GlobType getBodyType() {
         return bodyType;
     }
@@ -50,6 +55,10 @@ public class DefaultHttpOperation implements HttpOperation {
 
     public GlobType getReturnType() {
         return returnType;
+    }
+
+    public String[] getTags() {
+        return tags;
     }
 
     public void headers(HeaderConsumer headerConsumer) {

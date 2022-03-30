@@ -4,7 +4,6 @@ import org.globsframework.json.annottations.JsonAsObject;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.GlobTypeLoaderFactory;
 import org.globsframework.metamodel.annotations.Target;
-import org.globsframework.metamodel.annotations.Targets;
 import org.globsframework.metamodel.fields.GlobArrayField;
 import org.globsframework.metamodel.fields.GlobField;
 import org.globsframework.metamodel.fields.StringArrayField;

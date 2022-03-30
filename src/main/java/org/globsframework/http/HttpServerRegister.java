@@ -40,6 +40,7 @@ public class HttpServerRegister {
     final Map<String, Verb> verbMap = new HashMap<>();
     private final String serverInfo;
     private Glob openApiDoc;
+    final private Map<String, Glob> scopeToOpenApiDoc = new HashMap<>();
     private InterceptBuilder interceptBuilder = InterceptBuilder.NULL;
     final private Map<String, Glob> scopeToOpenApiDoc = new LinkedHashMap<>();
 

@@ -72,7 +72,7 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
     }
 
     public CompletableFuture<Void> register(Glob glob) {
-        String path = EtcDSharedDataAccess.extractPath(prefix, glob, glob.getType());
+        String path = EtcDSharedDataAccess.extractPath(prefix, glob, glob.getType(), "/");
         paths.put(path, glob.duplicate());
         for (SimpleListener listener : listeners) {
             listener.putOn(path, glob);
@@ -93,12 +93,12 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
     }
 
     public CompletableFuture<Optional<Glob>> get(GlobType type, FieldValues path) {
-        String p = EtcDSharedDataAccess.extractPath(prefix, path, type);
+        String p = EtcDSharedDataAccess.extractPath(prefix, path, type, "/");
         return CompletableFuture.completedFuture(Optional.ofNullable(paths.get(p)));
     }
 
     public CompletableFuture<List<Glob>> getUnder(GlobType type, FieldValues path) {
-        String p = EtcDSharedDataAccess.extractPath(prefix, path, type);
+        String p = EtcDSharedDataAccess.extractPath(prefix, path, type, "/");
         List<Glob> globs = new ArrayList<>();
         for (Map.Entry<String, Glob> stringGlobEntry : paths.entrySet()) {
             if (stringGlobEntry.getKey().startsWith(p)) {
@@ -120,21 +120,21 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
     }
 
     public ListenerCtrl listen(GlobType type, Listener listener, FieldValues orderedPath) {
-        String p = EtcDSharedDataAccess.extractPath(prefix, orderedPath, type);
+        String p = EtcDSharedDataAccess.extractPath(prefix, orderedPath, type, "/");
         SimpleListener e = new SimpleListener(listener, p, false);
         listeners.add(e);
         return () -> listeners.remove(e);
     }
 
     public ListenerCtrl listenUnder(GlobType type, Listener listener, FieldValues orderedPath) {
-        String p = EtcDSharedDataAccess.extractPath(prefix, orderedPath, type);
+        String p = EtcDSharedDataAccess.extractPath(prefix, orderedPath, type, "/");
         SimpleListener e = new SimpleListener(listener, p, true);
         listeners.add(e);
         return () -> listeners.remove(e);
     }
 
     public CompletableFuture<Void> delete(GlobType type, FieldValues values) {
-        String p = EtcDSharedDataAccess.extractPath(prefix, values, type);
+        String p = EtcDSharedDataAccess.extractPath(prefix, values, type, "/");
         Glob glob = paths.remove(p);
         if (glob != null) {
             for (SimpleListener listener : listeners) {

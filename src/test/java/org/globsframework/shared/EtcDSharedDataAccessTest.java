@@ -1,5 +1,6 @@
 package org.globsframework.shared;
 
+import com.google.protobuf.ByteString;
 import io.etcd.jetcd.ByteSequence;
 import io.etcd.jetcd.Client;
 import io.etcd.jetcd.KV;
@@ -153,9 +154,7 @@ public class EtcDSharedDataAccessTest {
 
     private void deleteAll(Client client) throws InterruptedException, ExecutionException {
         KV kvClient = client.getKVClient();
-        kvClient.delete(ByteSequence.from(Data1.TYPE.getName(), StandardCharsets.UTF_8), DeleteOption.newBuilder()
-                .isPrefix(true).build()).get();
-        kvClient.delete(ByteSequence.from(Data2.TYPE.getName(), StandardCharsets.UTF_8), DeleteOption.newBuilder()
+        kvClient.delete(ByteSequence.from(ByteString.copyFromUtf8("/")), DeleteOption.newBuilder()
                 .isPrefix(true).build()).get();
     }
 

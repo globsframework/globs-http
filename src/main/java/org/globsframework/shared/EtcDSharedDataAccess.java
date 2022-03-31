@@ -43,8 +43,9 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     private final GlobSerializer serializer;
     private final GlobDeserializer deserializer;
     private final String prefix;
+    private final String separator;
 
-    private EtcDSharedDataAccess(Client client, GlobSerializer serializer, GlobDeserializer deserializer, String prefix) {
+    private EtcDSharedDataAccess(Client client, GlobSerializer serializer, GlobDeserializer deserializer, String prefix, String separator) {
         this.client = client;
         kv = client.getKVClient();
         watchClient = client.getWatchClient();
@@ -52,6 +53,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         this.serializer = serializer;
         this.deserializer = deserializer;
         this.prefix = prefix;
+        this.separator = separator;
     }
 
     public static SharedDataAccess createJson(Client client) {
@@ -59,13 +61,17 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     }
 
     public static SharedDataAccess createJson(Client client, String prefix) {
+        return createJson(client, prefix, "/");
+    }
+
+    public static SharedDataAccess createJson(Client client, String prefix, String separator) {
         GlobSerializer serializer = glob -> {
             String encode = GSonUtils.encode(glob, true);
             return encode.getBytes(StandardCharsets.UTF_8);
         };
         GlobDeserializer deserializer = resolvers -> data -> Optional.ofNullable(
                 GSonUtils.decode(new InputStreamReader(new ByteArrayInputStream(data), StandardCharsets.UTF_8), resolvers));
-        return new EtcDSharedDataAccess(client, serializer, deserializer, prefix);
+        return new EtcDSharedDataAccess(client, serializer, deserializer, prefix, separator);
     }
 
     public static SharedDataAccess createBin(Client client) {
@@ -73,6 +79,10 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     }
 
     public static SharedDataAccess createBin(Client client, String prefix) {
+        return createBin(client, prefix, "/");
+    }
+
+    public static SharedDataAccess createBin(Client client, String prefix, String separator) {
         final BinWriterFactory binWriterFactory = BinWriterFactory.create();
         final BinReaderFactory binReaderFactory = BinReaderFactory.create();
         GlobSerializer serializer = glob -> {
@@ -84,43 +94,43 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
             GlobBinReader globBinReader = binReaderFactory.createGlobBinReader(resolvers);
             return data -> globBinReader.read(new ByteArrayInputStream(data));
         };
-        return new EtcDSharedDataAccess(client, serializer, deserializer, prefix);
+        return new EtcDSharedDataAccess(client, serializer, deserializer, prefix, separator);
     }
 
-    public static String extractPath(String prefix, FieldValues glob, GlobType type) {
+    public static String extractPath(String prefix, FieldValues glob, GlobType type, String separator) {
         List<Field> orderedField = type.streamFields().filter(field -> field.hasAnnotation(PathIndex.KEY))
                 .sorted(Comparator.comparing(field1 -> field1.getAnnotation(PathIndex.KEY).get(PathIndex.index)))
                 .collect(Collectors.toList());
         StringBuilder builder = new StringBuilder();
         if (prefix != null) {
-            builder.append(prefix).append(".");
+            builder.append(separator).append(prefix);
         }
-        builder.append(type.getName()).append(":");
+        builder.append(separator).append(type.getName());
         int countUnset = 0;
         for (Field field : orderedField) {
             if (glob.isSet(field)) {
                 for (int i = 0; i < countUnset; i++) {
-                    builder.append("null.");
+                    builder.append(separator + "null");
                 }
-                builder.append(glob.getValue(field))
-                        .append(".");
+                countUnset = 0;
+                builder.append(separator).append(glob.getValue(field));
             } else {
                 countUnset++;
             }
         }
-        return builder.substring(0, builder.length() - 1);
+        return builder.toString();
     }
 
     public CompletableFuture<Void> register(Glob glob) {
         GlobType type = glob.getType();
-        String path = extractPath(prefix, glob, type);
+        String path = extractPath(prefix, glob, type, separator);
         CompletableFuture<PutResponse> put = kv.put(ByteSequence.from(path, StandardCharsets.UTF_8), ByteSequence.from(serializer.write(glob)));
         return put.thenApply(putResponse -> null);
     }
 
     public CompletableFuture<UnLeaser> registerWithLease(Glob glob, Duration duration) {
         GlobType type = glob.getType();
-        String path = extractPath(prefix, glob, type);
+        String path = extractPath(prefix, glob, type, separator);
 
         ByteSequence k = ByteSequence.from(path, StandardCharsets.UTF_8);
         ByteSequence v = ByteSequence.from(serializer.write(glob));
@@ -153,7 +163,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     }
 
     public CompletableFuture<Optional<Glob>> get(GlobType type, FieldValues path) {
-        CompletableFuture<GetResponse> getResponseCompletableFuture = kv.get(ByteSequence.from(extractPath(prefix, path, type), StandardCharsets.UTF_8));
+        CompletableFuture<GetResponse> getResponseCompletableFuture = kv.get(ByteSequence.from(extractPath(prefix, path, type, separator), StandardCharsets.UTF_8));
         return getResponseCompletableFuture.thenApply(getResponse -> {
             List<KeyValue> kvs = getResponse.getKvs();
             if (kvs.isEmpty()) {
@@ -173,7 +183,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
 
     private CompletableFuture<ResultAndRevision> getUnderWithRevision(GlobType type, FieldValues path) {
         CompletableFuture<GetResponse> getResponseCompletableFuture =
-                kv.get(ByteSequence.from(extractPath(prefix, path, type), StandardCharsets.UTF_8), GetOption.newBuilder().isPrefix(true).build());
+                kv.get(ByteSequence.from(extractPath(prefix, path, type, separator), StandardCharsets.UTF_8), GetOption.newBuilder().isPrefix(true).build());
         CompletableFuture<ResultAndRevision> completableFuture = getResponseCompletableFuture.thenApply(getResponse -> {
             List<KeyValue> kvs = getResponse.getKvs();
             long revision = getResponse.getHeader().getRevision();
@@ -207,7 +217,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     public ListenerCtrl listen(GlobType type, Listener listener, FieldValues orderedPath) {
         Listener logListener = new LoggerListener(listener);
         GlobDeserializer.Deserializer globBinReader = deserializer.with(GlobTypeResolver.from(type));
-        watchClient.watch(ByteSequence.from(extractPath(prefix, orderedPath, type), StandardCharsets.UTF_8),
+        watchClient.watch(ByteSequence.from(extractPath(prefix, orderedPath, type, separator), StandardCharsets.UTF_8),
                 WatchOption.newBuilder()
                         .withPrevKV(true)
                         .build(),
@@ -248,7 +258,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         if (startAtRevision != -1) {
             option.withRevision(startAtRevision);
         }
-        Watch.Watcher watch = watchClient.watch(ByteSequence.from(extractPath(prefix, orderedPath, type), StandardCharsets.UTF_8), option.build(),
+        Watch.Watcher watch = watchClient.watch(ByteSequence.from(extractPath(prefix, orderedPath, type, separator), StandardCharsets.UTF_8), option.build(),
                 watchResponse -> {
                     try {
                         for (WatchEvent event : watchResponse.getEvents()) {
@@ -275,7 +285,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     }
 
     public CompletableFuture<Void> delete(GlobType type, FieldValues values) {
-        String source = extractPath(prefix, values, type);
+        String source = extractPath(prefix, values, type, separator);
         LOGGER.info("Delete call on " + source);
         return kv.delete(ByteSequence.from(source, StandardCharsets.UTF_8))
                 .whenComplete((deleteResponse, throwable) -> {

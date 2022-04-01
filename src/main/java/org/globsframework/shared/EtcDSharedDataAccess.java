@@ -124,6 +124,9 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     public CompletableFuture<Void> register(Glob glob) {
         GlobType type = glob.getType();
         String path = extractPath(prefix, glob, type, separator);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("register " + path);
+        }
         CompletableFuture<PutResponse> put = kv.put(ByteSequence.from(path, StandardCharsets.UTF_8), ByteSequence.from(serializer.write(glob)));
         return put.thenApply(putResponse -> null);
     }
@@ -137,17 +140,21 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
 
         return leaseClient.grant(duration.toSeconds())
                 .thenApply(LeaseGrantResponse::getID)
-                .thenCompose(leaseId ->
-                        kv.put(k, v, PutOption.newBuilder().withLeaseId(leaseId).build())
-                                .thenApply(putResponse -> new UnLeaser() {
-                                    public void touch() {
-                                        leaseClient.keepAliveOnce(leaseId);
-                                    }
+                .thenCompose(leaseId -> {
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("register " + path + " with lease id" + leaseId);
+                    }
+                    return kv.put(k, v, PutOption.newBuilder().withLeaseId(leaseId).build())
+                            .thenApply(putResponse -> new UnLeaser() {
+                                public void touch() {
+                                    leaseClient.keepAliveOnce(leaseId);
+                                }
 
-                                    public long getLeaseId() {
-                                        return leaseId;
-                                    }
-                                }));
+                                public long getLeaseId() {
+                                    return leaseId;
+                                }
+                            });
+                });
     }
 
     public UnLeaser getUnleaser(long leaseId) {

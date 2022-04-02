@@ -198,7 +198,7 @@ public class GlobHttpRequestHandler  {
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug("{} : receive : {}", serverInfo, str);
                     } else {
-                        LOGGER.info("{} : receive : {}", serverInfo, str.substring(0, Math.min(1000, str.length())));
+                        LOGGER.info("{} : receive : {}", serverInfo, str.substring(0, Math.min(10000, str.length())));
                     }
                     data = (Strings.isNullOrEmpty(str) || operation.getBodyType() == null) ? null : GSonUtils.decode(str, operation.getBodyType());
                     deleteFile = () -> {

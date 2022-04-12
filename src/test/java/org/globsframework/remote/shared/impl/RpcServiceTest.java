@@ -1,6 +1,5 @@
 package org.globsframework.remote.shared.impl;
 
-import junit.framework.TestCase;
 import org.globsframework.directory.DefaultDirectory;
 import org.globsframework.directory.Directory;
 import org.globsframework.remote.DefaultSharedService;
@@ -18,11 +17,10 @@ import org.globsframework.utils.NanoChrono;
 import org.globsframework.utils.Ref;
 import org.globsframework.utils.TestUtils;
 import org.globsframework.utils.collections.MultiMap;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -31,19 +29,61 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 
 public class RpcServiceTest {
-    DefaultDirectory directory;
+    final static int COUNT = 50000;
 
     static {
 //        Log4j.initLog();
         System.setProperty("mra.peer.buffer.size", "300");
     }
 
-    @BeforeEach
+    DefaultDirectory directory;
+
+    public static void main(String[] args) throws InterruptedException {
+        if (args.length == 0) {
+            final DefaultDirectory directory = new DefaultDirectory();
+            directory.add(PeerToPeer.class, new DirectPeerToPeer());
+            ServerSharedData serverSharedData = DefaultSharedDataManager.initSharedData();
+            SharedDataManager sharedDataManager = DefaultSharedDataManager.create(AddressAccessor.FixAddressAccessor.create(serverSharedData.getHost(), serverSharedData.getPort()));
+            directory.add(SharedDataManager.class, sharedDataManager);
+            DefaultRpcService.registerRpcNamingServiceHere(sharedDataManager);
+            RpcService rpcService = new DefaultRpcService("worker", new DirectoryProvider() {
+                public Directory getDirectory() {
+                    return directory;
+                }
+            }, directory.get(SharedDataManager.class), directory.get(PeerToPeer.class));
+            rpcService.register(TestRpcCall.class, new TestRpcCallImpl(), "toto");
+            System.out.println("RpcServiceTest.main " + serverSharedData.getHost() + " " + serverSharedData.getPort());
+            synchronized (directory) {
+                directory.wait();
+            }
+        } else {
+            final DefaultDirectory directory = new DefaultDirectory();
+            directory.add(PeerToPeer.class, new DirectPeerToPeer());
+            SharedDataManager sharedDataManager = DefaultSharedDataManager.create(AddressAccessor.FixAddressAccessor.create(args[0], Integer.parseInt(args[1])));
+            directory.add(SharedDataManager.class, sharedDataManager);
+            RpcService rpcService = new DefaultRpcService("worker", new DirectoryProvider() {
+                public Directory getDirectory() {
+                    return directory;
+                }
+            }, directory.get(SharedDataManager.class), directory.get(PeerToPeer.class));
+            TestRpcCall toto = rpcService.getService(TestRpcCall.class, "toto");
+            for (int i = 0; i < COUNT; i++) {
+                assertEquals(-i, toto.callMe(i));
+            }
+            NanoChrono chrono = NanoChrono.start();
+            for (int i = 0; i < COUNT; i++) {
+                assertEquals(-i, toto.callMe(i));
+            }
+            System.out.println("RpcServiceTest.testName " + ((double) COUNT) * 1000. / chrono.getElapsedTimeInMS() + " call/s");
+        }
+    }
+
+    @Before
     public void setUp() throws Exception {
         directory = new DefaultDirectory();
     }
 
-    @AfterEach
+    @After
     public void tearDown() throws Exception {
         directory.clean();
     }
@@ -115,8 +155,9 @@ public class RpcServiceTest {
         assertEquals(MyEnum.B, toto.call(MyEnum.C));
     }
 
+
     enum MyEnum {
-        A,B,C
+        A, B, C
     }
 
     interface TestRpcCall {
@@ -153,7 +194,6 @@ public class RpcServiceTest {
 
     }
 
-
     public static class MySerializableObject implements Serializable {
         private int value;
 
@@ -169,7 +209,7 @@ public class RpcServiceTest {
         }
 
         public int callInOut(Ref<Integer> a) {
-            if(a.get()==null) {
+            if (a.get() == null) {
                 a.set(0);
                 return 0;
             }
@@ -209,49 +249,6 @@ public class RpcServiceTest {
 
         public MyEnum call(MyEnum myEnum) {
             return MyEnum.B;
-        }
-    }
-
-    final static int COUNT =  50000;
-
-    public static void main(String[] args) throws InterruptedException {
-        if (args.length == 0){
-            final DefaultDirectory directory = new DefaultDirectory();
-            directory.add(PeerToPeer.class, new DirectPeerToPeer());
-            ServerSharedData serverSharedData = DefaultSharedDataManager.initSharedData();
-            SharedDataManager sharedDataManager = DefaultSharedDataManager.create(AddressAccessor.FixAddressAccessor.create(serverSharedData.getHost(), serverSharedData.getPort()));
-            directory.add(SharedDataManager.class, sharedDataManager);
-            DefaultRpcService.registerRpcNamingServiceHere(sharedDataManager);
-            RpcService rpcService = new DefaultRpcService("worker", new DirectoryProvider() {
-                public Directory getDirectory() {
-                    return directory;
-                }
-            }, directory.get(SharedDataManager.class), directory.get(PeerToPeer.class));
-            rpcService.register(TestRpcCall.class, new TestRpcCallImpl(), "toto");
-            System.out.println("RpcServiceTest.main " + serverSharedData.getHost() + " " + serverSharedData.getPort());
-            synchronized (directory){
-                directory.wait();
-            }
-        }
-        else {
-            final DefaultDirectory directory = new DefaultDirectory();
-            directory.add(PeerToPeer.class, new DirectPeerToPeer());
-            SharedDataManager sharedDataManager = DefaultSharedDataManager.create(AddressAccessor.FixAddressAccessor.create(args[0], Integer.parseInt(args[1])));
-            directory.add(SharedDataManager.class, sharedDataManager);
-            RpcService rpcService = new DefaultRpcService("worker", new DirectoryProvider() {
-                public Directory getDirectory() {
-                    return directory;
-                }
-            }, directory.get(SharedDataManager.class), directory.get(PeerToPeer.class));
-            TestRpcCall toto = rpcService.getService(TestRpcCall.class, "toto");
-            for (int i = 0; i < COUNT; i++) {
-                assertEquals(-i, toto.callMe(i));
-            }
-            NanoChrono chrono = NanoChrono.start();
-            for (int i = 0; i < COUNT; i++) {
-                assertEquals(-i, toto.callMe(i));
-            }
-            System.out.println("RpcServiceTest.testName " + ((double) COUNT) * 1000. / chrono.getElapsedTimeInMS() + " call/s");
         }
     }
 

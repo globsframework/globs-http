@@ -21,7 +21,6 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -44,7 +43,7 @@ public class EtcDSharedDataAccessTest {
     }
 
     @Test
-    @Ignore("integration test to be filtered later")
+//    @Ignore("integration test to be filtered later")
     public void getUnderAndListenWithEmpty() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();
 
@@ -94,6 +93,7 @@ public class EtcDSharedDataAccessTest {
         Assert.assertNotNull(poll1);
         Assert.assertEquals(2, poll1.get(Data1.num).intValue());
         listenerCtrl.close();
+        etcDSharedDataAccess.end();
 //        deleteAll(client);
 //        client.close();
     }
@@ -148,6 +148,7 @@ public class EtcDSharedDataAccessTest {
         Assert.assertNotNull(poll1);
         Assert.assertEquals(2, poll1.get(Data1.num).intValue());
         listenerCtrl.close();
+        etcDSharedDataAccess.end();
 //        deleteAll(client);
 //        client.close();
     }
@@ -264,9 +265,17 @@ public class EtcDSharedDataAccessTest {
 
             Assert.assertNotNull(deletes.poll(10, TimeUnit.SECONDS));
         } finally {
-            if (listenerCtrl != null) listenerCtrl.close();
-            if (listenerCtrl1 != null) listenerCtrl1.close();
-            if (listenerCtrl2 != null) listenerCtrl2.close();
+            if (listenerCtrl != null) {
+                listenerCtrl.close();
+            }
+            if (listenerCtrl1 != null) {
+                listenerCtrl1.close();
+            }
+            if (listenerCtrl2 != null) {
+                listenerCtrl2.close();
+            }
+            etcDSharedDataAccess.end();
+            sharedDataAccessRead.end();
         }
 
     }
@@ -279,6 +288,7 @@ public class EtcDSharedDataAccessTest {
         try {
             SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createBin(client);
             checkLease(etcDSharedDataAccess);
+            etcDSharedDataAccess.end();
         } finally {
             deleteAll(client);
             client.close();
@@ -297,6 +307,7 @@ public class EtcDSharedDataAccessTest {
             client.close();
         }
     }
+
 
     private void checkLease(SharedDataAccess etcDSharedDataAccess) throws InterruptedException, ExecutionException, TimeoutException {
         MutableGlob data = Data1.TYPE.instantiate()

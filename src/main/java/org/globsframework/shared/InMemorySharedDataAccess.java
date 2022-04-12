@@ -147,6 +147,22 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
         }
     }
 
+    @Override
+    public CompletableFuture<LeaderOperation> registerForLeaderShip(Glob glob, LeaderListener listener) {
+        listener.youAreTheLeader();
+        return CompletableFuture.completedFuture(new LeaderOperation() {
+            @Override
+            public void releaseMyLeaderShip() {
+
+            }
+
+            @Override
+            public void shutDown() {
+
+            }
+        });
+    }
+
     public void end() {
 
     }

@@ -45,6 +45,21 @@ public interface SharedDataAccess {
 
     CompletableFuture<Void> delete(GlobType type, FieldValues values);
 
+    CompletableFuture<LeaderOperation> registerForLeaderShip(Glob glob, LeaderListener listener);
+
+    interface LeaderOperation {
+        void releaseMyLeaderShip();
+
+        void shutDown();
+    }
+
+    interface LeaderListener {
+        void youAreTheLeader();
+
+        void youAreNotTheLeaderAnyMore();
+    }
+
+
     interface ListenerCtrl {
         void close();
     }

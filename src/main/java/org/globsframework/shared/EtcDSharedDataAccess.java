@@ -1,6 +1,9 @@
 package org.globsframework.shared;
 
 import io.etcd.jetcd.*;
+import io.etcd.jetcd.election.CampaignResponse;
+import io.etcd.jetcd.election.LeaderKey;
+import io.etcd.jetcd.election.LeaderResponse;
 import io.etcd.jetcd.kv.GetResponse;
 import io.etcd.jetcd.kv.PutResponse;
 import io.etcd.jetcd.lease.LeaseGrantResponse;
@@ -18,6 +21,7 @@ import org.globsframework.serialisation.BinReaderFactory;
 import org.globsframework.serialisation.BinWriterFactory;
 import org.globsframework.serialisation.glob.GlobBinReader;
 import org.globsframework.shared.model.PathIndex;
+import org.globsframework.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,11 +30,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -44,16 +45,21 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     private final GlobDeserializer deserializer;
     private final String prefix;
     private final String separator;
+    private final Election electionClient;
+    private final ScheduledExecutorService scheduledExecutorService;
+    private long leaseId;
 
     private EtcDSharedDataAccess(Client client, GlobSerializer serializer, GlobDeserializer deserializer, String prefix, String separator) {
         this.client = client;
         kv = client.getKVClient();
         watchClient = client.getWatchClient();
         leaseClient = client.getLeaseClient();
+        electionClient = client.getElectionClient();
         this.serializer = serializer;
         this.deserializer = deserializer;
         this.prefix = prefix;
         this.separator = separator;
+        scheduledExecutorService = Executors.newScheduledThreadPool(1);
     }
 
     public static SharedDataAccess createJson(Client client) {
@@ -110,7 +116,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         for (Field field : orderedField) {
             if (glob.isSet(field)) {
                 for (int i = 0; i < countUnset; i++) {
-                    builder.append(separator + "null");
+                    builder.append(separator).append("null");
                 }
                 countUnset = 0;
                 builder.append(separator).append(glob.getValue(field));
@@ -304,7 +310,21 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                 });
     }
 
+    public CompletableFuture<LeaderOperation> registerForLeaderShip(Glob glob, LeaderListener listener) {
+        CompletableFuture<LeaseGrantResponse> grant = leaseClient.grant(1);
+        String key = extractPath(prefix, glob, glob.getType(), separator);
+        byte[] value = serializer.write(glob);
+        return grant.thenApply(leaseGrantResponse -> {
+            leaseId = leaseGrantResponse.getID();
+            ScheduledFuture<?> scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(() -> leaseClient.keepAliveOnce(leaseId),
+                    500, 700, TimeUnit.MILLISECONDS);
+            return new MyLeaderOperation(ByteSequence.from(key, StandardCharsets.UTF_8), ByteSequence.from(value),
+                    leaseId, listener, scheduledFuture);
+        });
+    }
+
     public void end() {
+        scheduledExecutorService.shutdown();
     }
 
     interface GlobSerializer {
@@ -345,6 +365,71 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
             } catch (Exception e) {
                 LOGGER.error("Got exception", e);
             }
+        }
+    }
+
+    private  class MyLeaderOperation implements LeaderOperation, Election.Listener {
+        private final ByteSequence electionName;
+        private final ByteSequence value;
+        private final long leaseId;
+        private final LeaderListener listener;
+        private final ScheduledFuture<?> scheduledFuture;
+        private CompletableFuture<CampaignResponse> campaign;
+        private CompletableFuture<LeaderKey> leaderKeyCompletableFuture;
+
+        public MyLeaderOperation(ByteSequence electionName, ByteSequence value, long leaseId, LeaderListener listener, ScheduledFuture<?> scheduledFuture) {
+            this.electionName = electionName;
+            this.value = value;
+            this.leaseId = leaseId;
+            this.listener = listener;
+            this.scheduledFuture = scheduledFuture;
+        }
+
+        void init() {
+            electionClient.observe(electionName, this);
+            campaign = electionClient.campaign(electionName, leaseId, value);
+            leaderKeyCompletableFuture = campaign.thenApply(campaignResponse -> {
+                LOGGER.info("I am the leader for " + electionName);
+                listener.youAreTheLeader();
+                return campaignResponse.getLeader();
+            });
+        }
+
+        synchronized public void releaseMyLeaderShip() {
+            LOGGER.info("release wanted on " + electionName);
+            if (leaderKeyCompletableFuture.isDone()) {
+                listener.youAreNotTheLeaderAnyMore();
+                electionClient.resign(leaderKeyCompletableFuture.join());
+                Utils.sleep(1000); //force wait to allow a new leader different then this.
+                init();
+            }
+        }
+
+        synchronized public void shutDown() {
+            LOGGER.info("shutDown wanted on " + electionName);
+            releaseMyLeaderShip();
+            scheduledFuture.cancel(false);
+            leaseClient.revoke(leaseId);
+        }
+
+        public void onNext(LeaderResponse response) {
+            LOGGER.info("onNext call on " + electionName);
+            if (!response.getKv().getValue().equals(value)) {
+                LOGGER.info("Force release ");
+                releaseMyLeaderShip();
+            }
+            else {
+                LOGGER.info("Same leader.");
+            }
+        }
+
+        synchronized public void onError(Throwable throwable) {
+            LOGGER.info("onError call on " + electionName);
+            releaseMyLeaderShip();
+        }
+
+        public void onCompleted() {
+            LOGGER.info("onCompleted call on " + electionName);
         }
     }
 }

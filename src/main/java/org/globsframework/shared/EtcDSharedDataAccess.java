@@ -109,7 +109,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                 .collect(Collectors.toList());
         StringBuilder builder = new StringBuilder();
         if (prefix != null) {
-            builder.append(separator).append(prefix);
+            builder.append(prefix);
         }
         builder.append(separator).append(type.getName());
         int countUnset = 0;

@@ -1,6 +1,5 @@
 package org.globsframework.remote.shared.impl;
 
-import junit.framework.TestCase;
 import org.globsframework.metamodel.GlobModel;
 import org.globsframework.metamodel.impl.DefaultGlobModel;
 import org.globsframework.model.*;
@@ -12,9 +11,13 @@ import org.globsframework.remote.shared.SharedDataService;
 import org.globsframework.utils.NanoChrono;
 import org.globsframework.utils.Ref;
 import org.globsframework.utils.TestUtils;
+import org.junit.Ignore;
 import org.junit.Test;
 
-public class ServerSharedDataTest extends TestCase {
+import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public class ServerSharedDataTest {
 
     static final int EVENTS_COUNT = 50000;
     static final int CLIENT_COUNT = 3;
@@ -23,6 +26,7 @@ public class ServerSharedDataTest extends TestCase {
     }
 
     @Test
+    @Ignore
     public void testShare() throws Exception {
         GlobModel globModel = new DefaultGlobModel(SourceLocation.TYPE);
         ServerSharedData serverSharedData = new DefaultServerSharedData(globModel, "localhost", 0, "/");
@@ -164,6 +168,8 @@ public class ServerSharedDataTest extends TestCase {
         }
     }
 
+    @Ignore
+    @Test
     public void testPerfs() throws Exception {
         final GlobModel globModel = new DefaultGlobModel(SourceLocation.TYPE);
         ServerSharedData serverSharedData = new DefaultServerSharedData(globModel, "localhost", 0, "/");
@@ -213,6 +219,8 @@ public class ServerSharedDataTest extends TestCase {
         });
     }
 
+    @Ignore
+    @Test
     public void testExchangeType() throws InterruptedException {
         GlobModel globModel = new DefaultGlobModel();
         ServerSharedData serverSharedData = new DefaultServerSharedData(globModel, "localhost", 0, "/");

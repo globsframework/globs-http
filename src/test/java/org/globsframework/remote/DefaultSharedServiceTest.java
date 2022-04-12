@@ -15,10 +15,14 @@ import org.globsframework.remote.shared.SharedDataManager;
 import org.globsframework.remote.shared.impl.DefaultSharedDataManager;
 import org.globsframework.utils.serialization.SerializedInput;
 import org.globsframework.utils.serialization.SerializedOutput;
+import org.junit.Ignore;
 import org.junit.Test;
 
-public class DefaultSharedServiceTest extends TestCase {
+import static org.junit.Assert.assertSame;
 
+public class DefaultSharedServiceTest {
+
+    @Ignore
     @Test
     public void testShared() throws Exception {
 

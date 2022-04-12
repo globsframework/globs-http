@@ -9,14 +9,19 @@ import org.globsframework.remote.shared.SharedDataManager;
 import org.globsframework.remote.shared.SharedDataService;
 import org.globsframework.utils.Utils;
 import org.junit.Ignore;
+import org.junit.Test;
+
+import static org.junit.Assert.assertTrue;
 
 @Ignore("Need rework")
-public class SharedDataManagerTest extends TestCase {
+public class SharedDataManagerTest {
 
     static {
 //        Log4j.initLog();
     }
 
+    @Ignore
+    @Test
     public void testReset() throws Exception {
         ServerSharedData serverSharedData = DefaultSharedDataManager.initSharedData();
         SharedDataManager centralSharedDataManager = DefaultSharedDataManager.create(new AddressAccessor.FixAddressAccessor(serverSharedData.getHost(), serverSharedData.getPort()));

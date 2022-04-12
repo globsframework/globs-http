@@ -1,6 +1,5 @@
 package org.globsframework.remote.peer;
 
-import junit.framework.TestCase;
 import org.globsframework.remote.peer.direct.DirectPeerToPeer;
 import org.globsframework.utils.Files;
 import org.globsframework.utils.NanoChrono;
@@ -8,6 +7,7 @@ import org.globsframework.utils.serialization.SerializedInput;
 import org.globsframework.utils.serialization.SerializedInputOutputFactory;
 import org.globsframework.utils.serialization.SerializedOutput;
 import org.junit.Assert;
+import org.junit.Ignore;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -19,7 +19,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-public class PeerTest extends TestCase {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public class PeerTest {
 
     public static final int CLIENT_REQUEST = 10;
 
@@ -27,6 +29,7 @@ public class PeerTest extends TestCase {
         System.setProperty("glob.peer.buffer.size", "100");
     }
 
+    @Ignore
     public void testEndToEnd() throws Exception {
         final PeerToPeer peer = new DirectPeerToPeer();
         final ServerListener serverListener = peer.createServerListener(CLIENT_REQUEST, new PeerToPeer.ServerRequestFactory() {
@@ -127,6 +130,7 @@ public class PeerTest extends TestCase {
     }
 
 
+    @Ignore
     public void testOneOp() throws Exception {
 
         final PeerToPeer peer = new DirectPeerToPeer();
@@ -188,6 +192,7 @@ public class PeerTest extends TestCase {
     }
 
 
+    @Ignore
     public void testInc() throws Exception {
 
         final PeerToPeer peer = new DirectPeerToPeer();
@@ -222,6 +227,7 @@ public class PeerTest extends TestCase {
     }
 
 
+    @Ignore
     public void testWithTimeout() throws Exception {
 
         System.setProperty("glob.peer.direct.ping", "100");
@@ -281,6 +287,7 @@ public class PeerTest extends TestCase {
         return clientRequest;
     }
 
+    @Ignore
     public void testWithThrow() throws Exception {
         final PeerToPeer peer = new DirectPeerToPeer();
         final ServerListener serverListener = peer.createServerListener(CLIENT_REQUEST, new PeerToPeer.ServerRequestFactory() {
@@ -319,6 +326,7 @@ public class PeerTest extends TestCase {
         assertEquals(len, 5);
     }
 
+    @Ignore
     public void testWithThrowAtStartAndReuse() throws Exception {
         final PeerToPeer peer = new DirectPeerToPeer();
         final ServerListener serverListener = peer.createServerListener(CLIENT_REQUEST, new PeerToPeer.ServerRequestFactory() {
@@ -365,8 +373,7 @@ public class PeerTest extends TestCase {
         }
     }
 
-
-
+    @Ignore
     public void testWithoutEnd() throws Exception {
         final PeerToPeer peer = new DirectPeerToPeer();
         final ServerListener serverListener = peer.createServerListener(CLIENT_REQUEST, new PeerToPeer.ServerRequestFactory() {

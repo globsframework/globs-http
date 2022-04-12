@@ -17,8 +17,13 @@ import org.globsframework.model.utils.GlobMatcher;
 import org.globsframework.model.utils.GlobMatchers;
 import org.globsframework.remote.shared.*;
 import org.globsframework.utils.collections.Pair;
+import org.junit.Ignore;
+import org.junit.Test;
 
-public class DefaultSharedDataManagerTest extends TestCase {
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+
+public class DefaultSharedDataManagerTest {
 
     public static final int TIMEOUT = 150000;
 
@@ -27,6 +32,8 @@ public class DefaultSharedDataManagerTest extends TestCase {
     }
 
 
+    @Ignore
+    @Test
     public void testStopClient() throws Exception {
         ServerSharedData serverSharedData = DefaultSharedDataManager.initSharedData();
         SharedDataManager centralSharedDataManager = DefaultSharedDataManager.create(new AddressAccessor.FixAddressAccessor(serverSharedData.getHost(), serverSharedData.getPort()));
@@ -65,6 +72,8 @@ public class DefaultSharedDataManagerTest extends TestCase {
         sharedDataServiceChecker1.checkContain(SharedDummyObject1.TYPE, l2);
     }
 
+    @Ignore
+    @Test
     public void testStopStartServer() throws Exception {
         ServerSharedData serverSharedData = DefaultSharedDataManager.initSharedData();
         SharedDataManager centralSharedDataManager = DefaultSharedDataManager.create(new AddressAccessor.FixAddressAccessor(serverSharedData.getHost(), serverSharedData.getPort()));
@@ -130,6 +139,8 @@ public class DefaultSharedDataManagerTest extends TestCase {
         }
     }
 
+    @Ignore
+    @Test
     public void testStopAllExpectOne() throws Exception {
         Server server = new Server();
         server.newServer();
@@ -174,6 +185,8 @@ public class DefaultSharedDataManagerTest extends TestCase {
 
     }
 
+    @Ignore
+    @Test
     public void testStartClientFirstAtGivenPort() throws InterruptedException {
         AddressAccessor.FixAddressAccessor addressAccessor = new AddressAccessor.FixAddressAccessor("localhost", 3000);
         SharedDataManager.Path path = SharedPathBuilder.create("/test");

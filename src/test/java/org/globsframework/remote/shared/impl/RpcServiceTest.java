@@ -18,12 +18,19 @@ import org.globsframework.utils.NanoChrono;
 import org.globsframework.utils.Ref;
 import org.globsframework.utils.TestUtils;
 import org.globsframework.utils.collections.MultiMap;
+import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class RpcServiceTest extends TestCase {
+import static org.junit.Assert.assertEquals;
+
+public class RpcServiceTest {
     DefaultDirectory directory;
 
     static {
@@ -31,16 +38,18 @@ public class RpcServiceTest extends TestCase {
         System.setProperty("mra.peer.buffer.size", "300");
     }
 
+    @BeforeEach
     public void setUp() throws Exception {
-        super.setUp();
         directory = new DefaultDirectory();
     }
 
+    @AfterEach
     public void tearDown() throws Exception {
-        super.tearDown();
         directory.clean();
     }
 
+    @Ignore
+    @Test
     public void testName() throws Exception {
         directory.add(PeerToPeer.class, new DirectPeerToPeer());
         ServerSharedData serverSharedData = DefaultSharedDataManager.initSharedData();

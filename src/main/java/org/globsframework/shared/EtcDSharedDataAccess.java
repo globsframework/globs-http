@@ -47,7 +47,6 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     private final String separator;
     private final Election electionClient;
     private final ScheduledExecutorService scheduledExecutorService;
-    private long leaseId;
 
     private EtcDSharedDataAccess(Client client, GlobSerializer serializer, GlobDeserializer deserializer, String prefix, String separator) {
         this.client = client;
@@ -59,7 +58,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         this.deserializer = deserializer;
         this.prefix = prefix;
         this.separator = separator;
-        scheduledExecutorService = Executors.newScheduledThreadPool(1);
+        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
     }
 
     public static SharedDataAccess createJson(Client client) {
@@ -137,6 +136,16 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         return put.thenApply(putResponse -> null);
     }
 
+    public CompletableFuture<Void> register(Glob glob, UnLeaser unLeaser) {
+        GlobType type = glob.getType();
+        String path = extractPath(prefix, glob, type, separator);
+
+        ByteSequence k = ByteSequence.from(path, StandardCharsets.UTF_8);
+        ByteSequence v = ByteSequence.from(serializer.write(glob));
+
+        return kv.put(k, v, PutOption.newBuilder().withLeaseId(unLeaser.getLeaseId()).build()).thenApply(putResponse -> null);
+    }
+
     public CompletableFuture<UnLeaser> registerWithLease(Glob glob, Duration duration) {
         GlobType type = glob.getType();
         String path = extractPath(prefix, glob, type, separator);
@@ -159,20 +168,51 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                                 public long getLeaseId() {
                                     return leaseId;
                                 }
+
+                                public void end() {
+
+                                }
                             });
                 });
     }
 
-    public UnLeaser getUnleaser(long leaseId) {
-        return new UnLeaser() {
-            public void touch() {
-                leaseClient.keepAliveOnce(leaseId);
-            }
+    public CompletableFuture<UnLeaser> createLease(Duration duration) {
+        return leaseClient.grant(duration.toSeconds())
+                .thenApply(LeaseGrantResponse::getID)
+                .thenApply(leaseId -> new UnLeaser() {
+                    public void touch() {
+                        leaseClient.keepAliveOnce(leaseId);
+                    }
 
-            public long getLeaseId() {
-                return leaseId;
-            }
-        };
+                    public long getLeaseId() {
+                        return leaseId;
+                    }
+
+                    public void end() {
+
+                    }
+                });
+    }
+
+    public CompletableFuture<UnLeaser> createAutoLease(Duration duration) {
+        return createLease(duration)
+                .thenApply(unLeaser -> {
+                    ScheduledFuture<?> scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(unLeaser::touch,
+                            duration.toSeconds(), duration.toSeconds(), TimeUnit.SECONDS);
+                    return new UnLeaser() {
+                        public void touch() {
+                            unLeaser.touch();
+                        }
+
+                        public long getLeaseId() {
+                            return unLeaser.getLeaseId();
+                        }
+
+                        public void end() {
+                            scheduledFuture.cancel(false);
+                        }
+                    };
+                });
     }
 
     public CompletableFuture<Optional<Glob>> get(GlobType type, FieldValues path) {
@@ -315,7 +355,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         String key = extractPath(prefix, glob, glob.getType(), separator);
         byte[] value = serializer.write(glob);
         return grant.thenApply(leaseGrantResponse -> {
-            leaseId = leaseGrantResponse.getID();
+            long leaseId = leaseGrantResponse.getID();
             ScheduledFuture<?> scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(() -> leaseClient.keepAliveOnce(leaseId),
                     500, 700, TimeUnit.MILLISECONDS);
             return new MyLeaderOperation(ByteSequence.from(key, StandardCharsets.UTF_8), ByteSequence.from(value),

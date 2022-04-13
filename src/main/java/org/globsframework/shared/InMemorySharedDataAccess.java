@@ -22,7 +22,7 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
     private final List<SimpleListener> listeners = new ArrayList<>();
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
     private final AtomicLong id = new AtomicLong(0);
-    private final Map<Long, UnLeaser> leasers = new ConcurrentHashMap<>();
+    private final Map<Long, InMemoryUnLeaser> leasers = new ConcurrentHashMap<>();
     private final String prefix;
 
     public InMemorySharedDataAccess() {
@@ -80,10 +80,31 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
         return CompletableFuture.completedFuture(null);
     }
 
+    public CompletableFuture<Void> register(Glob glob, UnLeaser unLeaser) {
+        register(glob);
+        leasers.get(unLeaser.getLeaseId()).add(glob);
+        return CompletableFuture.completedFuture(null);
+    }
+
     public CompletableFuture<UnLeaser> registerWithLease(Glob glob, Duration duration) {
         register(glob);
         long key = id.incrementAndGet();
-        InMemoryUnLeaser value = new InMemoryUnLeaser(glob, key, duration);
+        InMemoryUnLeaser value = new InMemoryUnLeaser(key, duration, true);
+        value.add(glob);
+        leasers.put(key, value);
+        return CompletableFuture.completedFuture(value);
+    }
+
+    public CompletableFuture<UnLeaser> createLease(Duration duration) {
+        long key = id.incrementAndGet();
+        InMemoryUnLeaser value = new InMemoryUnLeaser(key, duration, false);
+        leasers.put(key, value);
+        return CompletableFuture.completedFuture(value);
+    }
+
+    public CompletableFuture<UnLeaser> createAutoLease(Duration duration) {
+        long key = id.incrementAndGet();
+        InMemoryUnLeaser value = new InMemoryUnLeaser(key, duration, true);
         leasers.put(key, value);
         return CompletableFuture.completedFuture(value);
     }
@@ -170,17 +191,27 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
     private class InMemoryUnLeaser implements UnLeaser, Callable<Void> {
         private  ScheduledFuture<?> schedule;
         private Duration duration;
-        private Glob glob;
+        private List<Glob> globs = new ArrayList<>();
         long id;
+        private final boolean autoLease;
 
-        public InMemoryUnLeaser(Glob glob, long id, Duration duration) {
-            this.glob = glob;
+        public InMemoryUnLeaser(long id, Duration duration, boolean autoLease) {
             this.id = id;
-            this.schedule = scheduledExecutorService.schedule(this, duration.toSeconds(), TimeUnit.SECONDS);
+            this.autoLease = autoLease;
+            if (!autoLease) {
+                this.schedule = scheduledExecutorService.schedule(this, duration.toSeconds(), TimeUnit.SECONDS);
+            }
             this.duration = duration;
         }
 
+        public void add(Glob glob) {
+            globs.add(glob);
+        }
+
         public void touch() {
+            if (autoLease) {
+                return;
+            }
             schedule.cancel(false);
             schedule = scheduledExecutorService.schedule(this, duration.toSeconds(), TimeUnit.SECONDS);
         }
@@ -189,8 +220,15 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
             return id;
         }
 
-        public Void call() throws Exception {
-            if (glob != null) {
+        public void end() {
+            if (schedule != null) {
+                schedule.cancel(false);
+            }
+            call();
+        }
+
+        public Void call() {
+            for (Glob glob : globs) {
                 LOGGER.info("timeout deleting " + GSonUtils.encode(glob, true));
                 delete(glob.getType(), glob);
                 leasers.remove(id);

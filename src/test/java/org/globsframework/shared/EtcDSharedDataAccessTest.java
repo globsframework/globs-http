@@ -21,6 +21,7 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -308,6 +309,36 @@ public class EtcDSharedDataAccessTest {
         }
     }
 
+    @Test
+    @Ignore
+    public void autoLease() throws ExecutionException, InterruptedException {
+        MutableGlob data = Data1.TYPE.instantiate()
+                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.workerName, "w1")
+                .set(Data1.num, 1)
+                .set(Data1.someData, "blabla");
+        Client client = Client.builder().endpoints(ETCD).build();
+        try {
+            SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createJson(client);
+            SharedDataAccess.UnLeaser unLeaser = etcDSharedDataAccess.createAutoLease(Duration.ofSeconds(1)).get(1, TimeUnit.SECONDS);
+            etcDSharedDataAccess.register(data, unLeaser);
+            Thread.sleep(2000);
+            Assert.assertEquals("blabla", etcDSharedDataAccess.get(Data1.TYPE, data)
+                    .get(1, TimeUnit.SECONDS)
+                    .orElseThrow().get(Data1.someData));
+            unLeaser.end();
+            Thread.sleep(3000);
+            List<Glob> globs = etcDSharedDataAccess.getUnder(Data1.TYPE, FieldValues.EMPTY)
+                    .get(1, TimeUnit.SECONDS);
+            Assert.assertEquals(0, globs.size());
+
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+        } finally {
+            deleteAll(client);
+            client.close();
+        }
+    }
 
     private void checkLease(SharedDataAccess etcDSharedDataAccess) throws InterruptedException, ExecutionException, TimeoutException {
         MutableGlob data = Data1.TYPE.instantiate()

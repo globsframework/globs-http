@@ -15,15 +15,19 @@ public interface SharedDataAccess {
 
     CompletableFuture<Void> register(Glob glob);
 
+    CompletableFuture<Void> register(Glob glob, UnLeaser unLeaser);
+
     default CompletableFuture<UnLeaser> registerWithLease(Glob glob, int timeOut, TimeUnit unit){
         return registerWithLease(glob, Duration.ofSeconds(unit.toSeconds(timeOut)));
     }
 
     CompletableFuture<UnLeaser> registerWithLease(Glob glob, Duration duration);
 
-//    CompletableFuture<UnLeaser> registerWithAutoLease(Glob glob, int timeOut, TimeUnit unit);
+    CompletableFuture<UnLeaser> createLease(Duration duration);
 
-    UnLeaser getUnleaser(long leaseId);
+    CompletableFuture<UnLeaser> createAutoLease(Duration duration);
+
+//    CompletableFuture<UnLeaser> registerWithAutoLease(Glob glob, int timeOut, TimeUnit unit);
 
     CompletableFuture<Optional<Glob>> get(GlobType type, FieldValues path);
 
@@ -69,6 +73,7 @@ public interface SharedDataAccess {
 
         long getLeaseId();
 
+        void end();
     }
 
     interface Listener {

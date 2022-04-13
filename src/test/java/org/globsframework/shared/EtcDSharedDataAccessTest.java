@@ -43,7 +43,7 @@ public class EtcDSharedDataAccessTest {
     }
 
     @Test
-//    @Ignore("integration test to be filtered later")
+    @Ignore("integration test to be filtered later")
     public void getUnderAndListenWithEmpty() throws ExecutionException, InterruptedException, TimeoutException {
         Client client = Client.builder().endpoints(ETCD).build();
 

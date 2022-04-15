@@ -37,9 +37,28 @@ public class HttpServerRegister {
     final Map<String, Verb> verbMap = new HashMap<>();
     private final String serverInfo;
     private Glob openApiDoc;
+    private InterceptBuilder interceptBuilder = InterceptBuilder.NULL;
 
     public HttpServerRegister(String serverInfo) {
         this.serverInfo = serverInfo;
+    }
+
+    public interface InterceptBuilder {
+        InterceptBuilder NULL = new InterceptBuilder() {
+            public HttpTreatment create(HttpTreatment httpTreatment) {
+                return httpTreatment;
+            }
+        };
+        HttpTreatment create(HttpTreatment httpTreatment);
+    }
+
+    public void addRequestDecorator(InterceptBuilder interceptBuilder) {
+        if (this.interceptBuilder == InterceptBuilder.NULL) {
+            this.interceptBuilder = interceptBuilder;
+        }
+        else {
+            this.interceptBuilder = new AncapsulateInterceptBuilder(this.interceptBuilder, interceptBuilder);
+        }
     }
 
     public Verb register(String url, GlobType queryUrl) {
@@ -556,6 +575,20 @@ public class HttpServerRegister {
         }
     }
 
+    private static class AncapsulateInterceptBuilder implements InterceptBuilder {
+        private final InterceptBuilder interceptBuilder;
+        private final InterceptBuilder builder;
+
+        public AncapsulateInterceptBuilder(InterceptBuilder interceptBuilder, InterceptBuilder builder) {
+            this.interceptBuilder = interceptBuilder;
+            this.builder = builder;
+        }
+
+        public HttpTreatment create(HttpTreatment httpTreatment) {
+            return interceptBuilder.create(builder.create(httpTreatment));
+        }
+    }
+
     private class OpenApiFieldVisitor extends FieldVisitor.AbstractWithErrorVisitor {
         private Glob schema;
         private Map<GlobType, Glob> schemas;
@@ -691,31 +724,31 @@ public class HttpServerRegister {
         }
 
         public OperationInfo get(GlobType paramType, HttpTreatment httpTreatment) {
-            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.get, null, paramType, httpTreatment);
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.get, null, paramType, interceptBuilder.create(httpTreatment));
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
 
         public OperationInfo post(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
-            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.post, bodyParam, paramType, httpTreatment);
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.post, bodyParam, paramType, interceptBuilder.create(httpTreatment));
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
 
         public OperationInfo put(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
-            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.put, bodyParam, paramType, httpTreatment);
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.put, bodyParam, paramType, interceptBuilder.create(httpTreatment));
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
 
         public OperationInfo patch(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
-            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.patch, bodyParam, paramType, httpTreatment);
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.patch, bodyParam, paramType, interceptBuilder.create(httpTreatment));
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
 
         public OperationInfo delete(GlobType paramType, HttpTreatment httpTreatment) {
-            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.delete, null, paramType, httpTreatment);
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.delete, null, paramType, interceptBuilder.create(httpTreatment));
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }

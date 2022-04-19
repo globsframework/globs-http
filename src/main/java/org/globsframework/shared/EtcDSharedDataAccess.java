@@ -198,7 +198,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         return createLease(duration)
                 .thenApply(unLeaser -> {
                     ScheduledFuture<?> scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(unLeaser::touch,
-                            duration.toSeconds(), duration.toSeconds(), TimeUnit.SECONDS);
+                            duration.toMillis() / 2, duration.toMillis() / 2, TimeUnit.MILLISECONDS);
                     return new UnLeaser() {
                         public void touch() {
                             unLeaser.touch();
@@ -364,6 +364,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     }
 
     public void end() {
+        LOGGER.info("etcd end");
         scheduledExecutorService.shutdown();
     }
 

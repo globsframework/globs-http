@@ -1,6 +1,7 @@
 package org.globsframework.http;
 
 import org.apache.http.NameValuePair;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
@@ -54,6 +55,11 @@ public class GlobHttpUtils {
     public static HttpPut createPut(String route, Glob parameters) {
         String format = formatURL(parameters);
         return new HttpPut(createURL(route, format));
+    }
+
+    public static HttpDelete createDelete(String route, Glob parameters) {
+        String format = formatURL(parameters);
+        return new HttpDelete(createURL(route, format));
     }
 
     public static HttpPut createPut(String route, Glob parameters, Glob body) {

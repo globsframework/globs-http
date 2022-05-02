@@ -1,7 +1,7 @@
 package org.globsframework.http;
 
-import org.apache.http.*;
 import org.apache.http.HttpException;
+import org.apache.http.*;
 import org.apache.http.impl.nio.bootstrap.HttpServer;
 import org.apache.http.impl.nio.bootstrap.ServerBootstrap;
 import org.apache.http.nio.protocol.*;
@@ -9,7 +9,10 @@ import org.apache.http.protocol.HttpContext;
 import org.globsframework.http.openapi.model.*;
 import org.globsframework.json.GSonUtils;
 import org.globsframework.json.annottations.IsJsonContentAnnotation;
-import org.globsframework.metamodel.*;
+import org.globsframework.metamodel.Field;
+import org.globsframework.metamodel.GlobType;
+import org.globsframework.metamodel.GlobTypeBuilderFactory;
+import org.globsframework.metamodel.GlobTypeLoaderFactory;
 import org.globsframework.metamodel.annotations.CommentType;
 import org.globsframework.metamodel.fields.*;
 import org.globsframework.model.Glob;
@@ -43,20 +46,10 @@ public class HttpServerRegister {
         this.serverInfo = serverInfo;
     }
 
-    public interface InterceptBuilder {
-        InterceptBuilder NULL = new InterceptBuilder() {
-            public HttpTreatment create(HttpTreatment httpTreatment) {
-                return httpTreatment;
-            }
-        };
-        HttpTreatment create(HttpTreatment httpTreatment);
-    }
-
     public void addRequestDecorator(InterceptBuilder interceptBuilder) {
         if (this.interceptBuilder == InterceptBuilder.NULL) {
             this.interceptBuilder = interceptBuilder;
-        }
-        else {
+        } else {
             this.interceptBuilder = new AncapsulateInterceptBuilder(this.interceptBuilder, interceptBuilder);
         }
     }
@@ -69,7 +62,7 @@ public class HttpServerRegister {
             return verb;
         } else {
             if (current.queryUrl != queryUrl) {
-                throw new RuntimeException(serverInfo +": Same query Type is expected for same url on different verb (" + url + ")");
+                throw new RuntimeException(serverInfo + ": Same query Type is expected for same url on different verb (" + url + ")");
             }
         }
         return current;
@@ -375,8 +368,8 @@ public class HttpServerRegister {
                                     OpenApiSchemaProperty.TYPE.instantiate()
                                             .set(OpenApiSchemaProperty.ref, "#/components/schemas/" + entry.getKey().getName()))
                             .orElseGet(() -> buildSchema(
-                            GlobTypeBuilderFactory.create(name)
-                                    .addGlobField(targetType.getName(), Collections.emptyList(), targetType).get(), schemas)));
+                                    GlobTypeBuilderFactory.create(name)
+                                            .addGlobField(targetType.getName(), Collections.emptyList(), targetType).get(), schemas)));
                 }
                 return sub;
             }
@@ -388,7 +381,7 @@ public class HttpServerRegister {
                         .set(OpenApiSchemaProperty.type, ARRAY_STR)
                         .set(OpenApiSchemaProperty.items, OpenApiSchemaProperty.TYPE.instantiate()
                                 .set(OpenApiSchemaProperty.anyOf, sub.toArray(Glob[]::new))
-                );
+                        );
                 p.set(ref);
             }
 
@@ -456,6 +449,16 @@ public class HttpServerRegister {
         }
     }
 
+    public interface InterceptBuilder {
+        InterceptBuilder NULL = new InterceptBuilder() {
+            public HttpTreatment create(HttpTreatment httpTreatment) {
+                return httpTreatment;
+            }
+        };
+
+        HttpTreatment create(HttpTreatment httpTreatment);
+    }
+
     public interface OperationInfo {
         OperationInfo declareReturnType(GlobType globType);
 
@@ -498,7 +501,7 @@ public class HttpServerRegister {
             this.serverInfo = serverInfo;
         }
 
-        public HttpAsyncRequestConsumer<HttpRequest> processRequest(HttpRequest httpRequest, HttpContext httpContext)  {
+        public HttpAsyncRequestConsumer<HttpRequest> processRequest(HttpRequest httpRequest, HttpContext httpContext) {
             return new BasicAsyncRequestConsumer();
         }
 
@@ -509,7 +512,22 @@ public class HttpServerRegister {
             String urlStr = uri.substring(1, i == -1 ? uri.length() : i); // remove first /
             String paramStr = i == -1 ? null : uri.substring(i + 1);
             String[] split = urlStr.split("/");
-            nodes[Math.min(split.length, nodes.length - 1)].dispatch(split, paramStr, httpRequest, httpExchange, context);
+            int min = Math.min(split.length, nodes.length - 1);
+            boolean dispatch = nodes[min].dispatch(split, paramStr, httpRequest, httpExchange, context);
+            if (!dispatch) {
+                for (int pos = min; pos >= 0; pos--) {
+                    if (nodes[pos].dispatchWildcard(split, paramStr, httpRequest, httpExchange, context)) {
+                        return;
+                    }
+                }
+            }
+            else {
+                return;
+            }
+            HttpResponse response = httpExchange.getResponse();
+            response.setStatusCode(HttpStatus.SC_FORBIDDEN);
+            httpExchange.submitResponse(new BasicAsyncResponseProducer(response));
+            LOGGER.warn(serverInfo + " Unexpected path : " + urlStr);
         }
 
         public void register(Collection<String> path, GlobHttpRequestHandler globHttpRequestHandler) {
@@ -520,35 +538,58 @@ public class HttpServerRegister {
                     nodes[length] = new StrNode(serverInfo);
                 }
             }
-            nodes[path.size()].register(path, globHttpRequestHandler);
+            if (globHttpRequestHandler.hasWildcardAtEnd()) {
+                nodes[path.size()].registerWildcard(path, globHttpRequestHandler);
+            } else {
+                nodes[path.size()].register(path, globHttpRequestHandler);
+            }
         }
     }
 
     static class StrNode {
         private final String serverInfo;
         private SubStrNode[] subStrNodes = new SubStrNode[0];
+        private SubStrNode[] subWithWildCard = new SubStrNode[0];
 
         StrNode(String serverInfo) {
             this.serverInfo = serverInfo;
         }
 
-        public void dispatch(String[] path, String paramStr, HttpRequest httpRequest, HttpAsyncExchange httpExchange, HttpContext context) throws IOException {
+        public boolean dispatch(String[] path, String paramStr, HttpRequest httpRequest, HttpAsyncExchange httpExchange, HttpContext context) throws IOException {
             for (SubStrNode subStrNode : this.subStrNodes) {
                 if (subStrNode.match(path)) {
                     subStrNode.globHttpRequestHandler.handle(path, paramStr, httpRequest, httpExchange, context);
-                    return;
+                    return true;
                 }
             }
+            return false;
+            // check nodes with all end elements.
             // No Match.
-            HttpResponse response = httpExchange.getResponse();
-            response.setStatusCode(HttpStatus.SC_FORBIDDEN);
-            httpExchange.submitResponse(new BasicAsyncResponseProducer(response));
-            LOGGER.warn(serverInfo + " Unexpected : " + Arrays.toString(path));
+//            HttpResponse response = httpExchange.getResponse();
+//            response.setStatusCode(HttpStatus.SC_FORBIDDEN);
+//            httpExchange.submitResponse(new BasicAsyncResponseProducer(response));
+//            LOGGER.warn(serverInfo + " Unexpected : " + Arrays.toString(path));
+        }
+
+        public boolean dispatchWildcard(String[] path, String paramStr, HttpRequest httpRequest, HttpAsyncExchange httpExchange, HttpContext context)
+                throws IOException {
+            for (SubStrNode subStrNode : this.subWithWildCard) {
+                if (subStrNode.match(path)) {
+                    subStrNode.globHttpRequestHandler.handle(path, paramStr, httpRequest, httpExchange, context);
+                    return true;
+                }
+            }
+            return false;
         }
 
         public void register(Collection<String> path, GlobHttpRequestHandler globHttpRequestHandler) {
             subStrNodes = Arrays.copyOf(subStrNodes, subStrNodes.length + 1);
             subStrNodes[subStrNodes.length - 1] = new SubStrNode(path, globHttpRequestHandler);
+        }
+
+        public void registerWildcard(Collection<String> path, GlobHttpRequestHandler globHttpRequestHandler) {
+            subWithWildCard = Arrays.copyOf(subWithWildCard, subWithWildCard.length + 1);
+            subWithWildCard[subWithWildCard.length - 1] = new SubStrNode(path, globHttpRequestHandler);
         }
     }
 
@@ -703,9 +744,9 @@ public class HttpServerRegister {
     public class Verb {
         private final String url;
         private final GlobType queryUrl;
+        private final Map<String, String> headers = new HashMap<>();
         private boolean gzipCompress = false;
         private List<HttpOperation> operations = new ArrayList<>();
-        private final Map<String, String> headers = new HashMap<>();
 
 
         public Verb(String url, GlobType queryUrl) {

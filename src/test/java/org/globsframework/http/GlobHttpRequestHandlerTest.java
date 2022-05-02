@@ -111,6 +111,13 @@ public class GlobHttpRequestHandlerTest {
                 })
                 .declareReturnType(BodyContent.TYPE);
 
+        httpServerRegister.register("/path/{path}", URLWithArray.TYPE)
+                .get( null, (body, url, queryParameters) -> {
+                    return CompletableFuture.completedFuture(BodyContent.TYPE.instantiate()
+                            .set(BodyContent.DATA, "Get with " + String.join(",", url.get(URLWithArray.path))));
+                })
+                .declareReturnType(BodyContent.TYPE);
+
         httpServerRegister.register("/test-custom-status-code", null)
                 .patch(BodyContent.TYPE, null, (body, url, queryParameters) -> {
                     return CompletableFuture.completedFuture(CustomBodyWithStatusCode.TYPE.instantiate()
@@ -188,6 +195,22 @@ public class GlobHttpRequestHandlerTest {
             Assert.assertEquals(403, httpFileResponse.getStatusLine().getStatusCode());
         }
 
+        {
+            //check longer query.
+            HttpGet httpGetFile = new HttpGet("/path/with/additional/expected");
+            HttpResponse httpFileResponse = httpclient.execute(target, httpGetFile);
+            Assert.assertEquals(200, httpFileResponse.getStatusLine().getStatusCode());
+            Assert.assertEquals("{\"DATA\":\"Get with with,additional,expected\"}", Files.loadStreamToString(httpFileResponse.getEntity().getContent(), "UTF-8"));
+        }
+
+        {
+            //check longer query.
+            HttpGet httpGetFile = new HttpGet("/path/with");
+            HttpResponse httpFileResponse = httpclient.execute(target, httpGetFile);
+            Assert.assertEquals(200, httpFileResponse.getStatusLine().getStatusCode());
+            Assert.assertEquals("{\"DATA\":\"Get with with\"}", Files.loadStreamToString(httpFileResponse.getEntity().getContent(), "UTF-8"));
+        }
+
         server.shutdown(0, TimeUnit.MINUTES);
         Assert.assertFalse(httpContent.exists());
         httpServerIntegerPair.getFirst().shutdown(0, TimeUnit.DAYS);
@@ -233,6 +256,16 @@ public class GlobHttpRequestHandlerTest {
 
         static {
             GlobTypeLoaderFactory.create(URLParameter.class, true).load();
+        }
+    }
+
+    static public class URLWithArray {
+        public static GlobType TYPE;
+
+        public static StringArrayField path;
+
+        static {
+            GlobTypeLoaderFactory.create(URLWithArray.class).load();
         }
     }
 

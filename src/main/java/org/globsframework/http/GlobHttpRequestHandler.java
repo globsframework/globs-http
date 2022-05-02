@@ -59,15 +59,7 @@ public class GlobHttpRequestHandler  {
         this.serverInfo = serverInfo;
         this.httpReceiver = httpReceiver;
         this.gzipCompress = gzipCompress;
-        if (httpReceiver.getUrlType() != null) {
-            urlMatcher = new DefaultUrlMatcher(httpReceiver.getUrlType(), httpReceiver.getUrl());
-        } else {
-            urlMatcher = new UrlMatcher() {
-                public Glob parse(String[] split1) {
-                    return null;
-                }
-            };
-        }
+        this.urlMatcher = DefaultUrlMatcher.create(httpReceiver.getUrlType(), httpReceiver.getUrl());
         for (HttpOperation operation : httpReceiver.getOperations()) {
             switch (operation.verb()) {
                 case post:
@@ -411,6 +403,10 @@ public class GlobHttpRequestHandler  {
 
     public static DefaultHttpOperation delete(HttpTreatment function, GlobType queryType) {
         return new DefaultHttpOperation(HttpOp.delete, null, queryType, function);
+    }
+
+    public boolean hasWildcardAtEnd() {
+        return urlMatcher.withWildCard();
     }
 
     public interface ParamProcessor {

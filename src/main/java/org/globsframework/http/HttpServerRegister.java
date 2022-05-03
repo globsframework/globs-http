@@ -41,7 +41,7 @@ public class HttpServerRegister {
     private final String serverInfo;
     private Glob openApiDoc;
     private InterceptBuilder interceptBuilder = InterceptBuilder.NULL;
-    final private Map<String, Glob> scopeToOpenApiDoc = new HashMap<>();
+    final private Map<String, Glob> scopeToOpenApiDoc = new LinkedHashMap<>();
 
     public HttpServerRegister(String serverInfo) {
         this.serverInfo = serverInfo;

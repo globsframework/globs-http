@@ -19,6 +19,8 @@ public interface HttpOperation {
 
     GlobType getReturnType();
 
+    String[] getTags();
+
     void headers(HeaderConsumer headerConsumer);
 
     interface HeaderConsumer {

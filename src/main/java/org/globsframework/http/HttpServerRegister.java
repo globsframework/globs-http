@@ -37,10 +37,11 @@ public class HttpServerRegister {
     private static final String BIG_DECIMAL_STR = "big-decimal";
     private static final String STRING_STR = "string";
 
-    final Map<String, Verb> verbMap = new HashMap<>();
+    final Map<String, Verb> verbMap = new LinkedHashMap<>();
     private final String serverInfo;
     private Glob openApiDoc;
     private InterceptBuilder interceptBuilder = InterceptBuilder.NULL;
+    final private Map<String, Glob> scopeToOpenApiDoc = new LinkedHashMap<>();
 
     public HttpServerRegister(String serverInfo) {
         this.serverInfo = serverInfo;
@@ -69,98 +70,54 @@ public class HttpServerRegister {
     }
 
     public void registerOpenApi() {
+
         register("/api", null)
-                .get(null, new HttpTreatment() {
+                .get(GetOpenApiParamType.TYPE, new HttpTreatment() {
                     public CompletableFuture<Glob> consume(Glob body, Glob url, Glob queryParameters) throws Exception {
-                        return CompletableFuture.completedFuture(openApiDoc);
+                        String scope = queryParameters.get(GetOpenApiParamType.scope);
+                        if (Strings.isNullOrEmpty(scope)) {
+                            return CompletableFuture.completedFuture(openApiDoc);
+                        }
+                        scopeToOpenApiDoc.putIfAbsent(scope, createOpenApiDocByTags(scope));
+                        Glob newone = scopeToOpenApiDoc.get(scope);
+                        return CompletableFuture.completedFuture(newone);
                     }
-                });
+                }).declareReturnType(OpenApiType.TYPE);
+    }
+
+    public Glob createOpenApiDocByTags(String tag) {
+        List<Glob> paths = new ArrayList<>();
+        Arrays.stream(openApiDoc.getOrEmpty(OpenApiType.paths)).forEach(path -> {
+            boolean isPathSelected =
+            hasSelectedTag(path, OpenApiPath.get, tag) ||
+            hasSelectedTag(path, OpenApiPath.put, tag) ||
+            hasSelectedTag(path, OpenApiPath.post, tag) ||
+            hasSelectedTag(path, OpenApiPath.delete, tag) ||
+            hasSelectedTag(path, OpenApiPath.patch, tag);
+            if (isPathSelected) {
+                paths.add(path);
+            }
+        });
+
+
+       return openApiDoc.duplicate().set(OpenApiType.paths, paths.toArray(Glob[]::new));
+    }
+
+    private boolean hasSelectedTag(Glob path, GlobField field, String targetScope) {
+        Glob pathDescription = path.get(field);
+        if (pathDescription == null) {
+            return false;
+        }
+
+        String[] currentScopes = pathDescription.getOrEmpty(OpenApiPathDsc.tags);
+        return Arrays.asList(currentScopes).contains(targetScope);
     }
 
     public Glob createOpenApiDoc(int port) {
-        Map<GlobType, Glob> schemas = new HashMap<>();
+        Map<GlobType, Glob> schemas = new LinkedHashMap<>();
         List<Glob> paths = new ArrayList<>();
         for (Map.Entry<String, Verb> stringVerbEntry : verbMap.entrySet()) {
-            Verb verb = stringVerbEntry.getValue();
-            MutableGlob path = OpenApiPath.TYPE.instantiate();
-            paths.add(path);
-            path.set(OpenApiPath.name, verb.url);
-            for (HttpOperation operation : stringVerbEntry.getValue().operations) {
-                MutableGlob desc = OpenApiPathDsc.TYPE.instantiate();
-                String comment = operation.getComment();
-                if (comment != null) {
-                    desc.set(OpenApiPathDsc.description, comment);
-                }
-
-                List<Glob> parameters = new ArrayList<>();
-                if (verb.queryUrl != null) {
-                    for (Field field : verb.queryUrl.getFields()) {
-                        OpenApiFieldVisitor apiFieldVisitor = new OpenApiFieldVisitor(schemas);
-                        OpenApiFieldVisitor openApiFieldVisitor = field.safeVisit(apiFieldVisitor);
-                        parameters.add(OpenApiParameter.TYPE.instantiate()
-                                .set(OpenApiParameter.in, "path")
-                                .set(OpenApiParameter.name, field.getName())
-                                .set(OpenApiParameter.required, true)
-                                .set(OpenApiParameter.schema, openApiFieldVisitor.schema));
-                    }
-                }
-                GlobType queryParamType = operation.getQueryParamType();
-                if (queryParamType != null) {
-                    for (Field field : queryParamType.getFields()) {
-                        OpenApiFieldVisitor openApiFieldVisitor = field.safeVisit(new OpenApiFieldVisitor(schemas));
-                        parameters.add(OpenApiParameter.TYPE.instantiate()
-                                .set(OpenApiParameter.in, "query")
-                                .set(OpenApiParameter.name, field.getName())
-                                .set(OpenApiParameter.required, true)
-                                .set(OpenApiParameter.schema, openApiFieldVisitor.schema));
-                    }
-                }
-
-                GlobType bodyType = operation.getBodyType();
-                if (bodyType != null) {
-                    desc.set(OpenApiPathDsc.requestBody, OpenApiRequestBody.TYPE.instantiate()
-                            .set(OpenApiRequestBody.content, new Glob[]{OpenApiBodyMimeType.TYPE.instantiate()
-                                    .set(OpenApiBodyMimeType.mimeType, "application/json")
-                                    .set(OpenApiBodyMimeType.schema, buildSchema(bodyType, schemas))}));
-                }
-                GlobType returnType = operation.getReturnType();
-                if (returnType == null) {
-                    desc.set(OpenApiPathDsc.responses, new Glob[]{OpenApiResponses.TYPE
-                            .instantiate()
-                            .set(OpenApiResponses.description, "None")
-                            .set(OpenApiResponses.code, "200")});
-                } else {
-                    desc.set(OpenApiPathDsc.responses, new Glob[]{OpenApiResponses.TYPE.instantiate()
-                            .set(OpenApiResponses.code, "200")
-                            .set(OpenApiResponses.description,
-                                    returnType.findOptAnnotation(CommentType.UNIQUE_KEY)
-                                            .map(CommentType.VALUE).orElse("None"))
-                            .set(OpenApiResponses.content, new Glob[]{
-                            OpenApiBodyMimeType.TYPE.instantiate()
-                                    .set(OpenApiBodyMimeType.mimeType, "application/json")
-                                    .set(OpenApiBodyMimeType.schema, buildSchema(returnType, schemas))})
-                    });
-                }
-
-                desc.set(OpenApiPathDsc.parameters, parameters.toArray(Glob[]::new));
-                switch (operation.verb()) {
-                    case post:
-                        path.set(OpenApiPath.post, desc);
-                        break;
-                    case put:
-                        path.set(OpenApiPath.put, desc);
-                        break;
-                    case patch:
-                        path.set(OpenApiPath.patch, desc);
-                        break;
-                    case delete:
-                        path.set(OpenApiPath.delete, desc);
-                        break;
-                    case get:
-                        path.set(OpenApiPath.get, desc);
-                        break;
-                }
-            }
+            createVerbDoc(schemas, paths, stringVerbEntry);
         }
 
         return OpenApiType.TYPE.instantiate()
@@ -175,6 +132,124 @@ public class HttpServerRegister {
                 .set(OpenApiType.servers, new Glob[]{OpenApiServers.TYPE.instantiate()
                         .set(OpenApiServers.url, "http://localhost:" + port)})
                 .set(OpenApiType.paths, paths.toArray(Glob[]::new));
+    }
+
+    private void createVerbDoc(Map<GlobType, Glob> schemas, List<Glob> paths, Map.Entry<String, Verb> stringVerbEntry) {
+        Verb verb = stringVerbEntry.getValue();
+        MutableGlob path = OpenApiPath.TYPE.instantiate();
+        paths.add(path);
+        path.set(OpenApiPath.name, verb.url);
+        for (HttpOperation operation : stringVerbEntry.getValue().operations) {
+            createOperationDoc(schemas, verb, path, operation);
+
+        }
+    }
+
+    private void createOperationDoc(Map<GlobType, Glob> schemas, Verb verb, MutableGlob path, HttpOperation operation) {
+        MutableGlob desc = OpenApiPathDsc.TYPE.instantiate();
+        setOperationComment(operation, desc);
+        List<Glob> parameters = getOperationUrlParameters(schemas, verb);
+        addOperationQueryParameters(schemas, operation, parameters);
+        setOperationRequestBody(schemas, operation, desc);
+        setOperationTags(operation, desc);
+        setOperationReturnType(schemas, operation, desc);
+        setPathDescription(path, operation, desc, parameters);
+    }
+
+    private void setOperationReturnType(Map<GlobType, Glob> schemas, HttpOperation operation, MutableGlob desc) {
+        GlobType returnType = operation.getReturnType();
+        if (returnType == null) {
+            desc.set(OpenApiPathDsc.responses, new Glob[]{OpenApiResponses.TYPE
+                    .instantiate()
+                    .set(OpenApiResponses.description, "None")
+                    .set(OpenApiResponses.code, "200")});
+        } else {
+            desc.set(OpenApiPathDsc.responses, new Glob[]{OpenApiResponses.TYPE.instantiate()
+                    .set(OpenApiResponses.code, "200")
+                    .set(OpenApiResponses.description,
+                            returnType.findOptAnnotation(CommentType.UNIQUE_KEY)
+                                    .map(CommentType.VALUE).orElse("None"))
+                    .set(OpenApiResponses.content, new Glob[]{
+                    OpenApiBodyMimeType.TYPE.instantiate()
+                            .set(OpenApiBodyMimeType.mimeType, "application/json")
+                            .set(OpenApiBodyMimeType.schema, buildSchema(returnType, schemas))})
+            });
+        }
+    }
+
+    private void setOperationComment(HttpOperation operation, MutableGlob desc) {
+        String comment = operation.getComment();
+        if (comment != null) {
+            desc.set(OpenApiPathDsc.description, comment);
+        }
+    }
+
+    private void setOperationTags(HttpOperation operation, MutableGlob desc) {
+        String[] tags = operation.getTags();
+        if (tags != null) {
+            desc.set(OpenApiPathDsc.tags, tags);
+        }
+    }
+
+    private void setOperationRequestBody(Map<GlobType, Glob> schemas, HttpOperation operation, MutableGlob desc) {
+        GlobType bodyType = operation.getBodyType();
+        if (bodyType != null) {
+            desc.set(OpenApiPathDsc.requestBody, OpenApiRequestBody.TYPE.instantiate()
+                    .set(OpenApiRequestBody.content, new Glob[]{OpenApiBodyMimeType.TYPE.instantiate()
+                            .set(OpenApiBodyMimeType.mimeType, "application/json")
+                            .set(OpenApiBodyMimeType.schema, buildSchema(bodyType, schemas))}));
+        }
+    }
+
+    private void addOperationQueryParameters(Map<GlobType, Glob> schemas, HttpOperation operation, List<Glob> parameters) {
+        GlobType queryParamType = operation.getQueryParamType();
+        if (queryParamType != null) {
+            for (Field field : queryParamType.getFields()) {
+                OpenApiFieldVisitor openApiFieldVisitor = field.safeVisit(new OpenApiFieldVisitor(schemas));
+                parameters.add(OpenApiParameter.TYPE.instantiate()
+                        .set(OpenApiParameter.in, "query")
+                        .set(OpenApiParameter.name, field.getName())
+                        .set(OpenApiParameter.required, true)
+                        .set(OpenApiParameter.schema, openApiFieldVisitor.schema));
+            }
+        }
+    }
+
+    private List<Glob> getOperationUrlParameters(Map<GlobType, Glob> schemas, Verb verb) {
+        List<Glob> parameters = new ArrayList<>();
+        if (verb.queryUrl != null) {
+            for (Field field : verb.queryUrl.getFields()) {
+                OpenApiFieldVisitor apiFieldVisitor = new OpenApiFieldVisitor(schemas);
+                OpenApiFieldVisitor openApiFieldVisitor = field.safeVisit(apiFieldVisitor);
+                parameters.add(OpenApiParameter.TYPE.instantiate()
+                        .set(OpenApiParameter.in, "path")
+                        .set(OpenApiParameter.name, field.getName())
+                        .set(OpenApiParameter.required, true)
+                        .set(OpenApiParameter.schema, openApiFieldVisitor.schema));
+            }
+        }
+        return parameters;
+    }
+
+    private void setPathDescription(MutableGlob path, HttpOperation operation, MutableGlob desc, List<Glob> parameters) {
+        desc.set(OpenApiPathDsc.parameters, parameters.toArray(Glob[]::new));
+        switch (operation.verb()) {
+            case post:
+                path.set(OpenApiPath.post, desc);
+                break;
+            case put:
+                path.set(OpenApiPath.put, desc);
+                break;
+            case patch:
+                path.set(OpenApiPath.patch, desc);
+                break;
+            case delete:
+                path.set(OpenApiPath.delete, desc);
+                break;
+            case get:
+                path.set(OpenApiPath.get, desc);
+                break;
+        }
     }
 
     private MutableGlob buildSchema(GlobType bodyType, Map<GlobType, Glob> schemas) {
@@ -462,6 +537,8 @@ public class HttpServerRegister {
     public interface OperationInfo {
         OperationInfo declareReturnType(GlobType globType);
 
+        OperationInfo declareTags(String[] tags);
+
         OperationInfo comment(String comment);
 
         void addHeader(String name, String value);
@@ -744,8 +821,9 @@ public class HttpServerRegister {
     public class Verb {
         private final String url;
         private final GlobType queryUrl;
-        private final Map<String, String> headers = new HashMap<>();
+        private final Map<String, String> headers = new LinkedHashMap<>();
         private boolean gzipCompress = false;
+        // TODO: these are scoped
         private List<HttpOperation> operations = new ArrayList<>();
 
 
@@ -813,6 +891,11 @@ public class HttpServerRegister {
 
             public OperationInfo declareReturnType(GlobType type) {
                 operation.withReturnType(type);
+                return this;
+            }
+
+            public OperationInfo declareTags(String[] tags) {
+                operation.withTags(tags);
                 return this;
             }
 

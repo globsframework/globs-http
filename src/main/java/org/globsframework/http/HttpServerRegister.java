@@ -37,10 +37,9 @@ public class HttpServerRegister {
     private static final String BIG_DECIMAL_STR = "big-decimal";
     private static final String STRING_STR = "string";
 
-    final Map<String, Verb> verbMap = new HashMap<>();
+    final Map<String, Verb> verbMap = new LinkedHashMap<>();
     private final String serverInfo;
     private Glob openApiDoc;
-    final private Map<String, Glob> scopeToOpenApiDoc = new HashMap<>();
     private InterceptBuilder interceptBuilder = InterceptBuilder.NULL;
     final private Map<String, Glob> scopeToOpenApiDoc = new LinkedHashMap<>();
 
@@ -115,7 +114,7 @@ public class HttpServerRegister {
     }
 
     public Glob createOpenApiDoc(int port) {
-        Map<GlobType, Glob> schemas = new HashMap<>();
+        Map<GlobType, Glob> schemas = new LinkedHashMap<>();
         List<Glob> paths = new ArrayList<>();
         for (Map.Entry<String, Verb> stringVerbEntry : verbMap.entrySet()) {
             createVerbDoc(schemas, paths, stringVerbEntry);
@@ -822,7 +821,7 @@ public class HttpServerRegister {
     public class Verb {
         private final String url;
         private final GlobType queryUrl;
-        private final Map<String, String> headers = new HashMap<>();
+        private final Map<String, String> headers = new LinkedHashMap<>();
         private boolean gzipCompress = false;
         // TODO: these are scoped
         private List<HttpOperation> operations = new ArrayList<>();

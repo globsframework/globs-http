@@ -365,6 +365,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
 
     public void end() {
         LOGGER.info("etcd end");
+        client.close();
         scheduledExecutorService.shutdown();
     }
 

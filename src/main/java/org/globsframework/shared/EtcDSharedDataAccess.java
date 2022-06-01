@@ -162,6 +162,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                     return kv.put(k, v, PutOption.newBuilder().withLeaseId(leaseId).build())
                             .thenApply(putResponse -> new UnLeaser() {
                                 public void touch() {
+                                    LOGGER.info("Touch call on " + leaseId);
                                     leaseClient.keepAliveOnce(leaseId);
                                 }
 
@@ -181,6 +182,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                 .thenApply(LeaseGrantResponse::getID)
                 .thenApply(leaseId -> new UnLeaser() {
                     public void touch() {
+                        LOGGER.info("Touch call on " + leaseId);
                         leaseClient.keepAliveOnce(leaseId);
                     }
 
@@ -261,7 +263,11 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     public CompletableFuture<ListenerCtrl> getAndListenUnder(GlobType type, FieldValues path, Consumer<List<Glob>> pastData, Listener newData) {
         return getUnderWithRevision(type, path)
                 .thenApply(resultAndRevision -> {
-                    pastData.accept(resultAndRevision.data);
+                    try {
+                        pastData.accept(resultAndRevision.data);
+                    } catch (Exception e) {
+                        LOGGER.error("Exception : ", e);
+                    }
                     return resultAndRevision.revision + 1;
                 })
                 .thenApply(revision -> listenUnder(type, newData, path, revision));
@@ -303,6 +309,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     }
 
     public ListenerCtrl listenUnder(GlobType type, Listener listener, FieldValues orderedPath, long startAtRevision) {
+        LOGGER.info("listenUnder " + orderedPath);
         Listener logListener = new LoggerListener(listener);
         GlobDeserializer.Deserializer globBinReader = deserializer.with(GlobTypeResolver.from(type));
         WatchOption.Builder option = WatchOption.newBuilder()
@@ -332,6 +339,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         return new ListenerCtrl() {
             @Override
             public void close() {
+                LOGGER.info("Close call on " + orderedPath);
                 watch.close();
             }
         };

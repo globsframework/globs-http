@@ -23,6 +23,7 @@ import org.junit.Test;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
@@ -41,6 +42,54 @@ public class EtcDSharedDataAccessTest {
         Client client = Client.builder().endpoints(ETCD).build();
         deleteAll(client);
         client.close();
+    }
+
+
+    @Test
+    @Ignore("integration test to be filtered later")
+    public void throwAErrorExceptionIn() throws ExecutionException, InterruptedException, TimeoutException {
+        Client client = Client.builder().endpoints(ETCD).build();
+
+        SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createBin(client);
+
+        MutableGlob data = Data1.TYPE.instantiate()
+                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.workerName, "w1")
+                .set(Data1.num, 1)
+                .set(Data1.someData, "blabla");
+
+        etcDSharedDataAccess.register(data)
+                .get(1, TimeUnit.MINUTES);
+        BlockingQueue<Glob> added = new LinkedBlockingDeque<>();
+        try {
+            SharedDataAccess.ListenerCtrl listenerCtrl1 = etcDSharedDataAccess.getAndListenUnder(Data1.TYPE, FieldValues.EMPTY, new Consumer<List<Glob>>() {
+                public void accept(List<Glob> globs) {
+                    throw new RuntimeException("violent error");
+                }
+            }, new SharedDataAccess.Listener() {
+                public void put(Glob glob) {
+                    added.add(glob);
+                }
+
+                public void delete(Glob glob) {
+                }
+            }).join();
+        } catch (CompletionException e) {
+            Assert.assertEquals("java.lang.RuntimeException: violent error", e.getMessage());
+        }
+
+
+        Optional<Glob> glob = etcDSharedDataAccess.get(Data1.TYPE, data)
+                .get(1, TimeUnit.MINUTES);
+        Assert.assertTrue(glob.isPresent());
+        MutableGlob data2 = Data1.TYPE.instantiate()
+                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.workerName, "w2");
+
+        etcDSharedDataAccess.register(data)
+                .get(1, TimeUnit.MINUTES);
+        Glob re = added.poll(4, TimeUnit.SECONDS);
+        Assert.assertNotNull(re);
     }
 
     @Test

@@ -18,7 +18,7 @@ public class DefaultHttpOperation implements HttpOperation {
     HttpTreatment httpTreatment;
     private String comment;
     private final Map<String, String> headers = new HashMap<>();
-
+    private boolean hasSensitiveData = false;
 
     public DefaultHttpOperation(HttpOp verb, GlobType bodyType, GlobType queryType, HttpTreatment httpTreatment) {
         this.verb = verb;
@@ -65,6 +65,10 @@ public class DefaultHttpOperation implements HttpOperation {
         headers.forEach(headerConsumer::push);
     }
 
+    public boolean hasSensitiveData() {
+        return hasSensitiveData;
+    }
+
     public void addHeader(String name, String value) {
         this.headers.put(name, value);
     }
@@ -83,5 +87,9 @@ public class DefaultHttpOperation implements HttpOperation {
 
     public void withComment(String comment) {
         this.comment = comment;
+    }
+
+    public void withSensitiveData(boolean hasSensitiveData) {
+        this.hasSensitiveData = hasSensitiveData;
     }
 }

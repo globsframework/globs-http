@@ -90,7 +90,8 @@ public class GlobHttpRequestHandlerTest {
                         activeId[0] = "/test/{id}";
                         return null;
                     }
-                });
+                })
+                .withSensitiveData(true);
 
         httpServerRegister.register("/test/{id}/TOTO", URLOneParameter.TYPE)
                 .get(QueryParameter.TYPE, new HttpTreatment() {

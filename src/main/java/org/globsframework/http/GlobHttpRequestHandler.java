@@ -1,5 +1,6 @@
 package org.globsframework.http;
 
+import com.google.gson.Gson;
 import org.apache.http.*;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.entity.ByteArrayEntity;
@@ -186,13 +187,19 @@ public class GlobHttpRequestHandler  {
                     //find mimetype (if xml => produce xml)
 //                    Arrays.stream(entity.getContentType().getElements())
 //                            .filter(headerElement -> headerElement.getName().equals())
+                    boolean hid = operation.hasSensitiveData();
                     String str = Files.read(entity.getContent(), StandardCharsets.UTF_8);
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("{} : receive : {}", serverInfo, str);
-                    } else {
-                        LOGGER.info("{} : receive : {}", serverInfo, str.substring(0, Math.min(10000, str.length())));
+                    if (!hid) {
+                        if (LOGGER.isDebugEnabled()) {
+                            LOGGER.debug("{} : receive : {}", serverInfo, str);
+                        } else {
+                            LOGGER.info("{} : receive : {}", serverInfo, str.substring(0, Math.min(10000, str.length())));
+                        }
                     }
                     data = (Strings.isNullOrEmpty(str) || operation.getBodyType() == null) ? null : GSonUtils.decode(str, operation.getBodyType());
+                    if (hid) {
+                        LOGGER.info("{} : receive : {}", serverInfo, GSonUtils.encodeHidSensitiveData(data));
+                    }
                     deleteFile = () -> {
                     };
                 }

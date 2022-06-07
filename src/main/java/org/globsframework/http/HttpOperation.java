@@ -23,6 +23,8 @@ public interface HttpOperation {
 
     void headers(HeaderConsumer headerConsumer);
 
+    boolean hasSensitiveData();
+
     interface HeaderConsumer {
         void push(String name, String value);
     }

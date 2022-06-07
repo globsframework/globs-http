@@ -535,6 +535,9 @@ public class HttpServerRegister {
     }
 
     public interface OperationInfo {
+
+        OperationInfo withSensitiveData(boolean hasSensitiveData);
+
         OperationInfo declareReturnType(GlobType globType);
 
         OperationInfo declareTags(String[] tags);
@@ -887,6 +890,11 @@ public class HttpServerRegister {
 
             public DefaultOperationInfo(DefaultHttpOperation operation) {
                 this.operation = operation;
+            }
+
+            public OperationInfo withSensitiveData(boolean hasSensitiveData) {
+                operation.withSensitiveData(hasSensitiveData);
+                return this;
             }
 
             public OperationInfo declareReturnType(GlobType type) {

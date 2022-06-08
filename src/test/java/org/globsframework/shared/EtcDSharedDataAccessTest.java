@@ -44,6 +44,42 @@ public class EtcDSharedDataAccessTest {
         client.close();
     }
 
+    @Test
+    @Ignore("integration test to be filtered later")
+    public void tryLockGetInListener() throws ExecutionException, InterruptedException, TimeoutException {
+        Client client = Client.builder().endpoints(ETCD).build();
+
+        SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createBin(client);
+
+        MutableGlob data = Data1.TYPE.instantiate()
+                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.workerName, "w1")
+                .set(Data1.num, 1)
+                .set(Data1.someData, "blabla");
+
+
+        CompletableFuture<Boolean> done = new CompletableFuture<>();
+        etcDSharedDataAccess.listen(data.getType(), new SharedDataAccess.Listener() {
+            public void put(Glob glob) {
+                try {
+                    etcDSharedDataAccess.get(data.getType(), data).join();
+                    done.complete(true);
+                } catch (Exception e) {
+                    done.complete(false);
+                }
+            }
+
+            public void delete(Glob glob) {
+
+            }
+        }, data);
+
+        etcDSharedDataAccess.register(data)
+                .get(1, TimeUnit.MINUTES);
+
+        Assert.assertTrue(done.join());
+        etcDSharedDataAccess.end();
+    }
 
     @Test
     @Ignore("integration test to be filtered later")
@@ -170,7 +206,13 @@ public class EtcDSharedDataAccessTest {
         CompletableFuture<List<Glob>> res = new CompletableFuture<>();
         SharedDataAccess.ListenerCtrl listenerCtrl = etcDSharedDataAccess.getAndListenUnder(Data1.TYPE, FieldValues.EMPTY, new Consumer<List<Glob>>() {
             public void accept(List<Glob> globs) {
-                etcDSharedDataAccess.register(data.duplicate().set(Data1.num, 3));
+                try {
+                    etcDSharedDataAccess.register(data.duplicate().set(Data1.num, 3)).get();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (ExecutionException e) {
+                    e.printStackTrace();
+                }
                 res.complete(globs);
             }
         }, new SharedDataAccess.Listener() {
@@ -198,9 +240,8 @@ public class EtcDSharedDataAccessTest {
         Assert.assertNotNull(poll1);
         Assert.assertEquals(2, poll1.get(Data1.num).intValue());
         listenerCtrl.close();
+        deleteAll(client);
         etcDSharedDataAccess.end();
-//        deleteAll(client);
-//        client.close();
     }
 
     private void deleteAll(Client client) throws InterruptedException, ExecutionException {
@@ -212,24 +253,24 @@ public class EtcDSharedDataAccessTest {
     @Test
     @Ignore("integration test to be filtered later")
     public void testNameBin() throws ExecutionException, InterruptedException, TimeoutException {
+        Client clientDelete = Client.builder().endpoints(ETCD).build();
         Client client = Client.builder().endpoints(ETCD).build();
         Client clientRead = Client.builder().endpoints(ETCD).build();
 
         checkPutGet(EtcDSharedDataAccess.createBin(client), EtcDSharedDataAccess.createBin(clientRead));
-        deleteAll(client);
-        client.close();
-        clientRead.close();
+        deleteAll(clientDelete);
+        clientDelete.close();
     }
 
     @Test
     @Ignore("integration test to be filtered later")
     public void testNameJson() throws ExecutionException, InterruptedException, TimeoutException {
+        Client clientDelete = Client.builder().endpoints(ETCD).build();
         Client client = Client.builder().endpoints(ETCD).build();
         Client clientRead = Client.builder().endpoints(ETCD).build();
         checkPutGet(EtcDSharedDataAccess.createJson(client), EtcDSharedDataAccess.createJson(clientRead));
-        deleteAll(client);
-        client.close();
-        clientRead.close();
+        deleteAll(clientDelete);
+        clientDelete.close();
     }
 
     private void checkPutGet(SharedDataAccess etcDSharedDataAccess, SharedDataAccess sharedDataAccessRead) throws InterruptedException, ExecutionException, TimeoutException {
@@ -340,8 +381,9 @@ public class EtcDSharedDataAccessTest {
             checkLease(etcDSharedDataAccess);
             etcDSharedDataAccess.end();
         } finally {
-            deleteAll(client);
-            client.close();
+            Client clientDelete = Client.builder().endpoints(ETCD).build();
+            deleteAll(clientDelete);
+            clientDelete.close();
         }
     }
 
@@ -353,8 +395,9 @@ public class EtcDSharedDataAccessTest {
             SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createJson(client);
             checkLease(etcDSharedDataAccess);
         } finally {
-            deleteAll(client);
-            client.close();
+            Client clientDelete = Client.builder().endpoints(ETCD).build();
+            deleteAll(clientDelete);
+            clientDelete.close();
         }
     }
 
@@ -380,12 +423,13 @@ public class EtcDSharedDataAccessTest {
             List<Glob> globs = etcDSharedDataAccess.getUnder(Data1.TYPE, FieldValues.EMPTY)
                     .get(1, TimeUnit.SECONDS);
             Assert.assertEquals(0, globs.size());
-
+            etcDSharedDataAccess.end();
         } catch (TimeoutException e) {
             e.printStackTrace();
         } finally {
-            deleteAll(client);
-            client.close();
+            Client clientDelete = Client.builder().endpoints(ETCD).build();
+            deleteAll(clientDelete);
+            clientDelete.close();
         }
     }
 

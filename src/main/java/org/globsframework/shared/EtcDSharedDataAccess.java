@@ -47,6 +47,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     private final String separator;
     private final Election electionClient;
     private final ScheduledExecutorService scheduledExecutorService;
+    private final ExecutorService executorService;
 
     private EtcDSharedDataAccess(Client client, GlobSerializer serializer, GlobDeserializer deserializer, String prefix, String separator) {
         this.client = client;
@@ -59,6 +60,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         this.prefix = prefix;
         this.separator = separator;
         scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+        executorService = Executors.newCachedThreadPool();
     }
 
     public static SharedDataAccess createJson(Client client) {
@@ -233,7 +235,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     }
 
     public CompletableFuture<List<Glob>> getUnder(GlobType type, FieldValues path) {
-        return getUnderWithRevision(type, path).thenApply(ResultAndRevision::data);
+        return getUnderWithRevision(type, path).thenApplyAsync(ResultAndRevision::data, executorService);
     }
 
     private CompletableFuture<ResultAndRevision> getUnderWithRevision(GlobType type, FieldValues path) {
@@ -262,14 +264,14 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
 
     public CompletableFuture<ListenerCtrl> getAndListenUnder(GlobType type, FieldValues path, Consumer<List<Glob>> pastData, Listener newData) {
         return getUnderWithRevision(type, path)
-                .thenApply(resultAndRevision -> {
+                .thenApplyAsync(resultAndRevision -> {
                     try {
                         pastData.accept(resultAndRevision.data);
                     } catch (Exception e) {
                         LOGGER.error("Exception : ", e);
                     }
                     return resultAndRevision.revision + 1;
-                })
+                }, executorService)
                 .thenApply(revision -> listenUnder(type, newData, path, revision));
     }
 
@@ -280,7 +282,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                 WatchOption.newBuilder()
                         .withPrevKV(true)
                         .build(),
-                watchResponse -> {
+                watchResponse -> executorService.submit(() -> {
                     try {
                         for (WatchEvent event : watchResponse.getEvents()) {
                             if (event.getEventType() == WatchEvent.EventType.DELETE) {
@@ -296,7 +298,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                     } catch (Exception e) {
                         LOGGER.error("Exception in watch callback", e);
                     }
-                });
+                }));
         return new ListenerCtrl() {
             public void close() {
                 watchClient.close();
@@ -319,7 +321,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
             option.withRevision(startAtRevision);
         }
         Watch.Watcher watch = watchClient.watch(ByteSequence.from(extractPath(prefix, orderedPath, type, separator), StandardCharsets.UTF_8), option.build(),
-                watchResponse -> {
+                watchResponse -> executorService.submit(() -> {
                     try {
                         for (WatchEvent event : watchResponse.getEvents()) {
                             if (event.getEventType() == WatchEvent.EventType.DELETE) {
@@ -335,7 +337,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                     } catch (Exception e) {
                         LOGGER.error("Exception in watch callback", e);
                     }
-                });
+                }));
         return new ListenerCtrl() {
             @Override
             public void close() {
@@ -366,7 +368,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
             long leaseId = leaseGrantResponse.getID();
             ScheduledFuture<?> scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(() -> leaseClient.keepAliveOnce(leaseId),
                     500, 700, TimeUnit.MILLISECONDS);
-            return new MyLeaderOperation(ByteSequence.from(key, StandardCharsets.UTF_8), ByteSequence.from(value),
+            return new ListenerAndLeaderOperation(ByteSequence.from(key, StandardCharsets.UTF_8), ByteSequence.from(value),
                     leaseId, listener, scheduledFuture);
         });
     }
@@ -375,6 +377,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         LOGGER.info("etcd end");
         client.close();
         scheduledExecutorService.shutdown();
+        executorService.shutdown();
     }
 
     interface GlobSerializer {
@@ -418,7 +421,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         }
     }
 
-    private  class MyLeaderOperation implements LeaderOperation, Election.Listener {
+    private  class ListenerAndLeaderOperation implements LeaderOperation, Election.Listener {
         private final ByteSequence electionName;
         private final ByteSequence value;
         private final long leaseId;
@@ -427,7 +430,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         private CompletableFuture<CampaignResponse> campaign;
         private CompletableFuture<LeaderKey> leaderKeyCompletableFuture;
 
-        public MyLeaderOperation(ByteSequence electionName, ByteSequence value, long leaseId, LeaderListener listener, ScheduledFuture<?> scheduledFuture) {
+        public ListenerAndLeaderOperation(ByteSequence electionName, ByteSequence value, long leaseId, LeaderListener listener, ScheduledFuture<?> scheduledFuture) {
             this.electionName = electionName;
             this.value = value;
             this.leaseId = leaseId;

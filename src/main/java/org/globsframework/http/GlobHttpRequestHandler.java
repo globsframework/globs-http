@@ -10,7 +10,6 @@ import org.apache.http.message.BasicHttpRequest;
 import org.apache.http.nio.entity.NFileEntity;
 import org.apache.http.nio.protocol.BasicAsyncResponseProducer;
 import org.apache.http.nio.protocol.HttpAsyncExchange;
-import org.apache.http.protocol.HTTP;
 import org.apache.http.protocol.HttpContext;
 import org.globsframework.http.model.DataAnnotationType;
 import org.globsframework.http.model.StatusCodeAnnotationType;
@@ -40,8 +39,8 @@ import static org.apache.http.HttpStatus.*;
 
 /**
  * HttpAsyncRequestHandler for globs framework.
- * */
-public class GlobHttpRequestHandler  {
+ */
+public class GlobHttpRequestHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobHttpRequestHandler.class);
 
     public static final String APPLICATION_JSON = "application/json";
@@ -49,7 +48,6 @@ public class GlobHttpRequestHandler  {
     public static final String RESPONSE_MSG = "{} : responded for {} {} : {} : {}";
 
     private final UrlMatcher urlMatcher;
-    private final boolean gzipCompress;
     private String serverInfo;
     private final HttpReceiver httpReceiver;
     private HttpHandler onPost;
@@ -59,10 +57,9 @@ public class GlobHttpRequestHandler  {
     private HttpHandler onGet;
     private HttpHandler onOption;
 
-    public GlobHttpRequestHandler(String serverInfo, HttpReceiver httpReceiver, boolean gzipCompress) {
+    public GlobHttpRequestHandler(String serverInfo, HttpReceiver httpReceiver) {
         this.serverInfo = serverInfo;
         this.httpReceiver = httpReceiver;
-        this.gzipCompress = gzipCompress;
         this.urlMatcher = DefaultUrlMatcher.create(httpReceiver.getUrlType(), httpReceiver.getUrl());
         for (HttpOperation operation : httpReceiver.getOperations()) {
             switch (operation.verb()) {
@@ -80,6 +77,7 @@ public class GlobHttpRequestHandler  {
     /**
      * Creates a regular expression based on the url pattern.
      * For example /foo/{A}/bar becomes /foo/\*\/bar
+     *
      * @return a regexp of the url pattern
      */
     public Collection<String> createRegExp() {
@@ -111,11 +109,11 @@ public class GlobHttpRequestHandler  {
 
         try {
             switch (Objects.requireNonNull(requestMethod)) {
-                case HttpDelete.METHOD_NAME -> treatOp(path, paramStr, requestLine, httpAsyncExchange, httpRequest, response, onDelete);
-                case HttpPost.METHOD_NAME -> treatOp(path, paramStr, requestLine, httpAsyncExchange, httpRequest, response, onPost);
-                case HttpPut.METHOD_NAME -> treatOp(path, paramStr, requestLine, httpAsyncExchange, httpRequest, response, onPut);
-                case HttpPatch.METHOD_NAME -> treatOp(path, paramStr, requestLine, httpAsyncExchange, httpRequest, response, onPatch);
-                case HttpGet.METHOD_NAME -> treatOp(path, paramStr, requestLine, httpAsyncExchange, httpRequest, response, onGet);
+                case HttpDelete.METHOD_NAME -> treatOp(path, paramStr, httpAsyncExchange, httpRequest, response, onDelete);
+                case HttpPost.METHOD_NAME -> treatOp(path, paramStr, httpAsyncExchange, httpRequest, response, onPost);
+                case HttpPut.METHOD_NAME -> treatOp(path, paramStr, httpAsyncExchange, httpRequest, response, onPut);
+                case HttpPatch.METHOD_NAME -> treatOp(path, paramStr, httpAsyncExchange, httpRequest, response, onPatch);
+                case HttpGet.METHOD_NAME -> treatOp(path, paramStr, httpAsyncExchange, httpRequest, response, onGet);
                 case HttpOptions.METHOD_NAME -> {
                     response.setStatusCode(SC_OK);
                     this.httpReceiver.headers(response::addHeader);
@@ -127,44 +125,42 @@ public class GlobHttpRequestHandler  {
                 }
             }
         } catch (Exception e) {
+            logError(httpRequest, SC_FORBIDDEN, e.getMessage(), e);
             LOGGER.error(serverInfo + " : request error for " + requestMethod + " " + requestUri, e);
-            logErrorStatusToReturn(SC_FORBIDDEN);
             response.setStatusCode(SC_FORBIDDEN);
             httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
         }
 
-        LOGGER.info("{} done {} {}", serverInfo, requestMethod, requestUri);
+        LOGGER.info("{} : done {} {}", serverInfo, requestMethod, requestUri);
     }
 
-    private void treatOp(String[] path, String paramStr, RequestLine requestLine, HttpAsyncExchange httpAsyncExchange,
-                         HttpRequest httpRequest, HttpResponse response, HttpHandler httpHandler) throws Exception {
+    private void treatOp(String[] path, String paramStr, HttpAsyncExchange httpAsyncExchange,
+                         HttpRequest request, HttpResponse response, HttpHandler httpHandler) throws Exception {
+        RequestLine requestLine = request.getRequestLine();
         String requestMethod = getRequestMethod(requestLine);
         String requestUri = requestLine.getUri();
 
         if (httpHandler == null) {
-            LOGGER.error("{} : received unexpected request ({})", serverInfo, requestMethod);
+            LOGGER.error("{} : received unexpected request {} {} : {}", serverInfo, requestMethod, requestUri, SC_FORBIDDEN);
             response.setStatusCode(SC_FORBIDDEN);
             httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
-        } else if (httpRequest instanceof HttpEntityEnclosingRequest) { // DELETE, POST, PUT, PATCH
-            treatOpWithRequestBody(path, paramStr, requestLine, httpAsyncExchange, httpRequest, response, httpHandler);
-        } else if (httpRequest instanceof BasicHttpRequest) { // GET
-            treatOpWithoutRequestBody(path, paramStr, requestLine, httpAsyncExchange, response, httpHandler);
+        } else if (request instanceof HttpEntityEnclosingRequest) { // DELETE, POST, PUT, PATCH
+            treatOpWithRequestBody(path, paramStr, httpAsyncExchange, request, response, httpHandler);
+        } else if (request instanceof BasicHttpRequest) { // GET
+            treatOpWithoutRequestBody(path, paramStr, httpAsyncExchange, request, response, httpHandler);
         } else {
-            LOGGER.error("{} : unexpected type {} for {} {}", serverInfo, httpRequest.getClass().getName(), requestMethod, requestUri);
-            logErrorStatusToReturn(SC_INTERNAL_SERVER_ERROR);
+            LOGGER.error("{} : unexpected type {} for {} {} : {}", serverInfo, request.getClass().getName(),
+                    requestMethod, requestUri, SC_INTERNAL_SERVER_ERROR);
             response.setStatusCode(SC_INTERNAL_SERVER_ERROR);
             httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
         }
     }
 
-    private void treatOpWithRequestBody(String[] path, String paramStr, RequestLine requestLine, HttpAsyncExchange httpAsyncExchange,
-                                        HttpRequest httpRequest, HttpResponse response, HttpHandler httpHandler) throws Exception {
-        String requestMethod = getRequestMethod(requestLine);
-        String requestUri = requestLine.getUri();
-
+    private void treatOpWithRequestBody(String[] path, String paramStr, HttpAsyncExchange httpAsyncExchange,
+                                        HttpRequest request, HttpResponse response, HttpHandler httpHandler) throws Exception {
         HttpOperation operation = httpHandler.operation;
         GlobType bodyGlobType = operation.getBodyType();
-        HttpEntity entity = ((HttpEntityEnclosingRequest) httpRequest).getEntity();
+        HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
         Glob data;
         Runnable postOp = () -> {};
 
@@ -173,7 +169,7 @@ public class GlobHttpRequestHandler  {
             Files.copyStream(entity.getContent(), outputStream);
             data = GlobHttpContent.TYPE.instantiate()
                     .set(GlobHttpContent.content, outputStream.toByteArray());
-            LOGGER.info(RECEIVED_MSG, serverInfo, requestMethod, requestUri, "[byteArray]");
+            logRequestData(request, "[byte array]");
         } else if (bodyGlobType == GlobFile.TYPE) {
             File tempFile = File.createTempFile("http", ".data");
             try (FileOutputStream outputStream = new FileOutputStream(tempFile)) {
@@ -184,11 +180,15 @@ public class GlobHttpRequestHandler  {
                     .set(GlobFile.file, tempFile.getAbsolutePath());
             postOp = () -> {
                 if (tempFile.exists() && !tempFile.delete()) {
+                    RequestLine requestLine = request.getRequestLine();
+                    String requestMethod = getRequestMethod(requestLine);
+                    String requestUri = requestLine.getUri();
+
                     LOGGER.error("{} : failed to delete tmp file {} for {} {}", serverInfo,
                             tempFile.getAbsolutePath(), requestMethod, requestUri);
                 }
             };
-            LOGGER.info(RECEIVED_MSG, serverInfo, requestMethod, requestUri, "[file data]");
+            logRequestData(request, "[file data]");
         } else {
             //find mimetype (if xml => produce xml)
 //                    Arrays.stream(entity.getContentType().getElements())
@@ -197,21 +197,18 @@ public class GlobHttpRequestHandler  {
             data = (Strings.isNullOrEmpty(str) || bodyGlobType == null) ? null : GSonUtils.decode(str, bodyGlobType);
             String strToLog = operation.hasSensitiveData() && data != null ? GSonUtils.encodeHidSensitiveData(data) : str;
 
-            logRequestData(requestMethod, requestUri, strToLog);
+            logRequestData(request, strToLog);
         }
-        consumeOp(path, paramStr, requestLine, httpAsyncExchange, response, httpHandler, data, postOp);
+        consumeOp(path, paramStr, httpAsyncExchange, request, response, httpHandler, data, postOp);
     }
 
-    private void treatOpWithoutRequestBody(String[] path, String paramStr, RequestLine requestLine,
-                                           HttpAsyncExchange httpAsyncExchange, HttpResponse response, HttpHandler httpHandler) throws Exception {
-        consumeOp(path, paramStr, requestLine, httpAsyncExchange, response, httpHandler, null, () -> {});
+    private void treatOpWithoutRequestBody(String[] path, String paramStr, HttpAsyncExchange httpAsyncExchange,
+                                           HttpRequest request, HttpResponse response, HttpHandler httpHandler) throws Exception {
+        consumeOp(path, paramStr, httpAsyncExchange, request, response, httpHandler, null, () -> {});
     }
 
-    private void consumeOp(String[] path, String paramStr, RequestLine requestLine, HttpAsyncExchange httpAsyncExchange,
-                           HttpResponse response, HttpHandler httpHandler, Glob data, Runnable postOp) throws Exception {
-        String requestMethod = getRequestMethod(requestLine);
-        String requestUri = requestLine.getUri();
-
+    private void consumeOp(String[] path, String paramStr, HttpAsyncExchange httpAsyncExchange,
+                           HttpRequest request, HttpResponse response, HttpHandler httpHandler, Glob data, Runnable postOp) throws Exception {
         HttpOperation operation = httpHandler.operation;
         Glob url = urlMatcher.parse(path);
         Glob queryParam = httpHandler.teatParam(paramStr);
@@ -221,12 +218,12 @@ public class GlobHttpRequestHandler  {
             if (consumerResult != null) {
                 consumerResult.whenComplete((glob, throwable) -> {
                     if (glob != null) {
-                        consumeGlob(response, requestMethod, requestUri, glob, operation.hasSensitiveData());
+                        consumeGlob(request, response, glob, operation.hasSensitiveData());
                     } else if (throwable != null) {
-                        consumeThrowable(response, requestMethod, requestUri, throwable);
+                        consumeThrowable(request, response, throwable);
                     } else { // null response glob & throwable
                         response.setStatusCode(SC_NO_CONTENT);
-                        logResponseData(requestMethod, requestUri, SC_NO_CONTENT, "[no content]");
+                        logResponseData(request, SC_NO_CONTENT, "[no content]");
                     }
                     operation.headers(response::addHeader);
                     httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
@@ -236,30 +233,36 @@ public class GlobHttpRequestHandler  {
                 response.setStatusCode(SC_NO_CONTENT);
                 operation.headers(response::addHeader);
                 httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
-                logResponseData(requestMethod, requestUri, SC_NO_CONTENT, "[no content]");
+                logResponseData(request, SC_NO_CONTENT, "[no content]");
                 postOp.run();
             }
         } catch (Exception e) {
-            consumeThrowable(response, requestMethod, requestUri, e);
+            consumeThrowable(request, response, e);
             operation.headers(response::addHeader);
             httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
             postOp.run();
         }
     }
 
-    private void consumeGlob(HttpResponse response, String requestMethod, String requestUri, Glob glob, boolean hasSensitiveData) {
+    private void consumeGlob(HttpRequest request, HttpResponse response, Glob glob, boolean hasSensitiveData) {
         GlobType globType = glob.getType();
 
         if (globType == GlobHttpContent.TYPE) {
-            response.setEntity(new ByteArrayEntity(glob.get(GlobHttpContent.content), createContentTypeFromGlobHttpContent(glob)));
+            consumeGlobHttpContent(request, response, glob);
         } else if (globType == GlobFile.TYPE) {
-            consumeFileGlob(response, requestMethod, requestUri, glob);
+            consumeFileGlob(request, response, glob);
         } else {
-            consumeNormalGlob(response, requestMethod, requestUri, glob, hasSensitiveData);
+            consumeNormalGlob(request, response, glob, hasSensitiveData);
         }
     }
 
-    private void consumeFileGlob(HttpResponse response, String requestMethod, String requestUri, Glob glob) {
+    private void consumeGlobHttpContent(HttpRequest request, HttpResponse response, Glob glob) {
+        response.setEntity(new ByteArrayEntity(glob.get(GlobHttpContent.content), createContentTypeFromGlobHttpContent(glob)));
+        response.setStatusCode(SC_OK);
+        logResponseData(request, SC_OK, "[byte array]");
+    }
+
+    private void consumeFileGlob(HttpRequest request, HttpResponse response, Glob glob) {
         NFileEntity returnEntity;
         final File file = new File(glob.get(GlobFile.file));
         if (glob.get(GlobFile.removeWhenDelivered, !LOGGER.isTraceEnabled())) {
@@ -267,6 +270,10 @@ public class GlobHttpRequestHandler  {
                 public void close() throws IOException {
                     super.close();
                     if (!file.delete() && file.exists()) {
+                        RequestLine requestLine = request.getRequestLine();
+                        String requestMethod = getRequestMethod(requestLine);
+                        String requestUri = requestLine.getUri();
+
                         LOGGER.error("{} : failed to delete file {} for {} {}", serverInfo,
                                 file.getAbsolutePath(), requestMethod, requestUri);
                     }
@@ -276,9 +283,11 @@ public class GlobHttpRequestHandler  {
             returnEntity = new NFileEntity(file, createContentTypeFromGlobFile(glob));
         }
         response.setEntity(returnEntity);
+        response.setStatusCode(SC_OK);
+        logResponseData(request, SC_OK, "[file data]");
     }
 
-    private void consumeNormalGlob(HttpResponse response, String requestMethod, String requestUri, Glob glob, boolean hasSensitiveData) {
+    private void consumeNormalGlob(HttpRequest request, HttpResponse response, Glob glob, boolean hasSensitiveData) {
         GlobType globType = glob.getType();
         Field fieldWithStatusCode = globType.findFieldWithAnnotation(StatusCodeAnnotationType.UNIQUE_KEY);
         Field fieldWithData = globType.findFieldWithAnnotation(DataAnnotationType.UNIQUE_KEY);
@@ -306,19 +315,26 @@ public class GlobHttpRequestHandler  {
         }
 
         response.setStatusCode(statusCode);
-        if (gzipCompress) {
-            // TODO: 28/06/2022 - Ali - test if request header has Accept-Encoding: gzip
+
+        if (Optional.ofNullable(request.getFirstHeader(HttpHeaders.ACCEPT_ENCODING))
+                .map(NameValuePair::getValue)
+                .map(value -> value.contains("gzip"))
+                .orElse(false)) {
             try {
-                response.setHeader(HTTP.CONTENT_ENCODING, "gzip");
+                response.setHeader(HttpHeaders.CONTENT_ENCODING, "gzip");
                 response.setEntity(newCompressedDataEntity(strData));
-                logResponseData(requestMethod, requestUri, statusCode, strDataToLog);
+                logResponseData(request, statusCode, "(gzip) " + strDataToLog);
             } catch (IOException e) {
+                RequestLine requestLine = request.getRequestLine();
+                String requestMethod = getRequestMethod(requestLine);
+                String requestUri = requestLine.getUri();
+                
                 LOGGER.error(serverInfo + " : io error bug on GZIP for " + requestMethod + " " + requestUri, e);
                 response.setStatusCode(SC_METHOD_FAILURE);
             }
         } else {
             response.setEntity(new StringEntity(strData, ContentType.APPLICATION_JSON));
-            logResponseData(requestMethod, requestUri, statusCode, strDataToLog);
+            logResponseData(request, statusCode, strDataToLog);
         }
     }
 
@@ -332,7 +348,11 @@ public class GlobHttpRequestHandler  {
         }
     }
 
-    private void logRequestData(String requestMethod, String requestUri, String str) {
+    private void logRequestData(HttpRequest request, String str) {
+        RequestLine requestLine = request.getRequestLine();
+        String requestMethod = getRequestMethod(requestLine);
+        String requestUri = requestLine.getUri();
+
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(RECEIVED_MSG, serverInfo, requestMethod, requestUri, str);
         } else {
@@ -340,7 +360,11 @@ public class GlobHttpRequestHandler  {
         }
     }
 
-    private void logResponseData(String requestMethod, String requestUri, int statusCode, String str) {
+    private void logResponseData(HttpRequest request, int statusCode, String str) {
+        RequestLine requestLine = request.getRequestLine();
+        String requestMethod = getRequestMethod(requestLine);
+        String requestUri = requestLine.getUri();
+
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(RESPONSE_MSG, serverInfo, requestMethod, requestUri, statusCode, str);
         } else {
@@ -348,24 +372,35 @@ public class GlobHttpRequestHandler  {
         }
     }
 
-    private void consumeThrowable(HttpResponse response, String requestMethod, String requestUri, Throwable throwable) {
-        LOGGER.error(serverInfo + " : request failed for " + requestMethod + " " + requestUri, throwable);
+    private void logError(HttpRequest request, int statusCode, String message, Throwable t) {
+        RequestLine requestLine = request.getRequestLine();
+        String requestMethod = getRequestMethod(requestLine);
+        String requestUri = requestLine.getUri();
 
+        LOGGER.error(serverInfo + " : request failed for " + requestMethod + " " + requestUri
+                + " : " + statusCode + " : " + message, t);
+    }
+
+    private void consumeThrowable(HttpRequest request, HttpResponse response, Throwable throwable) {
         int statusCode;
+        String message;
         String reasonPhrase = null;
         if (throwable instanceof HttpException e) {
             statusCode = e.code;
             reasonPhrase = e.message;
+            message = e.message;
         } else if (throwable instanceof HttpExceptionWithContent e) {
             statusCode = e.code;
-            response.setEntity(new StringEntity(GSonUtils.encode(e.message, false), ContentType.APPLICATION_JSON));
+            message = GSonUtils.encode(e.message, false);
+            response.setEntity(new StringEntity(message, ContentType.APPLICATION_JSON));
         } else {
             statusCode = SC_INTERNAL_SERVER_ERROR;
+            message = throwable.getMessage();
         }
 
         response.setStatusCode(statusCode);
         response.setReasonPhrase(reasonPhrase);
-        logErrorStatusToReturn(statusCode);
+        logError(request, statusCode, message, throwable);
     }
 
     private String getRequestMethod(RequestLine requestLine) {
@@ -383,10 +418,6 @@ public class GlobHttpRequestHandler  {
 
     private ContentType createContentTypeFromGlobFile(Glob glob) {
         return ContentType.create(glob.get(GlobFile.mimeType, APPLICATION_JSON), StandardCharsets.UTF_8);
-    }
-
-    private void logErrorStatusToReturn(int statusCode) {
-        LOGGER.error("{} : return status: {}", serverInfo, statusCode);
     }
 
     public static DefaultHttpOperation post(HttpTreatment function, GlobType bodyType) {

@@ -484,7 +484,7 @@ public class HttpServerRegister {
         serverBootstrap.registerHandler("*", handler);
         for (Map.Entry<String, Verb> stringVerbEntry : verbMap.entrySet()) {
             Verb verb = stringVerbEntry.getValue();
-            GlobHttpRequestHandler globHttpRequestHandler = new GlobHttpRequestHandler(serverInfo, verb.complete(), verb.gzipCompress);
+            GlobHttpRequestHandler globHttpRequestHandler = new GlobHttpRequestHandler(serverInfo, verb.complete());
             Collection<String> path = globHttpRequestHandler.createRegExp();
             handler.register(path, globHttpRequestHandler);
             for (HttpOperation operation : stringVerbEntry.getValue().operations) {
@@ -605,7 +605,7 @@ public class HttpServerRegister {
             HttpResponse response = httpExchange.getResponse();
             response.setStatusCode(HttpStatus.SC_FORBIDDEN);
             httpExchange.submitResponse(new BasicAsyncResponseProducer(response));
-            LOGGER.warn(serverInfo + " Unexpected path : " + urlStr);
+            LOGGER.warn(serverInfo + " : Unexpected path : " + urlStr);
         }
 
         public void register(Collection<String> path, GlobHttpRequestHandler globHttpRequestHandler) {
@@ -823,7 +823,6 @@ public class HttpServerRegister {
         private final String url;
         private final GlobType queryUrl;
         private final Map<String, String> headers = new LinkedHashMap<>();
-        private boolean gzipCompress = false;
         // TODO: these are scoped
         private List<HttpOperation> operations = new ArrayList<>();
 
@@ -831,11 +830,6 @@ public class HttpServerRegister {
         public Verb(String url, GlobType queryUrl) {
             this.url = url;
             this.queryUrl = queryUrl;
-        }
-
-        public Verb setGzipCompress() {
-            this.gzipCompress = true;
-            return this;
         }
 
         public OperationInfo get(GlobType paramType, HttpTreatment httpTreatment) {

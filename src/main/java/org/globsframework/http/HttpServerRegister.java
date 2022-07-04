@@ -61,10 +61,8 @@ public class HttpServerRegister {
             Verb verb = new Verb(url, queryUrl);
             verbMap.put(url, verb);
             return verb;
-        } else {
-            if (current.queryUrl != queryUrl) {
-                throw new RuntimeException(serverInfo + ": Same query Type is expected for same url on different verb (" + url + ")");
-            }
+        } else if (current.queryUrl != queryUrl) {
+            throw new RuntimeException(serverInfo + ": Same query Type is expected for same url on different verb (" + url + ")");
         }
         return current;
     }
@@ -836,11 +834,6 @@ public class HttpServerRegister {
         }
 
         public Verb setGzipCompress() {
-            this.gzipCompress = true;
-            return this;
-        }
-
-        public Verb setGzipCompress(boolean gzipCompress) {
             this.gzipCompress = true;
             return this;
         }

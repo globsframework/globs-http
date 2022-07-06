@@ -14,7 +14,6 @@ import org.globsframework.metamodel.Field;
 import org.globsframework.metamodel.fields.*;
 import org.globsframework.model.Glob;
 import org.globsframework.model.MutableGlob;
-import org.globsframework.utils.StringConverter;
 
 import java.nio.charset.StandardCharsets;
 import java.time.*;
@@ -71,7 +70,7 @@ public class GlobHttpUtils {
     }
 
     private static String createURL(String route, String format) {
-        return route + (format != null ? ("?" + format) : "");
+        return route + (format.isEmpty() ? "" : ("?" + format));
     }
 
     public static HttpPost createPost(String route, Glob parameters, Glob body) {
@@ -87,11 +86,16 @@ public class GlobHttpUtils {
         return new HttpGet(createURL(route, format));
     }
 
-    private static String formatURL(Glob parameters) {
-        if (parameters == null) {
-            return null;
-        }
+    public static String formatURL(Glob parameters) {
+        return URLEncodedUtils.format(glob2ValuePairList(parameters), StandardCharsets.UTF_8);
+    }
+
+    static List<NameValuePair> glob2ValuePairList(Glob parameters) {
         List<NameValuePair> nameValuePairList = new ArrayList<>();
+        if (parameters == null) {
+            return nameValuePairList;
+        }
+
         for (Field field : parameters.getType().getFields()) {
             if (!parameters.isNull(field)) {
                 if (!field.getDataType().isPrimive()) {
@@ -142,7 +146,8 @@ public class GlobHttpUtils {
                 }
             }
         }
-        return URLEncodedUtils.format(nameValuePairList, StandardCharsets.UTF_8);
+
+        return nameValuePairList;
     }
 
     public static FromStringConverter createConverter(Field field, String arraySeparator) {

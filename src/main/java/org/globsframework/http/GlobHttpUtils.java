@@ -170,6 +170,10 @@ public class GlobHttpUtils {
                 fromStringConverter1 = new ToStringArrayConverter(field1, arraySeparator);
             }
 
+            public void visitLongArray(LongArrayField field1) throws Exception {
+                fromStringConverter1 = new ToLongArrayConverter(field1, arraySeparator);
+            }
+
             public void visitDateTime(DateTimeField field1) throws Exception {
                 fromStringConverter1 = new ToDateTimeConverter(field1);
             }
@@ -304,6 +308,35 @@ public class GlobHttpUtils {
                 for (int i = 0; i < data.length; i++) {
                     String d = data[i];
                     newValue[actual.length + i] = d;
+                }
+                glob.set(field, newValue);
+            }
+        }
+    }
+
+    public static class ToLongArrayConverter implements FromStringConverter {
+        final LongArrayField field;
+        private String arraySeparator;
+
+        public ToLongArrayConverter(LongArrayField field, String arraySeparator) {
+            this.field = field;
+            this.arraySeparator = arraySeparator;
+        }
+
+        public void convert(MutableGlob glob, String str) {
+            if (str != null) {
+                String[] data;
+                if (arraySeparator != null) {
+                    data = str.split(arraySeparator);
+                } else {
+                    data = new String[]{str};
+                }
+                long[] actual = glob.getOrEmpty(field);
+                long[] newValue = new long[actual.length + data.length];
+                System.arraycopy(actual, 0, newValue, 0, actual.length);
+                for (int i = 0; i < data.length; i++) {
+                    String d = data[i];
+                    newValue[actual.length + i] = Long.parseLong(d);
                 }
                 glob.set(field, newValue);
             }

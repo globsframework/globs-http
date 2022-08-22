@@ -258,8 +258,10 @@ public class GlobHttpRequestHandler {
 
     private void consumeGlobHttpContent(HttpRequest request, HttpResponse response, Glob glob) {
         response.setEntity(new ByteArrayEntity(glob.get(GlobHttpContent.content), createContentTypeFromGlobHttpContent(glob)));
-        response.setStatusCode(SC_OK);
-        logResponseData(request, SC_OK, "[byte array]");
+
+        int statusCode = glob.get(GlobHttpContent.statusCode, SC_OK);
+        response.setStatusCode(statusCode);
+        logResponseData(request, statusCode, "[byte array]");
     }
 
     private void consumeFileGlob(HttpRequest request, HttpResponse response, Glob glob) {
@@ -315,8 +317,10 @@ public class GlobHttpRequestHandler {
         }
 
         response.setStatusCode(statusCode);
-
-        if (Optional.ofNullable(request.getFirstHeader(HttpHeaders.ACCEPT_ENCODING))
+        if (strData == null) {
+            response.setStatusCode(statusCode);
+            logResponseData(request, statusCode, "[no content]");
+        } else if (Optional.ofNullable(request.getFirstHeader(HttpHeaders.ACCEPT_ENCODING))
                 .map(NameValuePair::getValue)
                 .map(value -> value.contains("gzip"))
                 .orElse(false)) {

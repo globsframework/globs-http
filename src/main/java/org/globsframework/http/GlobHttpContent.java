@@ -3,6 +3,7 @@ package org.globsframework.http;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.GlobTypeLoaderFactory;
 import org.globsframework.metamodel.fields.BlobField;
+import org.globsframework.metamodel.fields.IntegerField;
 import org.globsframework.metamodel.fields.StringField;
 
 public class GlobHttpContent {
@@ -13,6 +14,8 @@ public class GlobHttpContent {
     public static StringField mimeType;
 
     public static StringField charset;
+
+    public static IntegerField statusCode;
 
     static {
         GlobTypeLoaderFactory.create(GlobHttpContent.class).load();

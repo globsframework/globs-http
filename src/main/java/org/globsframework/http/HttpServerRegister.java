@@ -41,7 +41,6 @@ public class HttpServerRegister {
     private final String serverInfo;
     private Glob openApiDoc;
     private InterceptBuilder interceptBuilder = InterceptBuilder.NULL;
-    final private Map<String, Glob> scopeToOpenApiDoc = new LinkedHashMap<>();
 
     public HttpServerRegister(String serverInfo) {
         this.serverInfo = serverInfo;
@@ -72,13 +71,11 @@ public class HttpServerRegister {
         register("/api", null)
                 .get(GetOpenApiParamType.TYPE, new HttpTreatment() {
                     public CompletableFuture<Glob> consume(Glob body, Glob url, Glob queryParameters) throws Exception {
-                        String scope = queryParameters.get(GetOpenApiParamType.scope);
+                        String scope = queryParameters == null ? "" : queryParameters.get(GetOpenApiParamType.scope);
                         if (Strings.isNullOrEmpty(scope)) {
                             return CompletableFuture.completedFuture(openApiDoc);
                         }
-                        scopeToOpenApiDoc.putIfAbsent(scope, createOpenApiDocByTags(scope));
-                        Glob newone = scopeToOpenApiDoc.get(scope);
-                        return CompletableFuture.completedFuture(newone);
+                        return CompletableFuture.completedFuture(createOpenApiDocByTags(scope));
                     }
                 }).declareReturnType(OpenApiType.TYPE);
     }

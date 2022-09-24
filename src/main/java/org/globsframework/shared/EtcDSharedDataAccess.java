@@ -158,9 +158,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         return leaseClient.grant(duration.toSeconds())
                 .thenApply(LeaseGrantResponse::getID)
                 .thenCompose(leaseId -> {
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("register " + path + " with lease id" + leaseId);
-                    }
+                    LOGGER.info("register " + path + " with lease id" + leaseId);
                     return kv.put(k, v, PutOption.newBuilder().withLeaseId(leaseId).build())
                             .thenApply(putResponse -> new UnLeaser() {
                                 public void touch() {
@@ -182,6 +180,10 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     public CompletableFuture<UnLeaser> createLease(Duration duration) {
         return leaseClient.grant(duration.toSeconds())
                 .thenApply(LeaseGrantResponse::getID)
+                .thenApply(leaseId -> {
+                    LOGGER.info("lease " + leaseId + " created.");
+                    return leaseId;
+                })
                 .thenApply(leaseId -> new UnLeaser() {
                     public void touch() {
                         LOGGER.info("Touch call on " + leaseId);
@@ -366,6 +368,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         byte[] value = serializer.write(glob);
         return grant.thenApply(leaseGrantResponse -> {
             long leaseId = leaseGrantResponse.getID();
+            LOGGER.info(key +" registered with leaseId " + leaseId);
             ScheduledFuture<?> scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(() -> leaseClient.keepAliveOnce(leaseId),
                     500, 700, TimeUnit.MILLISECONDS);
             return new ListenerAndLeaderOperation(ByteSequence.from(key, StandardCharsets.UTF_8), ByteSequence.from(value),

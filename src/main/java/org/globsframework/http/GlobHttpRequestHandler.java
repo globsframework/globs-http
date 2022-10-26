@@ -412,7 +412,7 @@ public class GlobHttpRequestHandler {
             message = e.message;
         } else if (throwable instanceof HttpExceptionWithContent e) {
             statusCode = e.code;
-            message = GSonUtils.encode(e.message, false);
+            message = GSonUtils.encode(e.content, false);
             response.setEntity(new StringEntity(message, ContentType.APPLICATION_JSON));
         } else {
             statusCode = SC_INTERNAL_SERVER_ERROR;

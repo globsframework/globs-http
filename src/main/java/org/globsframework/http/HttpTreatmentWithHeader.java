@@ -5,9 +5,11 @@ import org.globsframework.model.Glob;
 
 import java.util.concurrent.CompletableFuture;
 
-public interface HttpTreatment {
+public interface HttpTreatmentWithHeader {
 
     CompletableFuture<Glob> consume(@ArgName("Body") Glob body,
                                     @ArgName("url")Glob url,
-                                    @ArgName("queryParameters")Glob queryParameters) throws Exception;
+                                    @ArgName("queryParameters")Glob queryParameters,
+                                    @ArgName("headers")Glob headerType
+                                    ) throws Exception;
 }

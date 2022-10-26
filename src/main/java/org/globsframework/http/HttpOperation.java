@@ -11,7 +11,7 @@ public interface HttpOperation {
 
     HttpOp verb();
 
-    CompletableFuture<Glob> consume(Glob data, Glob url, Glob queryParameters) throws Exception;
+    CompletableFuture<Glob> consume(Glob data, Glob url, Glob queryParameters, Glob header) throws Exception;
 
     GlobType getBodyType();
 
@@ -24,6 +24,8 @@ public interface HttpOperation {
     void headers(HeaderConsumer headerConsumer);
 
     boolean hasSensitiveData();
+
+    GlobType getHeaderType();
 
     interface HeaderConsumer {
         void push(String name, String value);

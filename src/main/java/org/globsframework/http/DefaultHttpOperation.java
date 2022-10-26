@@ -11,16 +11,17 @@ import java.util.concurrent.CompletableFuture;
 public class DefaultHttpOperation implements HttpOperation {
     public static final GlobType EMPTY = DefaultGlobTypeBuilder.init("Empty").get();
     private final HttpOp verb;
-    GlobType bodyType;
-    GlobType queryType;
-    GlobType returnType;
-    String[] tags;
-    HttpTreatment httpTreatment;
+    private GlobType bodyType;
+    private GlobType queryType;
+    private GlobType returnType;
+    private String[] tags;
+    private final HttpTreatmentWithHeader httpTreatment;
     private String comment;
     private final Map<String, String> headers = new HashMap<>();
     private boolean hasSensitiveData = false;
+    private GlobType headerType;
 
-    public DefaultHttpOperation(HttpOp verb, GlobType bodyType, GlobType queryType, HttpTreatment httpTreatment) {
+    public DefaultHttpOperation(HttpOp verb, GlobType bodyType, GlobType queryType, HttpTreatmentWithHeader httpTreatment) {
         this.verb = verb;
         this.bodyType = bodyType;
         this.queryType = queryType;
@@ -29,6 +30,11 @@ public class DefaultHttpOperation implements HttpOperation {
 
     public DefaultHttpOperation withBody(GlobType globType) {
         bodyType = globType;
+        return this;
+    }
+
+    public DefaultHttpOperation withHeader(GlobType globType) {
+        headerType = globType;
         return this;
     }
 
@@ -69,6 +75,10 @@ public class DefaultHttpOperation implements HttpOperation {
         return hasSensitiveData;
     }
 
+    public GlobType getHeaderType() {
+        return headerType;
+    }
+
     public void addHeader(String name, String value) {
         this.headers.put(name, value);
     }
@@ -81,8 +91,8 @@ public class DefaultHttpOperation implements HttpOperation {
         return verb;
     }
 
-    public CompletableFuture<Glob> consume(Glob data, Glob url, Glob queryParameters) throws Exception {
-        return httpTreatment.consume(data, url, queryParameters);
+    public CompletableFuture<Glob> consume(Glob data, Glob url, Glob queryParameters, Glob header) throws Exception {
+        return httpTreatment.consume(data, url, queryParameters, header);
     }
 
     public void withComment(String comment) {

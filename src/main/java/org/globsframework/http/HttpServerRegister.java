@@ -1,5 +1,6 @@
 package org.globsframework.http;
 
+import io.etcd.jetcd.op.Op;
 import org.apache.http.HttpException;
 import org.apache.http.*;
 import org.apache.http.impl.nio.bootstrap.HttpServer;
@@ -521,12 +522,21 @@ public class HttpServerRegister {
 
     public interface InterceptBuilder {
         InterceptBuilder NULL = new InterceptBuilder() {
-            public HttpTreatment create(HttpTreatment httpTreatment) {
+            public HttpTreatmentWithHeader create(HttpTreatment httpTreatment) {
+                return (body, url, queryParameters, headerType) -> httpTreatment.consume(body, url, queryParameters);
+            }
+            public HttpTreatmentWithHeader create(HttpTreatmentWithHeader httpTreatment) {
                 return httpTreatment;
             }
         };
 
-        HttpTreatment create(HttpTreatment httpTreatment);
+        default HttpTreatmentWithHeader create(HttpTreatment httpTreatment){
+            return (body, url, queryParameters, headerType) -> httpTreatment.consume(body, url, queryParameters);
+        }
+
+        default HttpTreatmentWithHeader create(HttpTreatmentWithHeader httpTreatment){
+            return httpTreatment;
+        }
     }
 
     public interface OperationInfo {
@@ -534,6 +544,8 @@ public class HttpServerRegister {
         OperationInfo withSensitiveData(boolean hasSensitiveData);
 
         OperationInfo declareReturnType(GlobType globType);
+
+        OperationInfo withHeaderType(GlobType headerType);
 
         OperationInfo declareTags(String[] tags);
 
@@ -700,7 +712,11 @@ public class HttpServerRegister {
             this.builder = builder;
         }
 
-        public HttpTreatment create(HttpTreatment httpTreatment) {
+        public HttpTreatmentWithHeader create(HttpTreatment httpTreatment) {
+            return interceptBuilder.create(builder.create(httpTreatment));
+        }
+
+        public HttpTreatmentWithHeader create(HttpTreatmentWithHeader httpTreatment) {
             return interceptBuilder.create(builder.create(httpTreatment));
         }
     }
@@ -835,8 +851,22 @@ public class HttpServerRegister {
             return new DefaultOperationInfo(operation);
         }
 
+        public OperationInfo get(GlobType paramType, GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.get, null, paramType, interceptBuilder.create(httpTreatment));
+            operation.withHeader(headerType);
+            operations.add(operation);
+            return new DefaultOperationInfo(operation);
+        }
+
         public OperationInfo post(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
             DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.post, bodyParam, paramType, interceptBuilder.create(httpTreatment));
+            operations.add(operation);
+            return new DefaultOperationInfo(operation);
+        }
+
+        public OperationInfo post(GlobType bodyParam, GlobType paramType, GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.post, bodyParam, paramType, interceptBuilder.create(httpTreatment));
+            operation.withHeader(headerType);
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
@@ -846,15 +876,33 @@ public class HttpServerRegister {
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
+        public OperationInfo put(GlobType bodyParam, GlobType paramType,  GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.put, bodyParam, paramType, interceptBuilder.create(httpTreatment));
+            operation.withHeader(headerType);
+            operations.add(operation);
+            return new DefaultOperationInfo(operation);
+        }
 
         public OperationInfo patch(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
             DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.patch, bodyParam, paramType, interceptBuilder.create(httpTreatment));
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
+        public OperationInfo patch(GlobType bodyParam, GlobType paramType, GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.patch, bodyParam, paramType, interceptBuilder.create(httpTreatment));
+            operation.withHeader(headerType);
+            operations.add(operation);
+            return new DefaultOperationInfo(operation);
+        }
 
         public OperationInfo delete(GlobType paramType, HttpTreatment httpTreatment) {
             DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.delete, null, paramType, interceptBuilder.create(httpTreatment));
+            operations.add(operation);
+            return new DefaultOperationInfo(operation);
+        }
+        public OperationInfo delete(GlobType paramType, GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.delete, null, paramType, interceptBuilder.create(httpTreatment));
+            operation.withHeader(headerType);
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
@@ -883,6 +931,11 @@ public class HttpServerRegister {
 
             public OperationInfo declareReturnType(GlobType type) {
                 operation.withReturnType(type);
+                return this;
+            }
+
+            public OperationInfo withHeaderType(GlobType headerType) {
+                operation.withHeader(headerType);
                 return this;
             }
 

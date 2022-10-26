@@ -25,13 +25,11 @@ import org.globsframework.json.GSonUtils;
 import org.globsframework.json.annottations.JsonHidValue_;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.GlobTypeLoaderFactory;
-import org.globsframework.metamodel.annotations.FieldNameAnnotation;
-import org.globsframework.metamodel.annotations.KeyField;
-import org.globsframework.metamodel.annotations.Target;
-import org.globsframework.metamodel.annotations.Targets;
+import org.globsframework.metamodel.annotations.*;
 import org.globsframework.metamodel.fields.*;
 import org.globsframework.model.Glob;
 import org.globsframework.utils.Files;
+import org.globsframework.utils.Ref;
 import org.globsframework.utils.collections.Pair;
 import org.junit.After;
 import org.junit.Assert;
@@ -85,18 +83,22 @@ public class GlobHttpRequestHandlerTest {
     @Test
     public void name() throws IOException, InterruptedException {
         String[] activeId = new String[]{""}; // Used to store an identifier of the request handler responding.
+        Ref<Glob> headers = new Ref<>();
 
         httpServerRegister.register("/test/{id}/TOTO/{subId}", URLParameter.TYPE)
                 .get(QueryParameter.TYPE, (body, url, queryParameters) -> {
                     pairs.add(Pair.makePair(url, queryParameters));
                     activeId[0] = "/test/{id}/TOTO/{subId}";
                     return null;
-                });
+                })
+                .withHeaderType(HeaderType.TYPE)
+                ;
 
         httpServerRegister.register("/test/{id}", URLOneParameter.TYPE)
-                .get(QueryParameter.TYPE, (body, url, queryParameters) -> {
+                .get(QueryParameter.TYPE, HeaderType.TYPE, (body, url, queryParameters, header) -> {
                     pairs.add(Pair.makePair(url, queryParameters));
                     activeId[0] = "/test/{id}";
+                    headers.set(header);
                     return CompletableFuture.completedFuture(ResponseWithSensibleData.TYPE.instantiate()
                             .set(ResponseWithSensibleData.field1, "azertyu")
                             .set(ResponseWithSensibleData.field2, "qsdfghjkl")
@@ -192,9 +194,12 @@ public class GlobHttpRequestHandlerTest {
             HttpGet httpRequest = GlobHttpUtils.createGet("/test/123", QueryParameter.TYPE.instantiate()
                     .set(QueryParameter.NAME, "ZERZE").set(QueryParameter.INFO, new String[]{"A", "B", "C", "D"})
                     .set(QueryParameter.param, QueryParameter.TYPE.instantiate().set(QueryParameter.NAME, "AAAZZZ")));
+            httpRequest.addHeader(FieldNameAnnotationType.getName(HeaderType.name), "my header");
             HttpResponse httpResponse = httpclient.execute(target, httpRequest);
             Assert.assertEquals(200, httpResponse.getStatusLine().getStatusCode());
             Assert.assertEquals("/test/{id}", activeId[0]);
+            Assert.assertNotNull(headers.get());
+            Assert.assertEquals("my header", headers.get().get(HeaderType.name));
         }
 
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
@@ -540,6 +545,21 @@ public class GlobHttpRequestHandlerTest {
 
         static {
             GlobTypeLoaderFactory.create(URLOneParameter.class, true).load();
+        }
+    }
+
+    static public class HeaderType {
+        public static GlobType TYPE;
+
+        @FieldNameAnnotation("X-Glob-http-ID")
+        public static StringField name;
+
+        public static StringField id;
+
+        public static StringField token;
+
+        static {
+            GlobTypeLoaderFactory.create(HeaderType.class).load();
         }
     }
 

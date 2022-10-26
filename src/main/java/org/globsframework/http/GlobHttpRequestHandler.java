@@ -212,8 +212,13 @@ public class GlobHttpRequestHandler {
         HttpOperation operation = httpHandler.operation;
         Glob url = urlMatcher.parse(path);
         Glob queryParam = httpHandler.teatParam(paramStr);
+        GlobType headerType = operation.getHeaderType();
+        Glob header = null;
+        if (headerType != null) {
+            header = parseHeader(headerType, httpAsyncExchange.getRequest().getAllHeaders());
+        }
         try {
-            CompletableFuture<Glob> consumerResult = operation.consume(data, url, queryParam);
+            CompletableFuture<Glob> consumerResult = operation.consume(data, url, queryParam, header);
 
             if (consumerResult != null) {
                 consumerResult.whenComplete((glob, throwable) -> {
@@ -242,6 +247,18 @@ public class GlobHttpRequestHandler {
             httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
             postOp.run();
         }
+    }
+
+    private Glob parseHeader(GlobType headerType, Header[] allHeaders) {
+        MutableGlob instance = headerType.instantiate();
+        for (Header allHeader : allHeaders) {
+            final String name = allHeader.getName();
+            final Field field = headerType.findField(name);
+            if (field != null) {
+                instance.set(field.asStringField(), allHeader.getValue());
+            }
+        }
+        return instance;
     }
 
     private void consumeGlob(HttpRequest request, HttpResponse response, Glob glob, boolean hasSensitiveData) {
@@ -422,30 +439,6 @@ public class GlobHttpRequestHandler {
 
     private ContentType createContentTypeFromGlobFile(Glob glob) {
         return ContentType.create(glob.get(GlobFile.mimeType, APPLICATION_JSON), StandardCharsets.UTF_8);
-    }
-
-    public static DefaultHttpOperation post(HttpTreatment function, GlobType bodyType) {
-        return post(function, bodyType, null);
-    }
-
-    public static DefaultHttpOperation post(HttpTreatment function, GlobType bodyType, GlobType queryType) {
-        return new DefaultHttpOperation(HttpOp.post, bodyType, queryType, function);
-    }
-
-    public static DefaultHttpOperation get(HttpTreatment function) {
-        return get(function, null);
-    }
-
-    public static DefaultHttpOperation get(HttpTreatment function, GlobType queryType) {
-        return new DefaultHttpOperation(HttpOp.get, null, queryType, function);
-    }
-
-    public static DefaultHttpOperation delete(HttpTreatment function) {
-        return delete(function, null);
-    }
-
-    public static DefaultHttpOperation delete(HttpTreatment function, GlobType queryType) {
-        return new DefaultHttpOperation(HttpOp.delete, null, queryType, function);
     }
 
     public boolean hasWildcardAtEnd() {

@@ -521,22 +521,13 @@ public class HttpServerRegister {
     }
 
     public interface InterceptBuilder {
-        InterceptBuilder NULL = new InterceptBuilder() {
-            public HttpTreatmentWithHeader create(HttpTreatment httpTreatment) {
-                return (body, url, queryParameters, headerType) -> httpTreatment.consume(body, url, queryParameters);
-            }
-            public HttpTreatmentWithHeader create(HttpTreatmentWithHeader httpTreatment) {
-                return httpTreatment;
-            }
-        };
+        InterceptBuilder NULL = httpTreatment -> httpTreatment;
 
         default HttpTreatmentWithHeader create(HttpTreatment httpTreatment){
             return (body, url, queryParameters, headerType) -> httpTreatment.consume(body, url, queryParameters);
         }
 
-        default HttpTreatmentWithHeader create(HttpTreatmentWithHeader httpTreatment){
-            return httpTreatment;
-        }
+        HttpTreatmentWithHeader create(HttpTreatmentWithHeader httpTreatment);
     }
 
     public interface OperationInfo {

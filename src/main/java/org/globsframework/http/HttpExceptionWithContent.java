@@ -4,10 +4,23 @@ import org.globsframework.model.Glob;
 
 public class HttpExceptionWithContent extends RuntimeException {
     final int code;
-    final Glob message;
+    final Glob content;
 
-    public HttpExceptionWithContent(int code, Glob message) {
+    public HttpExceptionWithContent(int code, Glob content) {
+        super();
         this.code = code;
-        this.message = message;
+        this.content = content;
+    }
+
+    public int getCode() {
+        return code;
+    }
+
+    public Glob getContent() {
+        return content;
+    }
+
+    public String getMessage() {
+        return code + " : " + content.toString();
     }
 }

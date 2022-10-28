@@ -33,6 +33,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.zip.GZIPOutputStream;
 
 import static org.apache.http.HttpStatus.*;
@@ -403,25 +404,29 @@ public class GlobHttpRequestHandler {
     }
 
     private void consumeThrowable(HttpRequest request, HttpResponse response, Throwable throwable) {
-        int statusCode;
-        String message;
-        String reasonPhrase = null;
         if (throwable instanceof HttpException e) {
-            statusCode = e.code;
-            reasonPhrase = e.message;
-            message = e.message;
-        } else if (throwable instanceof HttpExceptionWithContent e) {
-            statusCode = e.code;
-            message = GSonUtils.encode(e.content, false);
-            response.setEntity(new StringEntity(message, ContentType.APPLICATION_JSON));
+            consumeHttpException(request, response, e);
+        } else if (throwable instanceof CompletionException && throwable.getCause() instanceof HttpException e) {
+            consumeHttpException(request, response, e);
         } else {
-            statusCode = SC_INTERNAL_SERVER_ERROR;
-            message = throwable.getMessage();
+            int statusCode = SC_INTERNAL_SERVER_ERROR;
+            response.setStatusCode(statusCode);
+            logError(request, statusCode, throwable.getMessage(), throwable);
         }
+    }
+
+    private void consumeHttpException(HttpRequest request, HttpResponse response, HttpException e) {
+        int statusCode = e.getCode();
+        String message = e.getOriginalMessage();
 
         response.setStatusCode(statusCode);
-        response.setReasonPhrase(reasonPhrase);
-        logError(request, statusCode, message, throwable);
+        if (e instanceof HttpExceptionWithContent) {
+            response.setEntity(new StringEntity(message, ContentType.APPLICATION_JSON));
+        } else {
+            response.setReasonPhrase(message);
+        }
+
+        logError(request, statusCode, message, e);
     }
 
     private String getRequestMethod(RequestLine requestLine) {

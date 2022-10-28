@@ -1,13 +1,13 @@
 package org.globsframework.http;
 
 public class HttpException extends RuntimeException {
-    final int code;
-    final String message;
+    protected final int code;
+    private final String originalMessage;
 
-    public HttpException(int code, String message) {
+    public HttpException(int code, String originalMessage) {
         super();
         this.code = code;
-        this.message = message;
+        this.originalMessage = originalMessage;
     }
 
     public int getCode() {
@@ -15,10 +15,10 @@ public class HttpException extends RuntimeException {
     }
 
     public String getOriginalMessage() {
-        return message;
+        return originalMessage;
     }
 
     public String getMessage() {
-        return code + " : " + message;
+        return code + " : " + getOriginalMessage();
     }
 }

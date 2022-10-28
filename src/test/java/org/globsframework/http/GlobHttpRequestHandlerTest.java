@@ -370,6 +370,8 @@ public class GlobHttpRequestHandlerTest {
                         );
                     } else if ("John".equalsIgnoreCase(value)) {
                         throw new org.globsframework.http.HttpException(403, "banned");
+                    } else if ("Superman".equals(value)) {
+                        return CompletableFuture.failedFuture(new org.globsframework.http.HttpException(408, "too strong"));
                     } else if ("Batman".equals(value)) {
                         throw new IllegalArgumentException("system error");
                     }
@@ -403,6 +405,13 @@ public class GlobHttpRequestHandlerTest {
             strContent = EntityUtils.toString(httpResponse.getEntity());
             Assert.assertEquals("", strContent);
             Assert.assertEquals("banned", httpResponse.getStatusLine().getReasonPhrase());
+
+            httpGet = new HttpGet("/hello?value=Superman");
+            httpResponse = httpclient.execute(target, httpGet);
+            Assert.assertEquals(408, httpResponse.getStatusLine().getStatusCode());
+            strContent = EntityUtils.toString(httpResponse.getEntity());
+            Assert.assertEquals("", strContent);
+            Assert.assertEquals("too strong", httpResponse.getStatusLine().getReasonPhrase());
 
             httpGet = new HttpGet("/hello?value=Batman");
             httpResponse = httpclient.execute(target, httpGet);

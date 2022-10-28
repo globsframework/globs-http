@@ -1,26 +1,22 @@
 package org.globsframework.http;
 
+import org.globsframework.json.GSonUtils;
 import org.globsframework.model.Glob;
 
-public class HttpExceptionWithContent extends RuntimeException {
-    final int code;
-    final Glob content;
+public class HttpExceptionWithContent extends HttpException {
+    private final Glob content;
 
     public HttpExceptionWithContent(int code, Glob content) {
-        super();
-        this.code = code;
+        super(code, null);
         this.content = content;
-    }
-
-    public int getCode() {
-        return code;
     }
 
     public Glob getContent() {
         return content;
     }
 
-    public String getMessage() {
-        return code + " : " + content.toString();
+    public String getOriginalMessage() {
+        return content != null ? GSonUtils.encode(content, false) : null;
     }
+
 }

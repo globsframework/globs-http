@@ -12,7 +12,9 @@ public class DefaultHttpOperation implements HttpOperation {
     public static final GlobType EMPTY = DefaultGlobTypeBuilder.init("Empty").get();
     private final HttpOp verb;
     private GlobType bodyType;
+    private Glob emptyBody;
     private GlobType queryType;
+    private Glob emptyQuery;
     private GlobType returnType;
     private String[] tags;
     private final HttpTreatmentWithHeader httpTreatment;
@@ -20,12 +22,16 @@ public class DefaultHttpOperation implements HttpOperation {
     private final Map<String, String> headers = new HashMap<>();
     private boolean hasSensitiveData = false;
     private GlobType headerType;
+    private Glob emptyHeader;
 
     public DefaultHttpOperation(HttpOp verb, GlobType bodyType, GlobType queryType, HttpTreatmentWithHeader httpTreatment) {
         this.verb = verb;
         this.bodyType = bodyType;
         this.queryType = queryType;
         this.httpTreatment = httpTreatment;
+        emptyBody = bodyType != null ? bodyType.instantiate() : null;
+        emptyQuery = queryType != null ? queryType.instantiate(): null;
+        emptyHeader = headerType != null ? headerType.instantiate() : null;
     }
 
     public DefaultHttpOperation withBody(GlobType globType) {
@@ -92,7 +98,8 @@ public class DefaultHttpOperation implements HttpOperation {
     }
 
     public CompletableFuture<Glob> consume(Glob data, Glob url, Glob queryParameters, Glob header) throws Exception {
-        return httpTreatment.consume(data, url, queryParameters, header);
+        return httpTreatment.consume(data == null ? emptyBody : data, url, queryParameters == null ? emptyQuery : queryParameters,
+                header == null ? emptyHeader : header);
     }
 
     public void withComment(String comment) {

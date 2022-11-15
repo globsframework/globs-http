@@ -125,14 +125,12 @@ public class GlobHttpRequestHandler {
                     httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
                 }
             }
+            LOGGER.info("{} : done {} {}", serverInfo, requestMethod, requestUri);
         } catch (Exception e) {
             logError(httpRequest, SC_FORBIDDEN, e.getMessage(), e);
-            LOGGER.error(serverInfo + " : request error for " + requestMethod + " " + requestUri, e);
             response.setStatusCode(SC_FORBIDDEN);
             httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
         }
-
-        LOGGER.info("{} : done {} {}", serverInfo, requestMethod, requestUri);
     }
 
     private void treatOp(String[] path, String paramStr, HttpAsyncExchange httpAsyncExchange,

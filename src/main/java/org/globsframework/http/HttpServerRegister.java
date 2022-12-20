@@ -1,6 +1,5 @@
 package org.globsframework.http;
 
-import io.etcd.jetcd.op.Op;
 import org.apache.http.HttpException;
 import org.apache.http.*;
 import org.apache.http.impl.nio.bootstrap.HttpServer;
@@ -85,18 +84,18 @@ public class HttpServerRegister {
         List<Glob> paths = new ArrayList<>();
         Arrays.stream(openApiDoc.getOrEmpty(OpenApiType.paths)).forEach(path -> {
             boolean isPathSelected =
-            hasSelectedTag(path, OpenApiPath.get, tag) ||
-            hasSelectedTag(path, OpenApiPath.put, tag) ||
-            hasSelectedTag(path, OpenApiPath.post, tag) ||
-            hasSelectedTag(path, OpenApiPath.delete, tag) ||
-            hasSelectedTag(path, OpenApiPath.patch, tag);
+                    hasSelectedTag(path, OpenApiPath.get, tag) ||
+                            hasSelectedTag(path, OpenApiPath.put, tag) ||
+                            hasSelectedTag(path, OpenApiPath.post, tag) ||
+                            hasSelectedTag(path, OpenApiPath.delete, tag) ||
+                            hasSelectedTag(path, OpenApiPath.patch, tag);
             if (isPathSelected) {
                 paths.add(path);
             }
         });
 
 
-       return openApiDoc.duplicate().set(OpenApiType.paths, paths.toArray(Glob[]::new));
+        return openApiDoc.duplicate().set(OpenApiType.paths, paths.toArray(Glob[]::new));
     }
 
     private boolean hasSelectedTag(Glob path, GlobField field, String targetScope) {
@@ -523,7 +522,7 @@ public class HttpServerRegister {
     public interface InterceptBuilder {
         InterceptBuilder NULL = httpTreatment -> httpTreatment;
 
-        default HttpTreatmentWithHeader create(HttpTreatment httpTreatment){
+        default HttpTreatmentWithHeader create(HttpTreatment httpTreatment) {
             return (body, url, queryParameters, headerType) -> httpTreatment.consume(body, url, queryParameters);
         }
 
@@ -598,8 +597,7 @@ public class HttpServerRegister {
                         return;
                     }
                 }
-            }
-            else {
+            } else {
                 return;
             }
             HttpResponse response = httpExchange.getResponse();
@@ -867,7 +865,8 @@ public class HttpServerRegister {
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
-        public OperationInfo put(GlobType bodyParam, GlobType paramType,  GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
+
+        public OperationInfo put(GlobType bodyParam, GlobType paramType, GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
             DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.put, bodyParam, paramType, interceptBuilder.create(httpTreatment));
             operation.withHeader(headerType);
             operations.add(operation);
@@ -879,6 +878,7 @@ public class HttpServerRegister {
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
+
         public OperationInfo patch(GlobType bodyParam, GlobType paramType, GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
             DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.patch, bodyParam, paramType, interceptBuilder.create(httpTreatment));
             operation.withHeader(headerType);
@@ -891,6 +891,7 @@ public class HttpServerRegister {
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
+
         public OperationInfo delete(GlobType paramType, GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
             DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.delete, null, paramType, interceptBuilder.create(httpTreatment));
             operation.withHeader(headerType);

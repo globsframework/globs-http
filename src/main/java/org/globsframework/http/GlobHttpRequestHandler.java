@@ -221,17 +221,22 @@ public class GlobHttpRequestHandler {
 
             if (consumerResult != null) {
                 consumerResult.whenComplete((glob, throwable) -> {
-                    if (glob != null) {
-                        consumeGlob(request, response, glob, operation.hasSensitiveData());
-                    } else if (throwable != null) {
-                        consumeThrowable(request, response, throwable);
-                    } else { // null response glob & throwable
-                        response.setStatusCode(SC_NO_CONTENT);
-                        logResponseData(request, SC_NO_CONTENT, "[no content]");
+                    try {
+                        if (glob != null) {
+                            consumeGlob(request, response, glob, operation.hasSensitiveData());
+                        } else if (throwable != null) {
+                            consumeThrowable(request, response, throwable);
+                        } else { // null response glob & throwable
+                            response.setStatusCode(SC_NO_CONTENT);
+                            logResponseData(request, SC_NO_CONTENT, "[no content]");
+                        }
+                        operation.headers(response::addHeader);
+                        httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
+                        postOp.run();
+                    } catch (Exception e) {
+                        response.setStatusCode(SC_INTERNAL_SERVER_ERROR);
+                        httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
                     }
-                    operation.headers(response::addHeader);
-                    httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
-                    postOp.run();
                 });
             } else {
                 response.setStatusCode(SC_NO_CONTENT);
@@ -273,7 +278,10 @@ public class GlobHttpRequestHandler {
     }
 
     private void consumeGlobHttpContent(HttpRequest request, HttpResponse response, Glob glob) {
-        response.setEntity(new ByteArrayEntity(glob.get(GlobHttpContent.content), createContentTypeFromGlobHttpContent(glob)));
+        final byte[] b = glob.get(GlobHttpContent.content);
+        if (b != null) {
+            response.setEntity(new ByteArrayEntity(b, createContentTypeFromGlobHttpContent(glob)));
+        }
 
         int statusCode = glob.get(GlobHttpContent.statusCode, SC_OK);
         response.setStatusCode(statusCode);

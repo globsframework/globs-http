@@ -1,6 +1,5 @@
 package org.globsframework.http;
 
-import org.apache.commons.fileupload.MultipartStream;
 import org.apache.http.HttpException;
 import org.apache.http.*;
 import org.apache.http.client.HttpClient;
@@ -8,6 +7,7 @@ import org.apache.http.client.entity.DecompressingEntity;
 import org.apache.http.client.methods.*;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.nio.bootstrap.HttpServer;
@@ -43,6 +43,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -227,6 +228,12 @@ public class GlobHttpRequestHandlerTest {
         }
 
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+            HttpPost httpRequest = new HttpPost("/post");
+            HttpResponse httpResponse = httpclient.execute(target, httpRequest);
+            Assert.assertEquals(204, httpResponse.getStatusLine().getStatusCode());
+        }
+
+        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             HttpPost httpRequest = new HttpPost("/binaryCall");
             httpRequest.setEntity(new StringEntity("Some data send"));
             HttpResponse httpResponse = httpclient.execute(target, httpRequest);
@@ -291,6 +298,16 @@ public class GlobHttpRequestHandlerTest {
             HttpResponse httpResponse = httpclient.execute(target, httpRequest);
             Assert.assertEquals(200, httpResponse.getStatusLine().getStatusCode());
             Assert.assertEquals("{\"DATA\":\"Get with with\"}", Files.loadStreamToString(httpResponse.getEntity().getContent(), "UTF-8"));
+        }
+        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+            MultipartEntityBuilder multipartEntityBuilder = MultipartEntityBuilder.create();
+            multipartEntityBuilder.addBinaryBody("First", "some Data".getBytes(StandardCharsets.UTF_8));
+            HttpPost httpRequest = new HttpPost("/binaryCall");
+            httpRequest.setEntity(multipartEntityBuilder.build());
+            HttpResponse httpResponse = httpclient.execute(target, httpRequest);
+            Assert.assertEquals(200, httpResponse.getStatusLine().getStatusCode());
+            String str = new String(httpResponse.getEntity().getContent().readAllBytes());
+            Assert.assertEquals("some Data", str);
         }
 
     }

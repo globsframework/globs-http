@@ -33,7 +33,7 @@ public class DefaultHttpOperation implements MutableHttpDataOperation {
         this.queryType = queryType;
         this.httpTreatment = httpTreatment;
         emptyBody = bodyType != null ? bodyType.instantiate() : null;
-        emptyQuery = queryType != null ? queryType.instantiate(): null;
+        emptyQuery = queryType != null ? queryType.instantiate() : null;
         emptyHeader = headerType != null ? headerType.instantiate() : null;
     }
 
@@ -52,11 +52,11 @@ public class DefaultHttpOperation implements MutableHttpDataOperation {
         return this;
     }
 
-    public void withReturnType(GlobType type){
+    public void withReturnType(GlobType type) {
         this.returnType = type;
     }
 
-    public void withTags(String[] tags){
+    public void withTags(String[] tags) {
         this.tags = tags;
     }
 
@@ -92,7 +92,7 @@ public class DefaultHttpOperation implements MutableHttpDataOperation {
         this.headers.put(name, value);
     }
 
-    public String getComment(){
+    public String getComment() {
         return comment;
     }
 
@@ -105,8 +105,7 @@ public class DefaultHttpOperation implements MutableHttpDataOperation {
             final CompletableFuture<Glob> consume = httpTreatment.consume(emptyBody, url, queryParameters == null ? emptyQuery : queryParameters,
                     header == null ? emptyHeader : header);
             return consume == null ? CompletableFuture.completedFuture(null) : consume.thenApply(HttpOutputData::asGlob);
-        }
-        else {
+        } else {
             final CompletableFuture<Glob> consume = httpTreatment.consume(data.asGlob(), url, queryParameters == null ? emptyQuery : queryParameters,
                     header == null ? emptyHeader : header);
             return consume == null ? CompletableFuture.completedFuture(null) : consume.thenApply(HttpOutputData::asGlob);

@@ -170,6 +170,7 @@ public class GlobHttpRequestHandler {
             LOGGER.debug("Multipart request");
             MultipartStream multipartStream = new MultipartStream(entity.getContent(), boundary, 1024, null);
             if (multipartStream.skipPreamble()) {
+                multipartStream.readHeaders();
                 final ByteArrayOutputStream output = new ByteArrayOutputStream();
                 multipartStream.readBodyData(output);
                 content = new ByteArrayInputStream(output.toByteArray());

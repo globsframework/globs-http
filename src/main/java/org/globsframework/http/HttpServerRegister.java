@@ -847,6 +847,13 @@ public class HttpServerRegister {
             return new DefaultOperationInfo(operation);
         }
 
+        public OperationInfo getBin(GlobType paramType, GlobType headerType, HttpDataTreatmentWithHeader httpTreatment) {
+            DefaultHttpDataOperation operation = new DefaultHttpDataOperation(HttpOp.get, null, paramType, httpTreatment);
+            operation.withHeader(headerType);
+            operations.add(operation);
+            return new DefaultOperationInfo(operation);
+        }
+
         public OperationInfo post(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
             DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.post, bodyParam, paramType, interceptBuilder.create(httpTreatment));
             operations.add(operation);

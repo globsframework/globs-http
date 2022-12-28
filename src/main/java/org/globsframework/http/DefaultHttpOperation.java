@@ -100,17 +100,16 @@ public class DefaultHttpOperation implements MutableHttpDataOperation {
         return verb;
     }
 
-
     public CompletableFuture<HttpOutputData> consume(HttpInputData data, Glob url, Glob queryParameters, Glob header) throws Exception {
-        if (data == null || data.isGlob()) {
-            final CompletableFuture<Glob> consume = httpTreatment.consume(data == null ? emptyBody : data.asGlob(), url, queryParameters == null ? emptyQuery : queryParameters,
+        if (data == null || !data.isGlob() || data.asGlob() == null) {
+            final CompletableFuture<Glob> consume = httpTreatment.consume(emptyBody, url, queryParameters == null ? emptyQuery : queryParameters,
                     header == null ? emptyHeader : header);
             return consume == null ? CompletableFuture.completedFuture(null) : consume.thenApply(HttpOutputData::asGlob);
         }
         else {
-            final String s = "BUG : call should be a DataOperation";
-            LOGGER.error(s);
-            return CompletableFuture.failedFuture(new RuntimeException(s));
+            final CompletableFuture<Glob> consume = httpTreatment.consume(data.asGlob(), url, queryParameters == null ? emptyQuery : queryParameters,
+                    header == null ? emptyHeader : header);
+            return consume == null ? CompletableFuture.completedFuture(null) : consume.thenApply(HttpOutputData::asGlob);
         }
     }
 

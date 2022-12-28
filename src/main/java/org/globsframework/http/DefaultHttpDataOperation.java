@@ -3,15 +3,12 @@ package org.globsframework.http;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.impl.DefaultGlobTypeBuilder;
 import org.globsframework.model.Glob;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-public class DefaultHttpOperation implements MutableHttpDataOperation {
-    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultHttpOperation.class);
+public class DefaultHttpDataOperation implements MutableHttpDataOperation {
     public static final GlobType EMPTY = DefaultGlobTypeBuilder.init("Empty").get();
     private final HttpOp verb;
     private GlobType bodyType;
@@ -20,14 +17,14 @@ public class DefaultHttpOperation implements MutableHttpDataOperation {
     private Glob emptyQuery;
     private GlobType returnType;
     private String[] tags;
-    private final HttpTreatmentWithHeader httpTreatment;
+    private final HttpDataTreatmentWithHeader httpTreatment;
     private String comment;
     private final Map<String, String> headers = new HashMap<>();
     private boolean hasSensitiveData = false;
     private GlobType headerType;
     private Glob emptyHeader;
 
-    public DefaultHttpOperation(HttpOp verb, GlobType bodyType, GlobType queryType, HttpTreatmentWithHeader httpTreatment) {
+    public DefaultHttpDataOperation(HttpOp verb, GlobType bodyType, GlobType queryType, HttpDataTreatmentWithHeader httpTreatment) {
         this.verb = verb;
         this.bodyType = bodyType;
         this.queryType = queryType;
@@ -37,25 +34,30 @@ public class DefaultHttpOperation implements MutableHttpDataOperation {
         emptyHeader = headerType != null ? headerType.instantiate() : null;
     }
 
-    public DefaultHttpOperation withBody(GlobType globType) {
+    @Override
+    public MutableHttpDataOperation withBody(GlobType globType) {
         bodyType = globType;
         return this;
     }
 
-    public DefaultHttpOperation withHeader(GlobType globType) {
+    @Override
+    public MutableHttpDataOperation withHeader(GlobType globType) {
         headerType = globType;
         return this;
     }
 
-    public DefaultHttpOperation withQueryType(GlobType globType) {
+    @Override
+    public MutableHttpDataOperation withQueryType(GlobType globType) {
         queryType = globType;
         return this;
     }
 
+    @Override
     public void withReturnType(GlobType type){
         this.returnType = type;
     }
 
+    @Override
     public void withTags(String[] tags){
         this.tags = tags;
     }
@@ -100,24 +102,17 @@ public class DefaultHttpOperation implements MutableHttpDataOperation {
         return verb;
     }
 
-
     public CompletableFuture<HttpOutputData> consume(HttpInputData data, Glob url, Glob queryParameters, Glob header) throws Exception {
-        if (data == null || data.isGlob()) {
-            final CompletableFuture<Glob> consume = httpTreatment.consume(data == null ? emptyBody : data.asGlob(), url, queryParameters == null ? emptyQuery : queryParameters,
-                    header == null ? emptyHeader : header);
-            return consume == null ? CompletableFuture.completedFuture(null) : consume.thenApply(HttpOutputData::asGlob);
-        }
-        else {
-            final String s = "BUG : call should be a DataOperation";
-            LOGGER.error(s);
-            return CompletableFuture.failedFuture(new RuntimeException(s));
-        }
+        return httpTreatment.consume(bodyType != null && data.isGlob() && data.asGlob() == null ? HttpInputData.fromGlob(emptyBody) : data, url, queryParameters == null ? emptyQuery : queryParameters,
+                header == null ? emptyHeader : header);
     }
 
+    @Override
     public void withComment(String comment) {
         this.comment = comment;
     }
 
+    @Override
     public void withSensitiveData(boolean hasSensitiveData) {
         this.hasSensitiveData = hasSensitiveData;
     }

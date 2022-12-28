@@ -860,6 +860,13 @@ public class HttpServerRegister {
             return new DefaultOperationInfo(operation);
         }
 
+        public OperationInfo postBin(GlobType paramType, GlobType headerType, HttpDataTreatmentWithHeader httpTreatment) {
+            MutableHttpDataOperation operation = new DefaultHttpDataOperation(HttpOp.post, null, paramType, httpTreatment);
+            operation.withHeader(headerType);
+            operations.add(operation);
+            return new DefaultOperationInfo(operation);
+        }
+
         public OperationInfo put(GlobType bodyParam, GlobType paramType, HttpTreatment httpTreatment) {
             DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.put, bodyParam, paramType, interceptBuilder.create(httpTreatment));
             operations.add(operation);
@@ -910,9 +917,9 @@ public class HttpServerRegister {
         }
 
         private class DefaultOperationInfo implements OperationInfo {
-            private final DefaultHttpOperation operation;
+            private final MutableHttpDataOperation operation;
 
-            public DefaultOperationInfo(DefaultHttpOperation operation) {
+            public DefaultOperationInfo(MutableHttpDataOperation operation) {
                 this.operation = operation;
             }
 

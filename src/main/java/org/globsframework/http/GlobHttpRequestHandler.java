@@ -1,10 +1,12 @@
 package org.globsframework.http;
 
+import org.apache.commons.fileupload.MultipartStream;
 import org.apache.http.*;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentType;
+import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.message.BasicHttpRequest;
 import org.apache.http.nio.entity.NFileEntity;
@@ -110,10 +112,12 @@ public class GlobHttpRequestHandler {
 
         try {
             switch (Objects.requireNonNull(requestMethod)) {
-                case HttpDelete.METHOD_NAME -> treatOp(path, paramStr, httpAsyncExchange, httpRequest, response, onDelete);
+                case HttpDelete.METHOD_NAME ->
+                        treatOp(path, paramStr, httpAsyncExchange, httpRequest, response, onDelete);
                 case HttpPost.METHOD_NAME -> treatOp(path, paramStr, httpAsyncExchange, httpRequest, response, onPost);
                 case HttpPut.METHOD_NAME -> treatOp(path, paramStr, httpAsyncExchange, httpRequest, response, onPut);
-                case HttpPatch.METHOD_NAME -> treatOp(path, paramStr, httpAsyncExchange, httpRequest, response, onPatch);
+                case HttpPatch.METHOD_NAME ->
+                        treatOp(path, paramStr, httpAsyncExchange, httpRequest, response, onPatch);
                 case HttpGet.METHOD_NAME -> treatOp(path, paramStr, httpAsyncExchange, httpRequest, response, onGet);
                 case HttpOptions.METHOD_NAME -> {
                     response.setStatusCode(SC_OK);
@@ -160,23 +164,44 @@ public class GlobHttpRequestHandler {
         HttpOperation operation = httpHandler.operation;
         GlobType bodyGlobType = operation.getBodyType();
         HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
-        Glob data;
-        Runnable postOp = () -> {};
+        byte[] boundary = getBoundaryIfMultipart(entity);
+        InputStream content = null;
+        if (boundary != null) {
+            LOGGER.debug("Multipart request");
+            MultipartStream multipartStream = new MultipartStream(entity.getContent(), boundary, 1024, null);
+            if (multipartStream.skipPreamble()) {
+                final ByteArrayOutputStream output = new ByteArrayOutputStream();
+                multipartStream.readBodyData(output);
+                content = new ByteArrayInputStream(output.toByteArray());
+            } else {
+                final String message = "Fail to read content in multipart for " + Strings.joinWithSeparator("/", List.of(path));
+                LOGGER.error(message);
+                throw new RuntimeException(message);
+            }
+            if (multipartStream.skipPreamble()) {
+                LOGGER.error("Second part of multipart ignored " + Strings.joinWithSeparator("/", List.of(path)));
+            }
+        } else {
+            content = entity.getContent();
+        }
+        HttpInputData data = null;
+        Runnable postOp = () -> {
+        };
 
         if (bodyGlobType == GlobHttpContent.TYPE) {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            Files.copyStream(entity.getContent(), outputStream);
-            data = GlobHttpContent.TYPE.instantiate()
-                    .set(GlobHttpContent.content, outputStream.toByteArray());
+            Files.copyStream(content, outputStream);
+            data = HttpInputData.fromGlob(GlobHttpContent.TYPE.instantiate()
+                    .set(GlobHttpContent.content, outputStream.toByteArray()));
             logRequestData(request, "[byte array]");
         } else if (bodyGlobType == GlobFile.TYPE) {
             File tempFile = File.createTempFile("http", ".data");
             try (FileOutputStream outputStream = new FileOutputStream(tempFile)) {
-                Files.copyStream(entity.getContent(), outputStream);
+                Files.copyStream(content, outputStream);
             }
 
-            data = GlobFile.TYPE.instantiate()
-                    .set(GlobFile.file, tempFile.getAbsolutePath());
+            data = HttpInputData.fromGlob(GlobFile.TYPE.instantiate()
+                    .set(GlobFile.file, tempFile.getAbsolutePath()));
             postOp = () -> {
                 if (tempFile.exists() && !tempFile.delete()) {
                     RequestLine requestLine = request.getRequestLine();
@@ -192,22 +217,43 @@ public class GlobHttpRequestHandler {
             //find mimetype (if xml => produce xml)
 //                    Arrays.stream(entity.getContentType().getElements())
 //                            .filter(headerElement -> headerElement.getName().equals())
-            String str = Files.read(entity.getContent(), StandardCharsets.UTF_8);
-            data = (Strings.isNullOrEmpty(str) || bodyGlobType == null) ? null : GSonUtils.decode(str, bodyGlobType);
-            String strToLog = operation.hasSensitiveData() && data != null ? GSonUtils.encodeHidSensitiveData(data) : str;
+            String str = bodyGlobType == null ? null : Files.read(content, StandardCharsets.UTF_8);
+            data = Strings.isNullOrEmpty(str) ?
+                    ((bodyGlobType != null) ? HttpInputData.fromGlob(null) : HttpInputData.fromStream(content)) : HttpInputData.fromGlob(GSonUtils.decode(str, bodyGlobType));
+            String strToLog = operation.hasSensitiveData() && data.isGlob() ? GSonUtils.encodeHidSensitiveData(data.asGlob()) : str;
 
-            logRequestData(request, strToLog);
+            logRequestData(request, strToLog == null ? "" : strToLog);
         }
         consumeOp(path, paramStr, httpAsyncExchange, request, response, httpHandler, data, postOp);
     }
 
+    private static byte[] getBoundaryIfMultipart(HttpEntity entity) {
+        byte[] boundary = null;
+        final Header contentType = entity.getContentType();
+        if (contentType == null) {
+            return null;
+        }
+        final HeaderElement[] elements = contentType.getElements();
+        for (HeaderElement element : elements) {
+            if (element.getName().equals(ContentType.MULTIPART_FORM_DATA.getMimeType())) {
+                for (NameValuePair parameter : element.getParameters()) {
+                    if (parameter.getName().equals("boundary")) {
+                        boundary = parameter.getValue().getBytes(Consts.ISO_8859_1);
+                    }
+                }
+            }
+        }
+        return boundary;
+    }
+
     private void treatOpWithoutRequestBody(String[] path, String paramStr, HttpAsyncExchange httpAsyncExchange,
                                            HttpRequest request, HttpResponse response, HttpHandler httpHandler) throws Exception {
-        consumeOp(path, paramStr, httpAsyncExchange, request, response, httpHandler, null, () -> {});
+        consumeOp(path, paramStr, httpAsyncExchange, request, response, httpHandler, null, () -> {
+        });
     }
 
     private void consumeOp(String[] path, String paramStr, HttpAsyncExchange httpAsyncExchange,
-                           HttpRequest request, HttpResponse response, HttpHandler httpHandler, Glob data, Runnable postOp) throws Exception {
+                           HttpRequest request, HttpResponse response, HttpHandler httpHandler, HttpInputData data, Runnable postOp) throws Exception {
         HttpOperation operation = httpHandler.operation;
         Glob url = urlMatcher.parse(path);
         Glob queryParam = httpHandler.teatParam(paramStr);
@@ -217,13 +263,30 @@ public class GlobHttpRequestHandler {
             header = parseHeader(headerType, httpAsyncExchange.getRequest().getAllHeaders());
         }
         try {
-            CompletableFuture<Glob> consumerResult = operation.consume(data, url, queryParam, header);
+            CompletableFuture<HttpOutputData> consumerResult = operation.consume(data, url, queryParam, header);
 
             if (consumerResult != null) {
-                consumerResult.whenComplete((glob, throwable) -> {
+                consumerResult.whenComplete((outputData, throwable) -> {
                     try {
-                        if (glob != null) {
-                            consumeGlob(request, response, glob, operation.hasSensitiveData());
+                        if (outputData != null) {
+                            if (outputData.isGlob()) {
+                                if (outputData.getGlob() != null) {
+                                    consumeGlob(request, response, outputData.getGlob(), operation.hasSensitiveData());
+                                } else {
+                                    response.setStatusCode(SC_NO_CONTENT);
+                                    logResponseData(request, SC_NO_CONTENT, "[no content]");
+                                }
+                            } else {
+                                if (outputData.getStream() != null) {
+                                    response.setEntity(new InputStreamEntity(outputData.getStream()));
+                                    response.setStatusCode(SC_OK);
+                                    logResponseData(request, SC_OK, "[byte array]");
+
+                                } else {
+                                    response.setStatusCode(SC_NO_CONTENT);
+                                    logResponseData(request, SC_NO_CONTENT, "[no content]");
+                                }
+                            }
                         } else if (throwable != null) {
                             consumeThrowable(request, response, throwable);
                         } else { // null response glob & throwable
@@ -356,7 +419,7 @@ public class GlobHttpRequestHandler {
                 RequestLine requestLine = request.getRequestLine();
                 String requestMethod = getRequestMethod(requestLine);
                 String requestUri = requestLine.getUri();
-                
+
                 LOGGER.error(serverInfo + " : io error bug on GZIP for " + requestMethod + " " + requestUri, e);
                 response.setStatusCode(SC_METHOD_FAILURE);
             }

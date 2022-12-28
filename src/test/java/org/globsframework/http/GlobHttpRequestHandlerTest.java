@@ -1,5 +1,6 @@
 package org.globsframework.http;
 
+import org.apache.commons.fileupload.MultipartStream;
 import org.apache.http.HttpException;
 import org.apache.http.*;
 import org.apache.http.client.HttpClient;
@@ -40,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -157,6 +159,12 @@ public class GlobHttpRequestHandlerTest {
                 )
                 .declareReturnType(BodyContent.TYPE);
 
+        httpServerRegister.register("/binaryCall", null)
+                .postBin(null, null, (body, url, queryParameters, headerType) -> {
+                    final InputStream inputStream = body.asStream();
+                    return CompletableFuture.completedFuture(HttpOutputData.asStream(inputStream));
+                });
+
         startServer();
 
         Glob openApiDoc = httpServerRegister.createOpenApiDoc(port);
@@ -219,6 +227,15 @@ public class GlobHttpRequestHandlerTest {
         }
 
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+            HttpPost httpRequest = new HttpPost("/binaryCall");
+            httpRequest.setEntity(new StringEntity("Some data send"));
+            HttpResponse httpResponse = httpclient.execute(target, httpRequest);
+            Assert.assertEquals(200, httpResponse.getStatusLine().getStatusCode());
+            String str = new String(httpResponse.getEntity().getContent().readAllBytes());
+            Assert.assertEquals("Some data send", str);
+        }
+
+        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             HttpPut httpRequest = new HttpPut("/put/123");
             httpRequest.setEntity(new StringEntity(GSonUtils.encode(BodyContent.TYPE.instantiate()
                     .set(BodyContent.DATA, ""), false
@@ -275,6 +292,7 @@ public class GlobHttpRequestHandlerTest {
             Assert.assertEquals(200, httpResponse.getStatusLine().getStatusCode());
             Assert.assertEquals("{\"DATA\":\"Get with with\"}", Files.loadStreamToString(httpResponse.getEntity().getContent(), "UTF-8"));
         }
+
     }
 
     @Test

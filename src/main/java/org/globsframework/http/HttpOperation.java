@@ -11,7 +11,7 @@ public interface HttpOperation {
 
     HttpOp verb();
 
-    CompletableFuture<Glob> consume(Glob data, Glob url, Glob queryParameters, Glob header) throws Exception;
+    CompletableFuture<HttpOutputData> consume(HttpInputData data, Glob url, Glob queryParameters, Glob header) throws Exception;
 
     GlobType getBodyType();
 

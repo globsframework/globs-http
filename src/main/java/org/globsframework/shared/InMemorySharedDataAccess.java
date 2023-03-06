@@ -129,15 +129,15 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
         return CompletableFuture.completedFuture(globs);
     }
 
-    public CompletableFuture<ListenerCtrl> getAndListenUnder(GlobType type, FieldValues path, Consumer<List<Glob>> pastData, Listener newData) {
+    public CompletableFuture<ListenerCtrl> getAndListenUnder(GlobType type, FieldValues path, InitialLoad pastData, Listener newData) {
         CompletableFuture<List<Glob>> under = getUnder(type, path);
         CompletableFuture<ListenerCtrl> listenerCtrlCompletableFuture = CompletableFuture.completedFuture(listenUnder(type, newData));
-        under.thenAccept(pastData);
-        listenerCtrlCompletableFuture.exceptionally(throwable -> {
-            LOGGER.error("unexpected exception", throwable);
-            return null;
-        });
-        return listenerCtrlCompletableFuture;
+        return under.thenCompose(pastData::accept)
+                .exceptionally(throwable -> {
+                    LOGGER.error("unexpected exception", throwable);
+                    return null;
+                })
+                .thenCompose(unused -> listenerCtrlCompletableFuture);
     }
 
     public ListenerCtrl listen(GlobType type, Listener listener, FieldValues orderedPath) {

@@ -33,7 +33,14 @@ public interface SharedDataAccess {
 
     CompletableFuture<List<Glob>> getUnder(GlobType type, FieldValues path);
 
-    CompletableFuture<ListenerCtrl> getAndListenUnder(GlobType type, FieldValues path, Consumer<List<Glob>> pastData, Listener newData);
+    default CompletableFuture<ListenerCtrl> getAndListenUnder(GlobType type, FieldValues path, Consumer<List<Glob>> pastData, Listener newData) {
+        return getAndListenUnder(type, path, globs -> {
+            pastData.accept(globs);
+            return CompletableFuture.completedFuture(null);
+        }, newData);
+    }
+
+    CompletableFuture<ListenerCtrl> getAndListenUnder(GlobType type, FieldValues path, InitialLoad pastData, Listener newData);
 
     default ListenerCtrl listen(GlobType type, Listener listener) {
         return listen(type, listener, FieldValues.EMPTY);
@@ -63,6 +70,9 @@ public interface SharedDataAccess {
         void youAreNotTheLeaderAnyMore();
     }
 
+    interface InitialLoad{
+        CompletableFuture<Void> accept(List<Glob> globs);
+    }
 
     interface ListenerCtrl {
         void close();

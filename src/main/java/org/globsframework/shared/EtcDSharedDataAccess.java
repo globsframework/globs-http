@@ -264,16 +264,18 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         return completableFuture;
     }
 
-    public CompletableFuture<ListenerCtrl> getAndListenUnder(GlobType type, FieldValues path, Consumer<List<Glob>> pastData, Listener newData) {
+    public CompletableFuture<ListenerCtrl> getAndListenUnder(GlobType type, FieldValues path, InitialLoad pastData, Listener newData) {
         return getUnderWithRevision(type, path)
-                .thenApplyAsync(resultAndRevision -> {
+                .thenComposeAsync(resultAndRevision -> {
                     try {
-                        pastData.accept(resultAndRevision.data);
+                        return pastData.accept(resultAndRevision.data)
+                                .thenApply(unused -> resultAndRevision);
                     } catch (Exception e) {
-                        LOGGER.error("Exception : ", e);
+                        LOGGER.error("Ignored exception : ", e);
+                        return CompletableFuture.completedFuture(resultAndRevision);
                     }
-                    return resultAndRevision.revision + 1;
                 }, executorService)
+                .thenApply(resultAndRevision -> resultAndRevision.revision + 1)
                 .thenApply(revision -> listenUnder(type, newData, path, revision));
     }
 

@@ -255,8 +255,9 @@ public class GlobHttpUtils {
 
         public void convert(MutableGlob glob, String str) {
             if (str != null) {
-                if (str.contains("T")) {
-                    if (str.contains("+") || str.contains("-")) {
+                final int indexOfT = str.indexOf("T");
+                if (indexOfT != -1) {
+                    if (str.contains("+") || str.lastIndexOf("-") > indexOfT) {
                         glob.set(dateTimeField, ZonedDateTime.parse(str));
                     }
                     else {

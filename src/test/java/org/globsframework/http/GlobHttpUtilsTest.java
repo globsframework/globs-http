@@ -85,6 +85,7 @@ public class GlobHttpUtilsTest {
     @Test
     public void testTime() {
         GlobHttpUtils.FromStringConverter converter = GlobHttpUtils.createConverter(TEST.datetime, ",");
+        converter.convert(TEST.TYPE.instantiate(), "2021-09-01T14:55:43-02:00");
         converter.convert(TEST.TYPE.instantiate(), "2021-09-01T14:55:43+02:00");
         converter.convert(TEST.TYPE.instantiate(), "2021-09-01T14:55:43");
         converter.convert(TEST.TYPE.instantiate(), "2021-09-01");

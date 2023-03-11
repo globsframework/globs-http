@@ -256,7 +256,7 @@ public class GlobHttpUtils {
         public void convert(MutableGlob glob, String str) {
             if (str != null) {
                 if (str.contains("T")) {
-                    if (str.contains("+")) {
+                    if (str.contains("+") || str.contains("-")) {
                         glob.set(dateTimeField, ZonedDateTime.parse(str));
                     }
                     else {

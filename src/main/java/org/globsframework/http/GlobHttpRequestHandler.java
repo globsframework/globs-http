@@ -555,7 +555,7 @@ public class GlobHttpRequestHandler {
 
         public Glob treat(String queryParams) {
             if (Strings.isNotEmpty(queryParams)) {
-                MutableGlob instantiate = paramType.instantiate();
+                MutableGlob instantiate = paramType.instantiateWithDefaults();
                 List<NameValuePair> parse = URLEncodedUtils.parse(queryParams, StandardCharsets.UTF_8);
                 for (NameValuePair nameValuePair : parse) {
                     GlobHttpUtils.FromStringConverter fromStringConverter = converterMap.get(nameValuePair.getName());

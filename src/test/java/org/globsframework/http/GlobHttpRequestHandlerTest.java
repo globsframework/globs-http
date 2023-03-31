@@ -190,6 +190,7 @@ public class GlobHttpRequestHandlerTest {
             Assert.assertEquals("/test/{id}/TOTO/{subId}", activeId[0]);
         }
 
+        pairs.clear();
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             HttpGet httpRequest = GlobHttpUtils.createGet("/test/123/TOTO", QueryParameter.TYPE.instantiate()
                     .set(QueryParameter.NAME, "ZERZE").set(QueryParameter.INFO, new String[]{"A", "B", "C", "D"})
@@ -199,6 +200,20 @@ public class GlobHttpRequestHandlerTest {
             Assert.assertEquals("/test/{id}/TOTO", activeId[0]);
         }
 
+        pairs.clear();
+        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+            HttpGet httpRequest = new HttpGet("/test/123/TOTO?name=-10%25%20sur%20les%20articles%20de%20la%20saison%20hiver%202022");
+//                    GlobHttpUtils.createGet("/test/123/TOTO", QueryParameter.TYPE.instantiate()
+//                    .set(QueryParameter.NAME, "-10%%20sur%20les%20articles%20de%20la%20saison%20hiver%202022"));
+            HttpResponse httpResponse = httpclient.execute(target, httpRequest);
+            Assert.assertEquals(204, httpResponse.getStatusLine().getStatusCode());
+            Assert.assertEquals("/test/{id}/TOTO", activeId[0]);
+            Pair<Glob, Glob> poll = pairs.poll(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(poll);
+            Assert.assertEquals("-10% sur les articles de la saison hiver 2022", poll.getSecond().get(QueryParameter.NAME));
+        }
+
+        pairs.clear();
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             HttpGet httpRequest = GlobHttpUtils.createGet("/test/123", QueryParameter.TYPE.instantiate()
                     .set(QueryParameter.NAME, "ZERZE").set(QueryParameter.INFO, new String[]{"A", "B", "C", "D"})
@@ -211,6 +226,7 @@ public class GlobHttpRequestHandlerTest {
             Assert.assertEquals("my header", headers.get().get(HeaderType.name));
         }
 
+        pairs.clear();
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             HttpGet httpRequest = new HttpGet("/query/123");
             HttpResponse httpResponse = httpclient.execute(target, httpRequest);
@@ -218,6 +234,7 @@ public class GlobHttpRequestHandlerTest {
             Assert.assertEquals("{\"value\":\"some important information.\"}", EntityUtils.toString(httpResponse.getEntity()));
         }
 
+        pairs.clear();
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             HttpPost httpRequest = new HttpPost("/post");
             httpRequest.setEntity(new StringEntity(GSonUtils.encode(BodyContent.TYPE.instantiate()

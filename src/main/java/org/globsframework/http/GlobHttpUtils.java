@@ -257,7 +257,7 @@ public class GlobHttpUtils {
             if (str != null) {
                 final int indexOfT = str.indexOf("T");
                 if (indexOfT != -1) {
-                    if (str.contains("+") || str.lastIndexOf("-") > indexOfT) {
+                    if (str.contains("+") || str.lastIndexOf("-") > indexOfT || str.endsWith("Z")) {
                         glob.set(dateTimeField, ZonedDateTime.parse(str));
                     }
                     else {

@@ -26,6 +26,7 @@ import org.globsframework.metamodel.fields.IntegerField;
 import org.globsframework.model.Glob;
 import org.globsframework.model.MutableGlob;
 import org.globsframework.utils.Files;
+import org.globsframework.utils.ReusableByteArrayOutputStream;
 import org.globsframework.utils.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -159,6 +160,65 @@ public class GlobHttpRequestHandler {
         }
     }
 
+    public static class MultipartInputStream extends InputStream {
+        private final MultipartStream multipartStream;
+        final ReusableByteArrayOutputStream output = new ReusableByteArrayOutputStream();
+        private byte[] content;
+        private boolean hasMore;
+        int currentPos;
+        private int size;
+
+        public MultipartInputStream(MultipartStream multipartStream) throws IOException {
+            this.multipartStream = multipartStream;
+            hasMore = multipartStream.skipPreamble();
+            if (hasMore) {
+                readNext();
+            }
+        }
+
+        public int read(byte[] b, int off, int len) throws IOException {
+            if (currentPos < size) {
+                int realLen = Math.min(size - currentPos, len);
+                System.arraycopy(content, currentPos, b, off, realLen);
+                currentPos += realLen;
+                return realLen;
+            }
+            else {
+                if (hasMore) {
+                    readNext();
+                    return read(b, off, len);
+                }
+                else {
+                    return -1;
+                }
+            }
+        }
+
+        public int read() throws IOException {
+            if (currentPos < size) {
+                return content[currentPos++] & 0xff;
+            }
+            if (hasMore) {
+                readNext();
+            }
+            else {
+                return -1;
+            }
+            return read();
+        }
+
+        private void readNext() throws IOException {
+            LOGGER.debug("Read next part");
+            multipartStream.readHeaders();
+            output.reset();
+            multipartStream.readBodyData(output);
+            content = output.getBuffer();
+            currentPos = 0;
+            size = output.size();
+            hasMore = multipartStream.readBoundary();
+        }
+    }
+
     private void treatOpWithRequestBody(String[] path, String paramStr, HttpAsyncExchange httpAsyncExchange,
                                         HttpRequest request, HttpResponse response, HttpHandler httpHandler) throws Exception {
         HttpOperation operation = httpHandler.operation;
@@ -169,19 +229,7 @@ public class GlobHttpRequestHandler {
         if (boundary != null) {
             LOGGER.debug("Multipart request");
             MultipartStream multipartStream = new MultipartStream(entity.getContent(), boundary, 1024, null);
-            if (multipartStream.skipPreamble()) {
-                multipartStream.readHeaders();
-                final ByteArrayOutputStream output = new ByteArrayOutputStream();
-                multipartStream.readBodyData(output);
-                content = new ByteArrayInputStream(output.toByteArray());
-            } else {
-                final String message = "Fail to read content in multipart for " + Strings.joinWithSeparator("/", List.of(path));
-                LOGGER.error(message);
-                throw new RuntimeException(message);
-            }
-            if (multipartStream.skipPreamble()) {
-                LOGGER.error("Second part of multipart ignored " + Strings.joinWithSeparator("/", List.of(path)));
-            }
+            content = new MultipartInputStream(multipartStream);
         } else {
             content = entity.getContent();
         }

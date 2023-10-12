@@ -518,12 +518,30 @@ public class GlobHttpRequestHandler {
         String requestUri = requestLine.getUri();
 
         LOGGER.error(serverInfo + " : request failed for " + requestMethod + " " + requestUri
-                + " : " + statusCode + " : " + message, t);
+                     + " : " + statusCode + " : " + message, t);
+    }
+
+    private void logWarn(HttpRequest request, int statusCode, String message) {
+        RequestLine requestLine = request.getRequestLine();
+        String requestMethod = getRequestMethod(requestLine);
+        String requestUri = requestLine.getUri();
+
+        LOGGER.warn(serverInfo + " : request failed for " + requestMethod + " " + requestUri
+                     + " : " + statusCode + " : " + message);
     }
 
     private void consumeThrowable(HttpRequest request, HttpResponse response, Throwable throwable) {
         if (throwable instanceof HttpException e) {
-            consumeHttpException(request, response, e);
+            int statusCode = e.getCode();
+            String message = e.getOriginalMessage();
+            response.setStatusCode(statusCode);
+            if (throwable instanceof HttpExceptionWithContent) {
+                response.setEntity(new StringEntity(message, ContentType.APPLICATION_JSON));
+            }
+            else {
+                response.setReasonPhrase(message);
+            }
+            logWarn(request, statusCode, message);
         } else if (throwable instanceof CompletionException && throwable.getCause() instanceof HttpException e) {
             consumeHttpException(request, response, e);
         } else {
@@ -538,12 +556,7 @@ public class GlobHttpRequestHandler {
         String message = e.getOriginalMessage();
 
         response.setStatusCode(statusCode);
-        if (e instanceof HttpExceptionWithContent) {
-            response.setEntity(new StringEntity(message, ContentType.APPLICATION_JSON));
-        } else {
-            response.setReasonPhrase(message);
-        }
-
+        response.setReasonPhrase(message);
         logError(request, statusCode, message, e);
     }
 

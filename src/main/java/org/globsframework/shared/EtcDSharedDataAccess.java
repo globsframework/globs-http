@@ -107,7 +107,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     public static String extractPath(String prefix, FieldValues glob, GlobType type, String separator) {
         List<Field> orderedField = type.streamFields().filter(field -> field.hasAnnotation(PathIndex.KEY))
                 .sorted(Comparator.comparing(field1 -> field1.getAnnotation(PathIndex.KEY).get(PathIndex.index)))
-                .collect(Collectors.toList());
+                .toList();
         StringBuilder builder = new StringBuilder();
         if (prefix != null) {
             builder.append(separator).append(prefix);

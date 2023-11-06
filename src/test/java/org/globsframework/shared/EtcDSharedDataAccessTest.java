@@ -51,33 +51,38 @@ public class EtcDSharedDataAccessTest {
 
         SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createBin(client);
 
-        MutableGlob data = Data1.TYPE.instantiate()
-                .set(Data1.shop, "mg.the-oz.com")
-                .set(Data1.workerName, "w1")
-                .set(Data1.num, 1)
-                .set(Data1.someData, "blabla");
-
-
-        CompletableFuture<Boolean> done = new CompletableFuture<>();
-        etcDSharedDataAccess.listen(data.getType(), new SharedDataAccess.Listener() {
+        CompletableFuture<Glob> done = new CompletableFuture<>();
+        etcDSharedDataAccess.listen(Data1.TYPE, new SharedDataAccess.Listener() {
             public void put(Glob glob) {
                 try {
-                    etcDSharedDataAccess.get(data.getType(), data).join();
-                    done.complete(true);
+                    etcDSharedDataAccess.get(glob.getType(), glob).join();
+                    done.complete(glob);
                 } catch (Exception e) {
-                    done.complete(false);
+                    done.complete(null);
                 }
             }
 
             public void delete(Glob glob) {
 
             }
-        }, data);
+        }, Data1.TYPE.instantiate()
+                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.workerName, "w1")
+                .set(Data1.num, 1));
 
+        MutableGlob data = Data1.TYPE.instantiate()
+                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.workerName, "w1")
+                .set(Data1.num, 1)
+                .set(Data1.someData, "blabla");
+
+        // publish data.
         etcDSharedDataAccess.register(data)
                 .get(1, TimeUnit.MINUTES);
 
-        Assert.assertTrue(done.join());
+        final Glob join = done.join();
+        Assert.assertNotNull(join);
+        Assert.assertEquals("blabla", join.get(Data1.someData));
         etcDSharedDataAccess.end();
     }
 

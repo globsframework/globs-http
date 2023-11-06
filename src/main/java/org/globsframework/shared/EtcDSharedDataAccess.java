@@ -12,7 +12,7 @@ import io.etcd.jetcd.options.PutOption;
 import io.etcd.jetcd.options.WatchOption;
 import io.etcd.jetcd.watch.WatchEvent;
 import org.globsframework.json.GSonUtils;
-import org.globsframework.metamodel.Field;
+import org.globsframework.metamodel.fields.Field;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.GlobTypeResolver;
 import org.globsframework.model.FieldValues;
@@ -32,7 +32,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class EtcDSharedDataAccess implements SharedDataAccess {

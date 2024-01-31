@@ -162,7 +162,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                     return kv.put(k, v, PutOption.newBuilder().withLeaseId(leaseId).build())
                             .thenApply(putResponse -> new UnLeaser() {
                                 public void touch() {
-                                    LOGGER.info("Touch call on " + leaseId);
+                                    LOGGER.debug("Touch call on " + leaseId);
                                     leaseClient.keepAliveOnce(leaseId);
                                 }
 
@@ -258,7 +258,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
             return new ResultAndRevision(data, revision);
         });
         completableFuture.exceptionally(throwable -> {
-            LOGGER.error("Exeption thrown", throwable);
+            LOGGER.error("Exception thrown", throwable);
             return null;
         });
         return completableFuture;
@@ -283,7 +283,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         Listener logListener = new LoggerListener(listener);
         GlobDeserializer.Deserializer globBinReader = deserializer.with(GlobTypeResolver.from(type));
         watchClient.watch(ByteSequence.from(extractPath(prefix, orderedPath, type, separator), StandardCharsets.UTF_8),
-                WatchOption.newBuilder()
+                WatchOption.builder()
                         .withPrevKV(true)
                         .build(),
                 watchResponse -> executorService.submit(() -> {
@@ -296,7 +296,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                                 globBinReader.read(event.getKeyValue().getValue().getBytes())
                                         .ifPresent(logListener::put);
                             } else {
-                                LOGGER.info("event not unrecognized");
+                                LOGGER.warn("event not unrecognized");
                             }
                         }
                     } catch (Exception e) {
@@ -305,6 +305,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                 }));
         return new ListenerCtrl() {
             public void close() {
+                LOGGER.info("Close call on " + orderedPath);
                 watchClient.close();
             }
         };
@@ -335,19 +336,16 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                                 globBinReader.read(event.getKeyValue().getValue().getBytes())
                                         .ifPresent(logListener::put);
                             } else {
-                                LOGGER.info("event not unrecognized");
+                                LOGGER.warn("event not unrecognized");
                             }
                         }
                     } catch (Exception e) {
                         LOGGER.error("Exception in watch callback", e);
                     }
                 }));
-        return new ListenerCtrl() {
-            @Override
-            public void close() {
-                LOGGER.info("Close call on " + orderedPath);
-                watch.close();
-            }
+        return () -> {
+            LOGGER.info("Close call on " + orderedPath);
+            watch.close();
         };
     }
 
@@ -408,7 +406,9 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         }
 
         public void put(Glob glob) {
-            LOGGER.info("Receive put " + GSonUtils.encode(glob, true));
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Receive put " + GSonUtils.encode(glob, true));
+            }
             try {
                 listener.put(glob);
             } catch (Exception e) {
@@ -417,7 +417,9 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         }
 
         public void delete(Glob glob) {
-            LOGGER.info("Receive delete " + GSonUtils.encode(glob, true));
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Receive delete " + GSonUtils.encode(glob, true));
+            }
             try {
                 listener.delete(glob);
             } catch (Exception e) {
@@ -471,18 +473,18 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         }
 
         public void onNext(LeaderResponse response) {
-            LOGGER.info("onNext call on " + electionName);
+            LOGGER.debug("onNext call on " + electionName);
             if (!response.getKv().getValue().equals(value)) {
                 LOGGER.info("Force release ");
                 releaseMyLeaderShip();
             }
             else {
-                LOGGER.info("Same leader.");
+                LOGGER.debug("Same leader.");
             }
         }
 
         synchronized public void onError(Throwable throwable) {
-            LOGGER.info("onError call on " + electionName);
+            LOGGER.error("onError call on " + electionName, throwable);
             releaseMyLeaderShip();
         }
 

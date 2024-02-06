@@ -178,6 +178,10 @@ public class GlobHttpUtils {
                 fromStringConverter1 = new ToDateTimeConverter(field1);
             }
 
+            public void visitDate(DateField field1) throws Exception {
+                fromStringConverter1 = new ToDateConverter(field1);
+            }
+
             public void visitBoolean(BooleanField field) throws Exception {
                 fromStringConverter1 = new ToBooleanConverter(field);
             }
@@ -267,6 +271,32 @@ public class GlobHttpUtils {
                 else {
                     LocalDate parse = LocalDate.parse(str);
                     glob.set(dateTimeField, ZonedDateTime.of(parse, LocalTime.MIDNIGHT, ZoneId.systemDefault()));
+                }
+            }
+        }
+    }
+
+    public static class ToDateConverter implements FromStringConverter {
+        private DateField dateField;
+
+        public ToDateConverter(DateField dateField) {
+            this.dateField = dateField;
+        }
+
+        public void convert(MutableGlob glob, String str) {
+            if (str != null) {
+                final int indexOfT = str.indexOf("T");
+                if (indexOfT != -1) {
+                    if (str.contains("+") || str.lastIndexOf("-") > indexOfT || str.endsWith("Z")) {
+                        glob.set(dateField, ZonedDateTime.parse(str).toLocalDate());
+                    }
+                    else {
+                        glob.set(dateField, LocalDateTime.parse(str).toLocalDate());
+                    }
+                }
+                else {
+                    LocalDate parse = LocalDate.parse(str);
+                    glob.set(dateField, parse);
                 }
             }
         }

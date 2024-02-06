@@ -76,6 +76,8 @@ public class GlobHttpUtilsTest {
 
         public static DateTimeField datetime;
 
+        public static DateField date;
+
         static {
             GlobTypeLoaderFactory.create(TEST.class).load();
         }
@@ -84,11 +86,20 @@ public class GlobHttpUtilsTest {
 
     @Test
     public void testTime() {
-        GlobHttpUtils.FromStringConverter converter = GlobHttpUtils.createConverter(TEST.datetime, ",");
-        converter.convert(TEST.TYPE.instantiate(), "2021-09-01T14:55:43-02:00");
-        converter.convert(TEST.TYPE.instantiate(), "2021-09-01T14:55:43+02:00");
-        converter.convert(TEST.TYPE.instantiate(), "2021-09-01T14:55:43");
-        converter.convert(TEST.TYPE.instantiate(), "2021-09-01");
+        {
+            GlobHttpUtils.FromStringConverter converter = GlobHttpUtils.createConverter(TEST.datetime, ",");
+            converter.convert(TEST.TYPE.instantiate(), "2021-09-01T14:55:43-02:00");
+            converter.convert(TEST.TYPE.instantiate(), "2021-09-01T14:55:43+02:00");
+            converter.convert(TEST.TYPE.instantiate(), "2021-09-01T14:55:43");
+            converter.convert(TEST.TYPE.instantiate(), "2021-09-01");
+        }
+        {
+            GlobHttpUtils.FromStringConverter converter = GlobHttpUtils.createConverter(TEST.date, ",");
+            converter.convert(TEST.TYPE.instantiate(), "2021-09-01T14:55:43-02:00");
+            converter.convert(TEST.TYPE.instantiate(), "2021-09-01T14:55:43+02:00");
+            converter.convert(TEST.TYPE.instantiate(), "2021-09-01T14:55:43");
+            converter.convert(TEST.TYPE.instantiate(), "2021-09-01");
+        }
     }
 
     @Test

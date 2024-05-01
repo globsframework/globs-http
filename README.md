@@ -29,7 +29,7 @@ httpServerRegister.startAndWaitForStartup(bootstrap);
 ### etcd
 
 The second part is about etcd (from google)
-It expose an interface to publish Glob and to register for changes on Glob using etcd.
+It expose an interface to publish Glob and to register for changes on Glob using etcd. It is usefull to propagate configuration or low change state to/from microservice. (I do not used it to cache data like with a Redis)
 
 It use the annotation PathIndex_ to create the key from the globs ().
 The first part of the key is the name of the GlobType.

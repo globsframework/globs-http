@@ -9,7 +9,7 @@ import org.apache.http.protocol.HttpContext;
 import org.globsframework.http.openapi.model.*;
 import org.globsframework.json.GSonUtils;
 import org.globsframework.json.annottations.IsJsonContentAnnotation;
-import org.globsframework.metamodel.Field;
+import org.globsframework.metamodel.fields.Field;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.GlobTypeBuilderFactory;
 import org.globsframework.metamodel.GlobTypeLoaderFactory;

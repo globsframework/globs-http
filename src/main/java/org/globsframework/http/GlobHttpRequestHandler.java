@@ -16,7 +16,7 @@ import org.apache.http.protocol.HttpContext;
 import org.globsframework.http.model.DataAnnotationType;
 import org.globsframework.http.model.StatusCodeAnnotationType;
 import org.globsframework.json.GSonUtils;
-import org.globsframework.metamodel.Field;
+import org.globsframework.metamodel.fields.Field;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.GlobTypeLoaderFactory;
 import org.globsframework.metamodel.annotations.FieldNameAnnotationType;

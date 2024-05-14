@@ -1,6 +1,6 @@
 package org.globsframework.http;
 
-import org.globsframework.metamodel.Field;
+import org.globsframework.metamodel.fields.Field;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.fields.StringArrayField;
 import org.globsframework.model.Glob;

@@ -12,7 +12,7 @@ import io.etcd.jetcd.options.PutOption;
 import io.etcd.jetcd.options.WatchOption;
 import io.etcd.jetcd.watch.WatchEvent;
 import org.globsframework.json.GSonUtils;
-import org.globsframework.metamodel.Field;
+import org.globsframework.metamodel.fields.Field;
 import org.globsframework.metamodel.GlobType;
 import org.globsframework.metamodel.GlobTypeResolver;
 import org.globsframework.model.FieldValues;
@@ -32,8 +32,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 public class EtcDSharedDataAccess implements SharedDataAccess {
     private final static Logger LOGGER = LoggerFactory.getLogger(EtcDSharedDataAccess.class);
@@ -145,7 +143,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         ByteSequence k = ByteSequence.from(path, StandardCharsets.UTF_8);
         ByteSequence v = ByteSequence.from(serializer.write(glob));
 
-        return kv.put(k, v, PutOption.newBuilder().withLeaseId(unLeaser.getLeaseId()).build()).thenApply(putResponse -> null);
+        return kv.put(k, v, PutOption.builder().withLeaseId(unLeaser.getLeaseId()).build()).thenApply(putResponse -> null);
     }
 
     public CompletableFuture<UnLeaser> registerWithLease(Glob glob, Duration duration) {
@@ -159,7 +157,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                 .thenApply(LeaseGrantResponse::getID)
                 .thenCompose(leaseId -> {
                     LOGGER.info("register " + path + " with lease id" + leaseId);
-                    return kv.put(k, v, PutOption.newBuilder().withLeaseId(leaseId).build())
+                    return kv.put(k, v, PutOption.builder().withLeaseId(leaseId).build())
                             .thenApply(putResponse -> new UnLeaser() {
                                 public void touch() {
                                     LOGGER.debug("Touch call on " + leaseId);
@@ -242,7 +240,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
 
     private CompletableFuture<ResultAndRevision> getUnderWithRevision(GlobType type, FieldValues path) {
         CompletableFuture<GetResponse> getResponseCompletableFuture =
-                kv.get(ByteSequence.from(extractPath(prefix, path, type, separator), StandardCharsets.UTF_8), GetOption.newBuilder().isPrefix(true).build());
+                kv.get(ByteSequence.from(extractPath(prefix, path, type, separator), StandardCharsets.UTF_8), GetOption.builder().isPrefix(true).build());
         CompletableFuture<ResultAndRevision> completableFuture = getResponseCompletableFuture.thenApply(getResponse -> {
             List<KeyValue> kvs = getResponse.getKvs();
             long revision = getResponse.getHeader().getRevision();
@@ -319,7 +317,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         LOGGER.info("listenUnder " + orderedPath);
         Listener logListener = new LoggerListener(listener);
         GlobDeserializer.Deserializer globBinReader = deserializer.with(GlobTypeResolver.from(type));
-        WatchOption.Builder option = WatchOption.newBuilder()
+        WatchOption.Builder option = WatchOption.builder()
                 .withPrevKV(true)
                 .isPrefix(true);
         if (startAtRevision != -1) {

@@ -200,7 +200,7 @@ public class HttpServerRegister {
         GlobType queryParamType = operation.getQueryParamType();
         if (queryParamType != null) {
             for (Field field : queryParamType.getFields()) {
-                OpenApiFieldVisitor openApiFieldVisitor = field.safeVisit(new OpenApiFieldVisitor(schemas));
+                OpenApiFieldVisitor openApiFieldVisitor = field.safeAccept(new OpenApiFieldVisitor(schemas));
                 parameters.add(OpenApiParameter.TYPE.instantiate()
                         .set(OpenApiParameter.in, "query")
                         .set(OpenApiParameter.name, field.getName())
@@ -215,7 +215,7 @@ public class HttpServerRegister {
         if (verb.queryUrl != null) {
             for (Field field : verb.queryUrl.getFields()) {
                 OpenApiFieldVisitor apiFieldVisitor = new OpenApiFieldVisitor(schemas);
-                OpenApiFieldVisitor openApiFieldVisitor = field.safeVisit(apiFieldVisitor);
+                OpenApiFieldVisitor openApiFieldVisitor = field.safeAccept(apiFieldVisitor);
                 parameters.add(OpenApiParameter.TYPE.instantiate()
                         .set(OpenApiParameter.in, "path")
                         .set(OpenApiParameter.name, field.getName())
@@ -265,7 +265,7 @@ public class HttpServerRegister {
 
     private Glob subType(Field field, Map<GlobType, Glob> schemas) {
         final Ref<Glob> p = new Ref<>();
-        field.safeVisit(new FieldVisitor.AbstractWithErrorVisitor() {
+        field.safeAccept(new FieldVisitor.AbstractWithErrorVisitor() {
 
             @Override
             public void visitDouble(DoubleField field) throws Exception {

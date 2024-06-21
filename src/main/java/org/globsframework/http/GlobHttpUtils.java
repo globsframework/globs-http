@@ -122,7 +122,7 @@ public class GlobHttpUtils {
                             out = Base64.getUrlEncoder().encodeToString(encode.getBytes(StandardCharsets.UTF_8));
                         }
                     };
-                    field.safeVisit(visitor, parameters.getValue(field));
+                    field.safeAccept(visitor, parameters.getValue(field));
                     nameValuePairList.add(new BasicNameValuePair(field.getName(), visitor.out));
                 }
                 else if (field.getDataType().isArray()) {
@@ -151,7 +151,7 @@ public class GlobHttpUtils {
     }
 
     public static FromStringConverter createConverter(Field field, String arraySeparator) {
-        return field.safeVisit(new FieldVisitor.AbstractWithErrorVisitor() {
+        return field.safeAccept(new FieldVisitor.AbstractWithErrorVisitor() {
             FromStringConverter fromStringConverter1;
 
             public void visitInteger(IntegerField field1) throws Exception {

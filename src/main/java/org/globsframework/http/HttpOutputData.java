@@ -15,17 +15,14 @@ public interface HttpOutputData {
 
     static HttpOutputData asGlob(Glob glob) {
         return new HttpOutputData() {
-            @Override
             public boolean isGlob() {
                 return true;
             }
 
-            @Override
             public Glob getGlob() {
                 return glob;
             }
 
-            @Override
             public InputStream getStream() {
                 return null;
             }
@@ -34,17 +31,14 @@ public interface HttpOutputData {
 
     static HttpOutputData asStream(InputStream data) {
         return new HttpOutputData() {
-            @Override
             public boolean isGlob() {
                 return false;
             }
 
-            @Override
             public Glob getGlob() {
                 return null;
             }
 
-            @Override
             public InputStream getStream() {
                 return data;
             }

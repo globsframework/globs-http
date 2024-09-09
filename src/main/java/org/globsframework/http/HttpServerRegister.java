@@ -54,13 +54,13 @@ public class HttpServerRegister {
         }
     }
 
-    public Verb register(String url, GlobType pathParameters) {
+    public Verb register(String url, GlobType queryUrl) {
         Verb current = verbMap.get(url);
         if (current == null) {
-            Verb verb = new Verb(url, pathParameters);
+            Verb verb = new Verb(url, queryUrl);
             verbMap.put(url, verb);
             return verb;
-        } else if (current.queryUrl != pathParameters) {
+        } else if (current.pathParameters != queryUrl) {
             throw new RuntimeException(serverInfo + ": Same query Type is expected for same url on different verb (" + url + ")");
         }
         return current;
@@ -70,14 +70,14 @@ public class HttpServerRegister {
 
         register("/api", null)
                 .get(GetOpenApiParamType.TYPE, new HttpTreatment() {
-                    public CompletableFuture<Glob> consume(Glob body, Glob url, Glob queryParameters) throws Exception {
+                    public CompletableFuture<Glob> consume(Glob body, Glob pathParameters, Glob queryParameters) throws Exception {
                         String scope = queryParameters == null ? "" : queryParameters.get(GetOpenApiParamType.scope);
                         if (Strings.isNullOrEmpty(scope)) {
                             return CompletableFuture.completedFuture(openApiDoc);
                         }
                         return CompletableFuture.completedFuture(createOpenApiDocByTags(scope));
                     }
-                }).declareReturnType(OpenApiType.TYPE);
+                }); //.declareReturnType(OpenApiType.TYPE);
     }
 
     public Glob createOpenApiDocByTags(String tag) {
@@ -143,7 +143,7 @@ public class HttpServerRegister {
     private void createOperationDoc(Map<GlobType, Glob> schemas, Verb verb, MutableGlob path, HttpOperation operation) {
         MutableGlob desc = OpenApiPathDsc.TYPE.instantiate();
         setOperationComment(operation, desc);
-        List<Glob> parameters = getOperationUrlParameters(schemas, verb);
+        List<Glob> parameters = getOperationPathParameters(schemas, verb);
         addOperationQueryParameters(schemas, operation, parameters);
         setOperationRequestBody(schemas, operation, desc);
         setOperationTags(operation, desc);
@@ -210,10 +210,10 @@ public class HttpServerRegister {
         }
     }
 
-    private List<Glob> getOperationUrlParameters(Map<GlobType, Glob> schemas, Verb verb) {
+    private List<Glob> getOperationPathParameters(Map<GlobType, Glob> schemas, Verb verb) {
         List<Glob> parameters = new ArrayList<>();
-        if (verb.queryUrl != null) {
-            for (Field field : verb.queryUrl.getFields()) {
+        if (verb.pathParameters != null) {
+            for (Field field : verb.pathParameters.getFields()) {
                 OpenApiFieldVisitor apiFieldVisitor = new OpenApiFieldVisitor(schemas);
                 OpenApiFieldVisitor openApiFieldVisitor = field.safeAccept(apiFieldVisitor);
                 parameters.add(OpenApiParameter.TYPE.instantiate()
@@ -823,39 +823,39 @@ public class HttpServerRegister {
 
     public class Verb {
         private final String url;
-        private final GlobType queryUrl;
+        private final GlobType pathParameters;
         private final Map<String, String> headers = new LinkedHashMap<>();
         // TODO: these are scoped
         private List<HttpOperation> operations = new ArrayList<>();
 
 
-        public Verb(String url, GlobType queryUrl) {
+        public Verb(String url, GlobType pathParameters) {
             this.url = url;
-            this.queryUrl = queryUrl;
+            this.pathParameters = pathParameters;
         }
 
-        public OperationInfo get(GlobType urlParameters, HttpTreatment httpTreatment) {
-            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.get, null, urlParameters, interceptBuilder.create(httpTreatment));
+        public OperationInfo get(GlobType queryParameters, HttpTreatment httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.get, null, queryParameters, interceptBuilder.create(httpTreatment));
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
 
-        public OperationInfo get(GlobType urlParameters, GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
-            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.get, null, urlParameters, interceptBuilder.create(httpTreatment));
+        public OperationInfo get(GlobType queryParameters, GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.get, null, queryParameters, interceptBuilder.create(httpTreatment));
             operation.withHeader(headerType);
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
 
-        public OperationInfo getBin(GlobType urlParameters, GlobType headerType, HttpDataTreatmentWithHeader httpTreatment) {
-            DefaultHttpDataOperation operation = new DefaultHttpDataOperation(HttpOp.get, null, urlParameters, httpTreatment);
+        public OperationInfo getBin(GlobType queryParameters, GlobType headerType, HttpDataTreatmentWithHeader httpTreatment) {
+            DefaultHttpDataOperation operation = new DefaultHttpDataOperation(HttpOp.get, null, queryParameters, httpTreatment);
             operation.withHeader(headerType);
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
 
-        public OperationInfo post(GlobType bodyParam, GlobType urlParameters, HttpTreatment httpTreatment) {
-            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.post, bodyParam, urlParameters, interceptBuilder.create(httpTreatment));
+        public OperationInfo post(GlobType bodyParam, GlobType queryParameters, HttpTreatment httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.post, bodyParam, queryParameters, interceptBuilder.create(httpTreatment));
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
@@ -867,47 +867,47 @@ public class HttpServerRegister {
             return new DefaultOperationInfo(operation);
         }
 
-        public OperationInfo postBin(GlobType urlParameters, GlobType headerType, HttpDataTreatmentWithHeader httpTreatment) {
-            MutableHttpDataOperation operation = new DefaultHttpDataOperation(HttpOp.post, null, urlParameters, httpTreatment);
+        public OperationInfo postBin(GlobType queryParameters, GlobType headerType, HttpDataTreatmentWithHeader httpTreatment) {
+            MutableHttpDataOperation operation = new DefaultHttpDataOperation(HttpOp.post, null, queryParameters, httpTreatment);
             operation.withHeader(headerType);
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
 
-        public OperationInfo put(GlobType bodyParam, GlobType urlParameters, HttpTreatment httpTreatment) {
-            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.put, bodyParam, urlParameters, interceptBuilder.create(httpTreatment));
+        public OperationInfo put(GlobType bodyParam, GlobType queryParameters, HttpTreatment httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.put, bodyParam, queryParameters, interceptBuilder.create(httpTreatment));
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
 
-        public OperationInfo put(GlobType bodyParam, GlobType urlParameters, GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
-            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.put, bodyParam, urlParameters, interceptBuilder.create(httpTreatment));
+        public OperationInfo put(GlobType bodyParam, GlobType queryParameters, GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.put, bodyParam, queryParameters, interceptBuilder.create(httpTreatment));
             operation.withHeader(headerType);
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
 
-        public OperationInfo patch(GlobType bodyParam, GlobType urlParameters, HttpTreatment httpTreatment) {
-            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.patch, bodyParam, urlParameters, interceptBuilder.create(httpTreatment));
+        public OperationInfo patch(GlobType bodyParam, GlobType queryParameters, HttpTreatment httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.patch, bodyParam, queryParameters, interceptBuilder.create(httpTreatment));
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
 
-        public OperationInfo patch(GlobType bodyParam, GlobType urlParameters, GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
-            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.patch, bodyParam, urlParameters, interceptBuilder.create(httpTreatment));
+        public OperationInfo patch(GlobType bodyParam, GlobType queryParameters, GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.patch, bodyParam, queryParameters, interceptBuilder.create(httpTreatment));
             operation.withHeader(headerType);
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
 
-        public OperationInfo delete(GlobType urlParameters, HttpTreatment httpTreatment) {
-            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.delete, null, urlParameters, interceptBuilder.create(httpTreatment));
+        public OperationInfo delete(GlobType queryParameters, HttpTreatment httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.delete, null, queryParameters, interceptBuilder.create(httpTreatment));
             operations.add(operation);
             return new DefaultOperationInfo(operation);
         }
 
-        public OperationInfo delete(GlobType urlParameters, GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
-            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.delete, null, urlParameters, interceptBuilder.create(httpTreatment));
+        public OperationInfo delete(GlobType queryParameters, GlobType headerType, HttpTreatmentWithHeader httpTreatment) {
+            DefaultHttpOperation operation = new DefaultHttpOperation(HttpOp.delete, null, queryParameters, interceptBuilder.create(httpTreatment));
             operation.withHeader(headerType);
             operations.add(operation);
             return new DefaultOperationInfo(operation);
@@ -918,7 +918,7 @@ public class HttpServerRegister {
         }
 
         HttpReceiver complete() {
-            DefaultHttpReceiver defaultHttpReceiver = new DefaultHttpReceiver(url, queryUrl, operations.toArray(new HttpOperation[0]));
+            DefaultHttpReceiver defaultHttpReceiver = new DefaultHttpReceiver(url, pathParameters, operations.toArray(new HttpOperation[0]));
             headers.forEach(defaultHttpReceiver::addHeader);
             return defaultHttpReceiver;
         }

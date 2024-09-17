@@ -26,6 +26,7 @@ import org.globsframework.metamodel.fields.IntegerField;
 import org.globsframework.model.Glob;
 import org.globsframework.model.MutableGlob;
 import org.globsframework.utils.Files;
+import org.globsframework.utils.NanoChrono;
 import org.globsframework.utils.ReusableByteArrayOutputStream;
 import org.globsframework.utils.Strings;
 import org.slf4j.Logger;
@@ -48,8 +49,8 @@ public class GlobHttpRequestHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobHttpRequestHandler.class);
 
     public static final String APPLICATION_JSON = "application/json";
-    public static final String RECEIVED_MSG = "{} : received for {} {} : {}";
-    public static final String RESPONSE_MSG = "{} : responded for {} {} : {} : {}";
+    public static final String RECEIVED_MSG = "{} : received {} ms for {} {} : {}";
+    public static final String RESPONSE_MSG = "{} : responded in {} ms for {} {} : {} : {}";
 
     private final UrlMatcher urlMatcher;
     private String serverInfo;
@@ -98,7 +99,7 @@ public class GlobHttpRequestHandler {
                 }
             }
         }
-        LOGGER.debug(serverInfo + " regex: {}", stringBuilder);
+        LOGGER.debug("{} regex: {}", serverInfo, stringBuilder);
         return matcher;
     }
 
@@ -221,6 +222,7 @@ public class GlobHttpRequestHandler {
 
     private void treatOpWithRequestBody(String[] path, String paramStr, HttpAsyncExchange httpAsyncExchange,
                                         HttpRequest request, HttpResponse response, HttpHandler httpHandler) throws Exception {
+        NanoChrono nanoChrono = NanoChrono.start();
         HttpOperation operation = httpHandler.operation;
         GlobType bodyGlobType = operation.getBodyType();
         HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
@@ -242,7 +244,7 @@ public class GlobHttpRequestHandler {
             Files.copyStream(content, outputStream);
             data = HttpInputData.fromGlob(GlobHttpContent.TYPE.instantiate()
                     .set(GlobHttpContent.content, outputStream.toByteArray()));
-            logRequestData(request, "[byte array]");
+            logRequestData(request, "[byte array]", nanoChrono);
         } else if (bodyGlobType == GlobFile.TYPE) {
             File tempFile = File.createTempFile("http", ".data");
             try (FileOutputStream outputStream = new FileOutputStream(tempFile)) {
@@ -261,7 +263,7 @@ public class GlobHttpRequestHandler {
                             tempFile.getAbsolutePath(), requestMethod, requestUri);
                 }
             };
-            logRequestData(request, "[file data]");
+            logRequestData(request, "[file data]", nanoChrono);
         } else {
             //find mimetype (if xml => produce xml)
 //                    Arrays.stream(entity.getContentType().getElements())
@@ -271,9 +273,9 @@ public class GlobHttpRequestHandler {
                     ((bodyGlobType != null) ? HttpInputData.fromGlob(null) : HttpInputData.fromStream(content)) : HttpInputData.fromGlob(GSonUtils.decode(str, bodyGlobType));
             String strToLog = operation.hasSensitiveData() && data.isGlob() ? GSonUtils.encodeHidSensitiveData(data.asGlob()) : str;
 
-            logRequestData(request, strToLog == null ? "" : strToLog);
+            logRequestData(request, strToLog == null ? "" : strToLog, nanoChrono);
         }
-        consumeOp(path, paramStr, httpAsyncExchange, request, response, httpHandler, data, postOp);
+        consumeOp(path, paramStr, httpAsyncExchange, request, response, httpHandler, data, postOp, nanoChrono);
     }
 
     private static byte[] getBoundaryIfMultipart(HttpEntity entity) {
@@ -297,12 +299,13 @@ public class GlobHttpRequestHandler {
 
     private void treatOpWithoutRequestBody(String[] path, String paramStr, HttpAsyncExchange httpAsyncExchange,
                                            HttpRequest request, HttpResponse response, HttpHandler httpHandler) throws Exception {
+        NanoChrono nanoChrono = NanoChrono.start();
         consumeOp(path, paramStr, httpAsyncExchange, request, response, httpHandler, null, () -> {
-        });
+        }, nanoChrono);
     }
 
     private void consumeOp(String[] path, String paramStr, HttpAsyncExchange httpAsyncExchange,
-                           HttpRequest request, HttpResponse response, HttpHandler httpHandler, HttpInputData data, Runnable postOp) throws Exception {
+                           HttpRequest request, HttpResponse response, HttpHandler httpHandler, HttpInputData data, Runnable postOp, NanoChrono nanoChrono) throws Exception {
         HttpOperation operation = httpHandler.operation;
         Glob url = urlMatcher.parse(path);
         Glob queryParam = httpHandler.teatParam(paramStr);
@@ -320,27 +323,27 @@ public class GlobHttpRequestHandler {
                         if (outputData != null) {
                             if (outputData.isGlob()) {
                                 if (outputData.getGlob() != null) {
-                                    consumeGlob(request, response, outputData.getGlob(), operation.hasSensitiveData());
+                                    consumeGlob(request, response, outputData.getGlob(), operation.hasSensitiveData(), nanoChrono);
                                 } else {
                                     response.setStatusCode(SC_NO_CONTENT);
-                                    logResponseData(request, SC_NO_CONTENT, "[no content]");
+                                    logResponseData(request, SC_NO_CONTENT, "[no content]", nanoChrono);
                                 }
                             } else {
                                 if (outputData.getStream() != null) {
                                     response.setEntity(new InputStreamEntity(outputData.getStream()));
                                     response.setStatusCode(SC_OK);
-                                    logResponseData(request, SC_OK, "[byte array]");
+                                    logResponseData(request, SC_OK, "[byte array]", nanoChrono);
 
                                 } else {
                                     response.setStatusCode(SC_NO_CONTENT);
-                                    logResponseData(request, SC_NO_CONTENT, "[no content]");
+                                    logResponseData(request, SC_NO_CONTENT, "[no content]", nanoChrono);
                                 }
                             }
                         } else if (throwable != null) {
                             consumeThrowable(request, response, throwable);
                         } else { // null response glob & throwable
                             response.setStatusCode(SC_NO_CONTENT);
-                            logResponseData(request, SC_NO_CONTENT, "[no content]");
+                            logResponseData(request, SC_NO_CONTENT, "[no content]", nanoChrono);
                         }
                         operation.headers(response::addHeader);
                         httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
@@ -354,7 +357,7 @@ public class GlobHttpRequestHandler {
                 response.setStatusCode(SC_NO_CONTENT);
                 operation.headers(response::addHeader);
                 httpAsyncExchange.submitResponse(new BasicAsyncResponseProducer(response));
-                logResponseData(request, SC_NO_CONTENT, "[no content]");
+                logResponseData(request, SC_NO_CONTENT, "[no content]", nanoChrono);
                 postOp.run();
             }
         } catch (Exception e) {
@@ -377,19 +380,19 @@ public class GlobHttpRequestHandler {
         return instance;
     }
 
-    private void consumeGlob(HttpRequest request, HttpResponse response, Glob glob, boolean hasSensitiveData) {
+    private void consumeGlob(HttpRequest request, HttpResponse response, Glob glob, boolean hasSensitiveData, NanoChrono nanoChrono) {
         GlobType globType = glob.getType();
 
         if (globType == GlobHttpContent.TYPE) {
-            consumeGlobHttpContent(request, response, glob);
+            consumeGlobHttpContent(request, response, glob, nanoChrono);
         } else if (globType == GlobFile.TYPE) {
-            consumeFileGlob(request, response, glob);
+            consumeFileGlob(request, response, glob, nanoChrono);
         } else {
-            consumeNormalGlob(request, response, glob, hasSensitiveData);
+            consumeNormalGlob(request, response, glob, hasSensitiveData, nanoChrono);
         }
     }
 
-    private void consumeGlobHttpContent(HttpRequest request, HttpResponse response, Glob glob) {
+    private void consumeGlobHttpContent(HttpRequest request, HttpResponse response, Glob glob, NanoChrono nanoChrono) {
         final byte[] b = glob.get(GlobHttpContent.content);
         if (b != null) {
             response.setEntity(new ByteArrayEntity(b, createContentTypeFromGlobHttpContent(glob)));
@@ -397,10 +400,10 @@ public class GlobHttpRequestHandler {
 
         int statusCode = glob.get(GlobHttpContent.statusCode, SC_OK);
         response.setStatusCode(statusCode);
-        logResponseData(request, statusCode, "[byte array]");
+        logResponseData(request, statusCode, "[byte array]", nanoChrono);
     }
 
-    private void consumeFileGlob(HttpRequest request, HttpResponse response, Glob glob) {
+    private void consumeFileGlob(HttpRequest request, HttpResponse response, Glob glob, NanoChrono nanoChrono) {
         NFileEntity returnEntity;
         final File file = new File(glob.get(GlobFile.file));
         if (glob.get(GlobFile.removeWhenDelivered, !LOGGER.isTraceEnabled())) {
@@ -422,10 +425,10 @@ public class GlobHttpRequestHandler {
         }
         response.setEntity(returnEntity);
         response.setStatusCode(SC_OK);
-        logResponseData(request, SC_OK, "[file data]");
+        logResponseData(request, SC_OK, "[file data]", nanoChrono);
     }
 
-    private void consumeNormalGlob(HttpRequest request, HttpResponse response, Glob glob, boolean hasSensitiveData) {
+    private void consumeNormalGlob(HttpRequest request, HttpResponse response, Glob glob, boolean hasSensitiveData, NanoChrono nanoChrono) {
         GlobType globType = glob.getType();
         Field fieldWithStatusCode = globType.findFieldWithAnnotation(StatusCodeAnnotationType.UNIQUE_KEY);
         Field fieldWithData = globType.findFieldWithAnnotation(DataAnnotationType.UNIQUE_KEY);
@@ -455,7 +458,7 @@ public class GlobHttpRequestHandler {
         response.setStatusCode(statusCode);
         if (strData == null) {
             response.setStatusCode(statusCode);
-            logResponseData(request, statusCode, "[no content]");
+            logResponseData(request, statusCode, "[no content]", nanoChrono);
         } else if (Optional.ofNullable(request.getFirstHeader(HttpHeaders.ACCEPT_ENCODING))
                 .map(NameValuePair::getValue)
                 .map(value -> value.contains("gzip"))
@@ -463,7 +466,7 @@ public class GlobHttpRequestHandler {
             try {
                 response.setHeader(HttpHeaders.CONTENT_ENCODING, "gzip");
                 response.setEntity(newCompressedDataEntity(strData));
-                logResponseData(request, statusCode, "(gzip) " + strDataToLog);
+                logResponseData(request, statusCode, "(gzip) " + strDataToLog, nanoChrono);
             } catch (IOException e) {
                 RequestLine requestLine = request.getRequestLine();
                 String requestMethod = getRequestMethod(requestLine);
@@ -474,7 +477,7 @@ public class GlobHttpRequestHandler {
             }
         } else {
             response.setEntity(new StringEntity(strData, ContentType.APPLICATION_JSON));
-            logResponseData(request, statusCode, strDataToLog);
+            logResponseData(request, statusCode, strDataToLog, nanoChrono);
         }
     }
 
@@ -488,27 +491,27 @@ public class GlobHttpRequestHandler {
         }
     }
 
-    private void logRequestData(HttpRequest request, String str) {
+    private void logRequestData(HttpRequest request, String str, NanoChrono nanoChrono) {
         RequestLine requestLine = request.getRequestLine();
         String requestMethod = getRequestMethod(requestLine);
         String requestUri = requestLine.getUri();
 
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug(RECEIVED_MSG, serverInfo, requestMethod, requestUri, str);
+            LOGGER.debug(RECEIVED_MSG, serverInfo, nanoChrono.getElapsedTimeInMS(), requestMethod, requestUri, str);
         } else {
-            LOGGER.info(RECEIVED_MSG, serverInfo, requestMethod, requestUri, str.substring(0, Math.min(10000, str.length())));
+            LOGGER.info(RECEIVED_MSG, serverInfo, nanoChrono.getElapsedTimeInMS(), requestMethod, requestUri, str.substring(0, Math.min(10000, str.length())));
         }
     }
 
-    private void logResponseData(HttpRequest request, int statusCode, String str) {
+    private void logResponseData(HttpRequest request, int statusCode, String str, NanoChrono nanoChrono) {
         RequestLine requestLine = request.getRequestLine();
         String requestMethod = getRequestMethod(requestLine);
         String requestUri = requestLine.getUri();
 
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug(RESPONSE_MSG, serverInfo, requestMethod, requestUri, statusCode, str);
+            LOGGER.debug(RESPONSE_MSG, serverInfo, nanoChrono.getElapsedTimeInMS(), requestMethod, requestUri, statusCode, str);
         } else {
-            LOGGER.info(RESPONSE_MSG, serverInfo, requestMethod, requestUri, statusCode, str.substring(0, Math.min(10000, str.length())));
+            LOGGER.info(RESPONSE_MSG, serverInfo, nanoChrono.getElapsedTimeInMS(), requestMethod, requestUri, statusCode, str.substring(0, Math.min(10000, str.length())));
         }
     }
 

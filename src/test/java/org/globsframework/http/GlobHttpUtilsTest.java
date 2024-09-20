@@ -3,11 +3,11 @@ package org.globsframework.http;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.message.BasicNameValuePair;
-import org.globsframework.metamodel.GlobType;
-import org.globsframework.metamodel.GlobTypeLoaderFactory;
-import org.globsframework.metamodel.annotations.FieldNameAnnotation;
-import org.globsframework.metamodel.annotations.Target;
-import org.globsframework.metamodel.fields.*;
+import org.globsframework.core.metamodel.GlobType;
+import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
+import org.globsframework.core.metamodel.annotations.FieldNameAnnotation;
+import org.globsframework.core.metamodel.annotations.Target;
+import org.globsframework.core.metamodel.fields.*;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -32,8 +32,8 @@ public class GlobHttpUtilsTest {
                 .set(PARAM.aLong, 23)
                 .set(PARAM.bool, true)
                 .set(PARAM.param, PARAM.TYPE.instantiate()
-                    .set(PARAM.str, "some other info")
-                    .set(PARAM.aLong, 42)
+                        .set(PARAM.str, "some other info")
+                        .set(PARAM.aLong, 42)
                 )
         );
         String s = path.getURI().toString();

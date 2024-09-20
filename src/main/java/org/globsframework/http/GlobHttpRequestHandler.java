@@ -13,22 +13,22 @@ import org.apache.http.nio.entity.NFileEntity;
 import org.apache.http.nio.protocol.BasicAsyncResponseProducer;
 import org.apache.http.nio.protocol.HttpAsyncExchange;
 import org.apache.http.protocol.HttpContext;
+import org.globsframework.core.metamodel.GlobType;
+import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
+import org.globsframework.core.metamodel.annotations.FieldNameAnnotationType;
+import org.globsframework.core.metamodel.fields.Field;
+import org.globsframework.core.metamodel.fields.GlobArrayField;
+import org.globsframework.core.metamodel.fields.GlobField;
+import org.globsframework.core.metamodel.fields.IntegerField;
+import org.globsframework.core.model.Glob;
+import org.globsframework.core.model.MutableGlob;
+import org.globsframework.core.utils.Files;
+import org.globsframework.core.utils.NanoChrono;
+import org.globsframework.core.utils.ReusableByteArrayOutputStream;
+import org.globsframework.core.utils.Strings;
 import org.globsframework.http.model.DataAnnotationType;
 import org.globsframework.http.model.StatusCodeAnnotationType;
 import org.globsframework.json.GSonUtils;
-import org.globsframework.metamodel.fields.Field;
-import org.globsframework.metamodel.GlobType;
-import org.globsframework.metamodel.GlobTypeLoaderFactory;
-import org.globsframework.metamodel.annotations.FieldNameAnnotationType;
-import org.globsframework.metamodel.fields.GlobArrayField;
-import org.globsframework.metamodel.fields.GlobField;
-import org.globsframework.metamodel.fields.IntegerField;
-import org.globsframework.model.Glob;
-import org.globsframework.model.MutableGlob;
-import org.globsframework.utils.Files;
-import org.globsframework.utils.NanoChrono;
-import org.globsframework.utils.ReusableByteArrayOutputStream;
-import org.globsframework.utils.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -183,13 +183,11 @@ public class GlobHttpRequestHandler {
                 System.arraycopy(content, currentPos, b, off, realLen);
                 currentPos += realLen;
                 return realLen;
-            }
-            else {
+            } else {
                 if (hasMore) {
                     readNext();
                     return read(b, off, len);
-                }
-                else {
+                } else {
                     return -1;
                 }
             }
@@ -201,8 +199,7 @@ public class GlobHttpRequestHandler {
             }
             if (hasMore) {
                 readNext();
-            }
-            else {
+            } else {
                 return -1;
             }
             return read();
@@ -521,7 +518,7 @@ public class GlobHttpRequestHandler {
         String requestUri = requestLine.getUri();
 
         LOGGER.error(serverInfo + " : request failed for " + requestMethod + " " + requestUri
-                     + " : " + statusCode + " : " + message, t);
+                + " : " + statusCode + " : " + message, t);
     }
 
     private void logWarn(HttpRequest request, int statusCode, String message) {
@@ -530,7 +527,7 @@ public class GlobHttpRequestHandler {
         String requestUri = requestLine.getUri();
 
         LOGGER.warn(serverInfo + " : request failed for " + requestMethod + " " + requestUri
-                     + " : " + statusCode + " : " + message);
+                + " : " + statusCode + " : " + message);
     }
 
     private void consumeThrowable(HttpRequest request, HttpResponse response, Throwable throwable) {
@@ -540,8 +537,7 @@ public class GlobHttpRequestHandler {
             response.setStatusCode(statusCode);
             if (throwable instanceof HttpExceptionWithContent) {
                 response.setEntity(new StringEntity(message, ContentType.APPLICATION_JSON));
-            }
-            else {
+            } else {
                 response.setReasonPhrase(message);
             }
             logWarn(request, statusCode, message);

@@ -1,8 +1,8 @@
 package org.globsframework.http;
 
-import org.globsframework.metamodel.GlobType;
-import org.globsframework.metamodel.impl.DefaultGlobTypeBuilder;
-import org.globsframework.model.Glob;
+import org.globsframework.core.metamodel.GlobType;
+import org.globsframework.core.metamodel.impl.DefaultGlobTypeBuilder;
+import org.globsframework.core.model.Glob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

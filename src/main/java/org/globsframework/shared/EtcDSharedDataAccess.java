@@ -11,17 +11,17 @@ import io.etcd.jetcd.options.GetOption;
 import io.etcd.jetcd.options.PutOption;
 import io.etcd.jetcd.options.WatchOption;
 import io.etcd.jetcd.watch.WatchEvent;
+import org.globsframework.core.metamodel.GlobType;
+import org.globsframework.core.metamodel.GlobTypeResolver;
+import org.globsframework.core.metamodel.fields.Field;
+import org.globsframework.core.model.FieldValues;
+import org.globsframework.core.model.Glob;
+import org.globsframework.core.utils.Utils;
 import org.globsframework.json.GSonUtils;
-import org.globsframework.metamodel.fields.Field;
-import org.globsframework.metamodel.GlobType;
-import org.globsframework.metamodel.GlobTypeResolver;
-import org.globsframework.model.FieldValues;
-import org.globsframework.model.Glob;
 import org.globsframework.serialisation.BinReaderFactory;
 import org.globsframework.serialisation.BinWriterFactory;
 import org.globsframework.serialisation.glob.GlobBinReader;
 import org.globsframework.shared.model.PathIndex;
-import org.globsframework.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,9 +30,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
 public class EtcDSharedDataAccess implements SharedDataAccess {
     private final static Logger LOGGER = LoggerFactory.getLogger(EtcDSharedDataAccess.class);
@@ -367,7 +369,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         byte[] value = serializer.write(glob);
         return grant.thenApply(leaseGrantResponse -> {
             long leaseId = leaseGrantResponse.getID();
-            LOGGER.info(key +" registered with leaseId " + leaseId);
+            LOGGER.info(key + " registered with leaseId " + leaseId);
             ScheduledFuture<?> scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(() -> leaseClient.keepAliveOnce(leaseId),
                     500, 700, TimeUnit.MILLISECONDS);
             return new ListenerAndLeaderOperation(ByteSequence.from(key, StandardCharsets.UTF_8), ByteSequence.from(value),
@@ -427,7 +429,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         }
     }
 
-    private  class ListenerAndLeaderOperation implements LeaderOperation, Election.Listener {
+    private class ListenerAndLeaderOperation implements LeaderOperation, Election.Listener {
         private final ByteSequence electionName;
         private final ByteSequence value;
         private final long leaseId;
@@ -476,8 +478,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
             if (!response.getKv().getValue().equals(value)) {
                 LOGGER.info("Force release ");
                 releaseMyLeaderShip();
-            }
-            else {
+            } else {
                 LOGGER.debug("Same leader.");
             }
         }

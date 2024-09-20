@@ -1,9 +1,9 @@
 package org.globsframework.shared;
 
+import org.globsframework.core.metamodel.GlobType;
+import org.globsframework.core.model.FieldValues;
+import org.globsframework.core.model.Glob;
 import org.globsframework.json.GSonUtils;
-import org.globsframework.metamodel.GlobType;
-import org.globsframework.model.FieldValues;
-import org.globsframework.model.Glob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 
 public class InMemorySharedDataAccess implements SharedDataAccess {
     private static final Logger LOGGER = LoggerFactory.getLogger(InMemorySharedDataAccess.class);
@@ -49,8 +48,7 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
                 if (path.startsWith(this.path)) {
                     listener.put(glob);
                 }
-            }
-            else {
+            } else {
                 if (path.equals(this.path)) {
                     listener.put(glob);
                 }
@@ -62,8 +60,7 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
                 if (path.startsWith(this.path)) {
                     listener.delete(glob);
                 }
-            }
-            else {
+            } else {
                 if (path.equals(this.path)) {
                     listener.delete(glob);
                 }
@@ -162,8 +159,7 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
                 listener.delete(p, glob);
             }
             return CompletableFuture.completedFuture(null);
-        }
-        else {
+        } else {
             return CompletableFuture.failedFuture(new RuntimeException(p + " not found."));
         }
     }
@@ -189,7 +185,7 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
     }
 
     private class InMemoryUnLeaser implements UnLeaser, Callable<Void> {
-        private  ScheduledFuture<?> schedule;
+        private ScheduledFuture<?> schedule;
         private Duration duration;
         private List<Glob> globs = new ArrayList<>();
         long id;

@@ -1,6 +1,6 @@
 package org.globsframework.http;
 
-import org.globsframework.metamodel.GlobType;
+import org.globsframework.core.metamodel.GlobType;
 
 import java.util.HashMap;
 import java.util.Map;

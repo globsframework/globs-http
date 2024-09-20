@@ -1,11 +1,11 @@
 package org.globsframework.shared.model;
 
-import org.globsframework.metamodel.GlobType;
-import org.globsframework.metamodel.GlobTypeLoaderFactory;
-import org.globsframework.metamodel.annotations.GlobCreateFromAnnotation;
-import org.globsframework.metamodel.annotations.InitUniqueKey;
-import org.globsframework.metamodel.fields.IntegerField;
-import org.globsframework.model.Key;
+import org.globsframework.core.metamodel.GlobType;
+import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
+import org.globsframework.core.metamodel.annotations.GlobCreateFromAnnotation;
+import org.globsframework.core.metamodel.annotations.InitUniqueKey;
+import org.globsframework.core.metamodel.fields.IntegerField;
+import org.globsframework.core.model.Key;
 
 public class PathIndex {
     public static GlobType TYPE;
@@ -18,7 +18,7 @@ public class PathIndex {
     static {
         GlobTypeLoaderFactory.create(PathIndex.class)
                 .register(GlobCreateFromAnnotation.class, annotation -> PathIndex.TYPE.instantiate()
-                        .set(PathIndex.index, ((PathIndex_)annotation).value()))
+                        .set(PathIndex.index, ((PathIndex_) annotation).value()))
                 .load();
     }
 }

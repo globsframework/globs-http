@@ -1,6 +1,6 @@
 package org.globsframework.http;
 
-import org.globsframework.model.Glob;
+import org.globsframework.core.model.Glob;
 
 import java.io.InputStream;
 
@@ -11,7 +11,7 @@ public interface HttpInputData {
 
     boolean isGlob();
 
-    static HttpInputData fromGlob(Glob glob){
+    static HttpInputData fromGlob(Glob glob) {
         return new HttpInputData() {
             @Override
             public InputStream asStream() {
@@ -30,7 +30,7 @@ public interface HttpInputData {
         };
     }
 
-    static HttpInputData fromStream(InputStream inputStream){
+    static HttpInputData fromStream(InputStream inputStream) {
         return new HttpInputData() {
             @Override
             public InputStream asStream() {

@@ -1,7 +1,7 @@
 package org.globsframework.http;
 
+import org.globsframework.core.model.Glob;
 import org.globsframework.json.GSonUtils;
-import org.globsframework.model.Glob;
 
 public class HttpExceptionWithContent extends HttpException {
     private final Glob content;

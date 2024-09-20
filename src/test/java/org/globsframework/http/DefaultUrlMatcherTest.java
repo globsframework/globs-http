@@ -1,10 +1,10 @@
 package org.globsframework.http;
 
-import org.globsframework.metamodel.GlobType;
-import org.globsframework.metamodel.GlobTypeLoaderFactory;
-import org.globsframework.metamodel.fields.StringArrayField;
-import org.globsframework.metamodel.fields.StringField;
-import org.globsframework.model.Glob;
+import org.globsframework.core.metamodel.GlobType;
+import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
+import org.globsframework.core.metamodel.fields.StringArrayField;
+import org.globsframework.core.metamodel.fields.StringField;
+import org.globsframework.core.model.Glob;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -115,7 +115,8 @@ public class DefaultUrlMatcherTest {
         public static StringField customerId;
         public static StringField workflowId;
 
-        private URLParameterCustomerWorkflow(){} //Hiding default public constructor
+        private URLParameterCustomerWorkflow() {
+        } //Hiding default public constructor
 
         static {
             GlobTypeLoaderFactory.create(URLParameterCustomerWorkflow.class, true).load();

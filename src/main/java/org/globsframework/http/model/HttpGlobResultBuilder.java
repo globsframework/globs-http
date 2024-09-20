@@ -1,10 +1,10 @@
 package org.globsframework.http.model;
 
-import org.globsframework.metamodel.GlobType;
-import org.globsframework.metamodel.GlobTypeBuilder;
-import org.globsframework.metamodel.fields.GlobArrayField;
-import org.globsframework.metamodel.impl.DefaultGlobTypeBuilder;
-import org.globsframework.utils.collections.Pair;
+import org.globsframework.core.metamodel.GlobType;
+import org.globsframework.core.metamodel.GlobTypeBuilder;
+import org.globsframework.core.metamodel.fields.GlobArrayField;
+import org.globsframework.core.metamodel.impl.DefaultGlobTypeBuilder;
+import org.globsframework.core.utils.collections.Pair;
 
 public class HttpGlobResultBuilder {
 

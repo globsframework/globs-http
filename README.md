@@ -1,9 +1,10 @@
 This package should be divided in two.
 
 ### http
+
 First one is to map http call to Globs as follow:
 
-Given an URLParameter, QueryParameter and HeaderType GlobType  
+Given an URLParameter, QueryParameter and HeaderType GlobType
 
 ```
 
@@ -29,13 +30,16 @@ httpServerRegister.startAndWaitForStartup(bootstrap);
 ### etcd
 
 The second part is about etcd (from google)
-It expose an interface to publish Glob and to register for changes on Glob using etcd. It is usefull to propagate configuration or low change state to/from microservice. (I do not used it to cache data like with a Redis)
+It expose an interface to publish Glob and to register for changes on Glob using etcd. It is usefull to propagate
+configuration or low change state to/from microservice. (I do not used it to cache data like with a Redis)
 
 It use the annotation PathIndex_ to create the key from the globs ().
 The first part of the key is the name of the GlobType.
-It is then possible to listen for all changes on a GlobType or a sub part of the key (in the given order : is is not possible to listen for only the last part of a key)
+It is then possible to listen for all changes on a GlobType or a sub part of the key (in the given order : is is not
+possible to listen for only the last part of a key)
 
-The value can be a json serialisation or a binary serialisation using Globs-bin-serialisation (so only if all field have the FieldNumber_ annotation)
+The value can be a json serialisation or a binary serialisation using Globs-bin-serialisation (so only if all field have
+the FieldNumber_ annotation)
 
 ```
         Client client = Client.builder().endpoints(ETCD).build();

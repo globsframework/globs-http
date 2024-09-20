@@ -1,6 +1,6 @@
 package org.globsframework.http;
 
-import org.globsframework.metamodel.GlobType;
+import org.globsframework.core.metamodel.GlobType;
 
 public interface MutableHttpDataOperation extends HttpOperation {
     MutableHttpDataOperation withBody(GlobType globType);

@@ -1,6 +1,6 @@
 package org.globsframework.http;
 
-import org.globsframework.model.Glob;
+import org.globsframework.core.model.Glob;
 
 public interface UrlMatcher {
 

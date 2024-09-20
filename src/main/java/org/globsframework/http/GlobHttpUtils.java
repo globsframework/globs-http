@@ -9,11 +9,10 @@ import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.message.BasicNameValuePair;
+import org.globsframework.core.metamodel.fields.*;
+import org.globsframework.core.model.Glob;
+import org.globsframework.core.model.MutableGlob;
 import org.globsframework.json.GSonUtils;
-import org.globsframework.metamodel.fields.Field;
-import org.globsframework.metamodel.fields.*;
-import org.globsframework.model.Glob;
-import org.globsframework.model.MutableGlob;
 
 import java.nio.charset.StandardCharsets;
 import java.time.*;
@@ -36,8 +35,7 @@ public class GlobHttpUtils {
                         throw new RuntimeException("Invalide url " + route + " " + GSonUtils.encode(urlParam, true));
                     }
                     r.append(value);
-                }
-                else {
+                } else {
                     r.append(s);
                 }
                 r.append("/");
@@ -124,8 +122,7 @@ public class GlobHttpUtils {
                     };
                     field.safeAccept(visitor, parameters.getValue(field));
                     nameValuePairList.add(new BasicNameValuePair(field.getName(), visitor.out));
-                }
-                else if (field.getDataType().isArray()) {
+                } else if (field.getDataType().isArray()) {
                     if (field instanceof StringArrayField) {
                         nameValuePairList.add(new BasicNameValuePair(field.getName(), String.join(",", parameters.get((StringArrayField) field))));
                     } else if (field instanceof LongArrayField) {
@@ -136,8 +133,7 @@ public class GlobHttpUtils {
                         nameValuePairList.add(new BasicNameValuePair(field.getName(),
                                 Arrays.stream(parameters.get((DoubleArrayField) field))
                                         .mapToObj(Double::toString).collect(Collectors.joining(","))));
-                    }
-                    else {
+                    } else {
                         throw new RuntimeException("Field type " + field.getDataType() + " not managed " + field.getFullName());
                     }
                 } else {
@@ -263,12 +259,10 @@ public class GlobHttpUtils {
                 if (indexOfT != -1) {
                     if (str.contains("+") || str.lastIndexOf("-") > indexOfT || str.endsWith("Z")) {
                         glob.set(dateTimeField, ZonedDateTime.parse(str));
-                    }
-                    else {
+                    } else {
                         glob.set(dateTimeField, ZonedDateTime.of(LocalDateTime.parse(str), ZoneId.systemDefault()));
                     }
-                }
-                else {
+                } else {
                     LocalDate parse = LocalDate.parse(str);
                     glob.set(dateTimeField, ZonedDateTime.of(parse, LocalTime.MIDNIGHT, ZoneId.systemDefault()));
                 }
@@ -289,12 +283,10 @@ public class GlobHttpUtils {
                 if (indexOfT != -1) {
                     if (str.contains("+") || str.lastIndexOf("-") > indexOfT || str.endsWith("Z")) {
                         glob.set(dateField, ZonedDateTime.parse(str).toLocalDate());
-                    }
-                    else {
+                    } else {
                         glob.set(dateField, LocalDateTime.parse(str).toLocalDate());
                     }
-                }
-                else {
+                } else {
                     LocalDate parse = LocalDate.parse(str);
                     glob.set(dateField, parse);
                 }

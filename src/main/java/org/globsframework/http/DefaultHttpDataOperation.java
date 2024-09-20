@@ -1,8 +1,8 @@
 package org.globsframework.http;
 
-import org.globsframework.metamodel.GlobType;
-import org.globsframework.metamodel.impl.DefaultGlobTypeBuilder;
-import org.globsframework.model.Glob;
+import org.globsframework.core.metamodel.GlobType;
+import org.globsframework.core.metamodel.impl.DefaultGlobTypeBuilder;
+import org.globsframework.core.model.Glob;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,7 +30,7 @@ public class DefaultHttpDataOperation implements MutableHttpDataOperation {
         this.queryType = queryType;
         this.httpTreatment = httpTreatment;
         emptyBody = bodyType != null ? bodyType.instantiate() : null;
-        emptyQuery = queryType != null ? queryType.instantiate(): null;
+        emptyQuery = queryType != null ? queryType.instantiate() : null;
         emptyHeader = headerType != null ? headerType.instantiate() : null;
     }
 
@@ -53,12 +53,12 @@ public class DefaultHttpDataOperation implements MutableHttpDataOperation {
     }
 
     @Override
-    public void withReturnType(GlobType type){
+    public void withReturnType(GlobType type) {
         this.returnType = type;
     }
 
     @Override
-    public void withTags(String[] tags){
+    public void withTags(String[] tags) {
         this.tags = tags;
     }
 
@@ -94,7 +94,7 @@ public class DefaultHttpDataOperation implements MutableHttpDataOperation {
         this.headers.put(name, value);
     }
 
-    public String getComment(){
+    public String getComment() {
         return comment;
     }
 

@@ -1,8 +1,8 @@
 package org.globsframework.shared;
 
-import org.globsframework.metamodel.GlobType;
-import org.globsframework.model.FieldValues;
-import org.globsframework.model.Glob;
+import org.globsframework.core.metamodel.GlobType;
+import org.globsframework.core.model.FieldValues;
+import org.globsframework.core.model.Glob;
 
 import java.time.Duration;
 import java.util.List;
@@ -17,7 +17,7 @@ public interface SharedDataAccess {
 
     CompletableFuture<Void> register(Glob glob, UnLeaser unLeaser);
 
-    default CompletableFuture<UnLeaser> registerWithLease(Glob glob, int timeOut, TimeUnit unit){
+    default CompletableFuture<UnLeaser> registerWithLease(Glob glob, int timeOut, TimeUnit unit) {
         return registerWithLease(glob, Duration.ofSeconds(unit.toSeconds(timeOut)));
     }
 
@@ -70,7 +70,7 @@ public interface SharedDataAccess {
         void youAreNotTheLeaderAnyMore();
     }
 
-    interface InitialLoad{
+    interface InitialLoad {
         CompletableFuture<Void> accept(List<Glob> globs);
     }
 
@@ -88,6 +88,7 @@ public interface SharedDataAccess {
 
     interface Listener {
         void put(Glob glob);
+
         void delete(Glob glob);
     }
 

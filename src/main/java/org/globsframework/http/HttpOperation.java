@@ -1,7 +1,7 @@
 package org.globsframework.http;
 
-import org.globsframework.metamodel.GlobType;
-import org.globsframework.model.Glob;
+import org.globsframework.core.metamodel.GlobType;
+import org.globsframework.core.model.Glob;
 
 import java.util.concurrent.CompletableFuture;
 

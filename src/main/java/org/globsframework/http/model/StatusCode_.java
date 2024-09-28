@@ -10,6 +10,6 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 @Retention(RUNTIME)
 @Target({ElementType.FIELD})
-public @interface Data {
-    GlobType TYPE = DataAnnotationType.TYPE;
+public @interface StatusCode_ {
+    GlobType TYPE = StatusCode.TYPE;
 }

@@ -6,14 +6,14 @@ import org.globsframework.core.metamodel.annotations.GlobCreateFromAnnotation;
 import org.globsframework.core.metamodel.annotations.InitUniqueKey;
 import org.globsframework.core.model.Key;
 
-public class DataAnnotationType {
+public class HttpBodyData {
     public static GlobType TYPE;
 
     @InitUniqueKey
     public static Key UNIQUE_KEY;
 
     static {
-        GlobTypeLoaderFactory.create(DataAnnotationType.class)
+        GlobTypeLoaderFactory.create(HttpBodyData.class)
                 .register(GlobCreateFromAnnotation.class, annotation -> TYPE.instantiate())
                 .load();
     }

@@ -5,12 +5,12 @@ import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
 import org.globsframework.core.metamodel.annotations.Target;
 import org.globsframework.core.metamodel.fields.GlobField;
 import org.globsframework.core.metamodel.fields.StringField;
-import org.globsframework.json.annottations.JsonValueAsField;
+import org.globsframework.json.annottations.JsonValueAsField_;
 
 public class OpenApiPath {
     public static GlobType TYPE;
 
-    @JsonValueAsField
+    @JsonValueAsField_
     public static StringField name;
 
     @Target(OpenApiPathDsc.class)

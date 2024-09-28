@@ -6,7 +6,7 @@ import org.globsframework.core.metamodel.annotations.Target;
 import org.globsframework.core.metamodel.fields.BooleanField;
 import org.globsframework.core.metamodel.fields.GlobArrayField;
 import org.globsframework.core.metamodel.fields.StringField;
-import org.globsframework.json.annottations.JsonAsObject;
+import org.globsframework.json.annottations.JsonAsObject_;
 
 public class OpenApiRequestBody {
     public static GlobType TYPE;
@@ -16,7 +16,7 @@ public class OpenApiRequestBody {
     public static BooleanField required;
 
     @Target(OpenApiBodyMimeType.class)
-    @JsonAsObject
+    @JsonAsObject_
     public static GlobArrayField content;
 
     static {

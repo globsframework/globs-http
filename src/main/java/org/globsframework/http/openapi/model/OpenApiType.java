@@ -2,17 +2,17 @@ package org.globsframework.http.openapi.model;
 
 import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
-import org.globsframework.core.metamodel.annotations.FieldNameAnnotation;
+import org.globsframework.core.metamodel.annotations.FieldName_;
 import org.globsframework.core.metamodel.annotations.Target;
 import org.globsframework.core.metamodel.fields.GlobArrayField;
 import org.globsframework.core.metamodel.fields.GlobField;
 import org.globsframework.core.metamodel.fields.StringField;
-import org.globsframework.json.annottations.JsonAsObject;
+import org.globsframework.json.annottations.JsonAsObject_;
 
 public class OpenApiType {
     public static GlobType TYPE;
 
-    @FieldNameAnnotation("openapi")
+    @FieldName_("openapi")
     public static StringField openAPIVersion;
 
     @Target(OpenApiInfo.class)
@@ -25,7 +25,7 @@ public class OpenApiType {
     public static GlobArrayField servers;
 
     @Target(OpenApiPath.class)
-    @JsonAsObject
+    @JsonAsObject_
     public static GlobArrayField paths;
 
     static {

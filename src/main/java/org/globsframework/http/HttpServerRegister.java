@@ -9,7 +9,7 @@ import org.apache.http.protocol.HttpContext;
 import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.metamodel.GlobTypeBuilderFactory;
 import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
-import org.globsframework.core.metamodel.annotations.CommentType;
+import org.globsframework.core.metamodel.annotations.Comment;
 import org.globsframework.core.metamodel.fields.*;
 import org.globsframework.core.model.Glob;
 import org.globsframework.core.model.MutableGlob;
@@ -18,7 +18,7 @@ import org.globsframework.core.utils.Strings;
 import org.globsframework.core.utils.collections.Pair;
 import org.globsframework.http.openapi.model.*;
 import org.globsframework.json.GSonUtils;
-import org.globsframework.json.annottations.IsJsonContentAnnotation;
+import org.globsframework.json.annottations.IsJsonContent_;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -161,8 +161,8 @@ public class HttpServerRegister {
             desc.set(OpenApiPathDsc.responses, new Glob[]{OpenApiResponses.TYPE.instantiate()
                     .set(OpenApiResponses.code, "200")
                     .set(OpenApiResponses.description,
-                            returnType.findOptAnnotation(CommentType.UNIQUE_KEY)
-                                    .map(CommentType.VALUE).orElse("None"))
+                            returnType.findOptAnnotation(Comment.UNIQUE_KEY)
+                                    .map(Comment.VALUE).orElse("None"))
                     .set(OpenApiResponses.content, new Glob[]{
                     OpenApiBodyMimeType.TYPE.instantiate()
                             .set(OpenApiBodyMimeType.mimeType, "application/json")
@@ -552,13 +552,13 @@ public class HttpServerRegister {
 
         public static StringField verb;
 
-        @IsJsonContentAnnotation
+        @IsJsonContent_
         public static StringField queryParam;
 
-        @IsJsonContentAnnotation
+        @IsJsonContent_
         public static StringField body;
 
-        @IsJsonContentAnnotation
+        @IsJsonContent_
         public static StringField returnType;
 
         public static StringField comment;

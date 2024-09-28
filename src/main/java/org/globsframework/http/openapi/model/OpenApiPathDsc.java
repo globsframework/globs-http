@@ -7,7 +7,7 @@ import org.globsframework.core.metamodel.fields.GlobArrayField;
 import org.globsframework.core.metamodel.fields.GlobField;
 import org.globsframework.core.metamodel.fields.StringArrayField;
 import org.globsframework.core.metamodel.fields.StringField;
-import org.globsframework.json.annottations.JsonAsObject;
+import org.globsframework.json.annottations.JsonAsObject_;
 
 public class OpenApiPathDsc {
     public static GlobType TYPE;
@@ -27,7 +27,7 @@ public class OpenApiPathDsc {
     public static GlobField requestBody;
 
     @Target(OpenApiResponses.class)
-    @JsonAsObject
+    @JsonAsObject_
     public static GlobArrayField responses;
 
     static {

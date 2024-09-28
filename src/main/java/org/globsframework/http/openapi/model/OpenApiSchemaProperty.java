@@ -3,19 +3,19 @@ package org.globsframework.http.openapi.model;
 import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
 import org.globsframework.core.metamodel.annotations.Comment_;
-import org.globsframework.core.metamodel.annotations.FieldNameAnnotation;
+import org.globsframework.core.metamodel.annotations.FieldName_;
 import org.globsframework.core.metamodel.annotations.Target;
 import org.globsframework.core.metamodel.fields.GlobArrayField;
 import org.globsframework.core.metamodel.fields.GlobField;
 import org.globsframework.core.metamodel.fields.IntegerField;
 import org.globsframework.core.metamodel.fields.StringField;
-import org.globsframework.json.annottations.JsonAsObject;
-import org.globsframework.json.annottations.JsonValueAsField;
+import org.globsframework.json.annottations.JsonAsObject_;
+import org.globsframework.json.annottations.JsonValueAsField_;
 
 public class OpenApiSchemaProperty {
     public static GlobType TYPE;
 
-    @JsonValueAsField
+    @JsonValueAsField_
     public static StringField name;
 
     @Comment_("string, number, integer, boolean, array, object")
@@ -32,13 +32,13 @@ public class OpenApiSchemaProperty {
     public static IntegerField maximum;
 
     @Target(OpenApiSchemaProperty.class)
-    @JsonAsObject
+    @JsonAsObject_
     public static GlobArrayField properties;
 
     @Target(OpenApiSchemaProperty.class)
     public static GlobField items;
 
-    @FieldNameAnnotation("$ref")
+    @FieldName_("$ref")
     public static StringField ref;
 
     static {

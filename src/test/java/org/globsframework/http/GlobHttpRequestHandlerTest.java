@@ -26,12 +26,12 @@ import org.globsframework.core.model.Glob;
 import org.globsframework.core.utils.Files;
 import org.globsframework.core.utils.Ref;
 import org.globsframework.core.utils.collections.Pair;
-import org.globsframework.http.model.Data;
-import org.globsframework.http.model.StatusCode;
+import org.globsframework.http.model.HttpBodyData_;
+import org.globsframework.http.model.StatusCode_;
 import org.globsframework.http.openapi.model.GetOpenApiParamType;
 import org.globsframework.http.openapi.model.OpenApiType;
 import org.globsframework.json.GSonUtils;
-import org.globsframework.json.annottations.JsonHidValue_;
+import org.globsframework.json.annottations.JsonHideValue_;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -218,7 +218,7 @@ public class GlobHttpRequestHandlerTest {
             HttpGet httpRequest = GlobHttpUtils.createGet("/test/123", QueryParameter.TYPE.instantiate()
                     .set(QueryParameter.NAME, "ZERZE").set(QueryParameter.INFO, new String[]{"A", "B", "C", "D"})
                     .set(QueryParameter.param, QueryParameter.TYPE.instantiate().set(QueryParameter.NAME, "AAAZZZ")));
-            httpRequest.addHeader(FieldNameAnnotationType.getName(HeaderType.name), "my header");
+            httpRequest.addHeader(FieldName.getName(HeaderType.name), "my header");
             HttpResponse httpResponse = httpclient.execute(target, httpRequest);
             Assert.assertEquals(200, httpResponse.getStatusLine().getStatusCode());
             Assert.assertEquals("/test/{id}", activeId[0]);
@@ -577,10 +577,10 @@ public class GlobHttpRequestHandlerTest {
     static public class URLParameter {
         public static GlobType TYPE;
 
-        @FieldNameAnnotation("id")
+        @FieldName_("id")
         public static LongField ID;
 
-        @FieldNameAnnotation("subId")
+        @FieldName_("subId")
         public static LongField SUBID;
 
         static {
@@ -601,7 +601,7 @@ public class GlobHttpRequestHandlerTest {
     static public class URLOneParameter {
         public static GlobType TYPE;
 
-        @FieldNameAnnotation("id")
+        @FieldName_("id")
         public static LongField ID;
 
         static {
@@ -612,7 +612,7 @@ public class GlobHttpRequestHandlerTest {
     static public class HeaderType {
         public static GlobType TYPE;
 
-        @FieldNameAnnotation("X-Glob-http-ID")
+        @FieldName_("X-Glob-http-ID")
         public static StringField name;
 
         public static StringField id;
@@ -669,11 +669,11 @@ public class GlobHttpRequestHandlerTest {
     static public class CustomBodyWithStatusCode {
         public static GlobType TYPE;
 
-        @StatusCode
+        @StatusCode_
         public static IntegerField field1;
 
         @Target(BodyContent.class)
-        @Data
+        @HttpBodyData_
         public static GlobField field2;
 
         static {
@@ -684,7 +684,7 @@ public class GlobHttpRequestHandlerTest {
     static public class Response1 {
         public static GlobType TYPE;
 
-        @KeyField
+        @KeyField_
         public static StringField value;
 
         static {
@@ -695,11 +695,11 @@ public class GlobHttpRequestHandlerTest {
     static public class ResponseWithSensibleData {
         public static GlobType TYPE;
 
-        @KeyField
-        @JsonHidValue_
+        @KeyField_
+        @JsonHideValue_
         public static StringField field1;
 
-        @KeyField
+        @KeyField_
         public static StringField field2;
 
         static {
@@ -710,7 +710,7 @@ public class GlobHttpRequestHandlerTest {
     static public class U1 {
         public static GlobType TYPE;
 
-        @KeyField
+        @KeyField_
         public static StringField someValue;
 
         static {
@@ -721,7 +721,7 @@ public class GlobHttpRequestHandlerTest {
     static public class U2 {
         public static GlobType TYPE;
 
-        @KeyField
+        @KeyField_
         public static StringField someOtherValue;
 
         static {

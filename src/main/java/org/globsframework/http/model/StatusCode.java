@@ -1,15 +1,21 @@
 package org.globsframework.http.model;
 
 import org.globsframework.core.metamodel.GlobType;
+import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
+import org.globsframework.core.metamodel.annotations.GlobCreateFromAnnotation;
+import org.globsframework.core.metamodel.annotations.InitUniqueKey;
+import org.globsframework.core.model.Key;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
+public class StatusCode {
+    public static GlobType TYPE;
 
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
+    @InitUniqueKey
+    public static Key UNIQUE_KEY;
 
-@Retention(RUNTIME)
-@Target({ElementType.FIELD})
-public @interface StatusCode {
-    GlobType TYPE = StatusCodeAnnotationType.TYPE;
+    static {
+        GlobTypeLoaderFactory.create(StatusCode.class, "StatusCode")
+                .register(GlobCreateFromAnnotation.class, annotation -> TYPE.instantiate())
+                .load();
+    }
+
 }

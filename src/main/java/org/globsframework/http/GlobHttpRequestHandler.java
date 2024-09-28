@@ -15,7 +15,7 @@ import org.apache.http.nio.protocol.HttpAsyncExchange;
 import org.apache.http.protocol.HttpContext;
 import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
-import org.globsframework.core.metamodel.annotations.FieldNameAnnotationType;
+import org.globsframework.core.metamodel.annotations.FieldName;
 import org.globsframework.core.metamodel.fields.Field;
 import org.globsframework.core.metamodel.fields.GlobArrayField;
 import org.globsframework.core.metamodel.fields.GlobField;
@@ -26,8 +26,8 @@ import org.globsframework.core.utils.Files;
 import org.globsframework.core.utils.NanoChrono;
 import org.globsframework.core.utils.ReusableByteArrayOutputStream;
 import org.globsframework.core.utils.Strings;
-import org.globsframework.http.model.DataAnnotationType;
-import org.globsframework.http.model.StatusCodeAnnotationType;
+import org.globsframework.http.model.HttpBodyData;
+import org.globsframework.http.model.StatusCode;
 import org.globsframework.json.GSonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -427,8 +427,8 @@ public class GlobHttpRequestHandler {
 
     private void consumeNormalGlob(HttpRequest request, HttpResponse response, Glob glob, boolean hasSensitiveData, NanoChrono nanoChrono) {
         GlobType globType = glob.getType();
-        Field fieldWithStatusCode = globType.findFieldWithAnnotation(StatusCodeAnnotationType.UNIQUE_KEY);
-        Field fieldWithData = globType.findFieldWithAnnotation(DataAnnotationType.UNIQUE_KEY);
+        Field fieldWithStatusCode = globType.findFieldWithAnnotation(StatusCode.UNIQUE_KEY);
+        Field fieldWithData = globType.findFieldWithAnnotation(HttpBodyData.UNIQUE_KEY);
 
         Integer statusCode;
         String strData;
@@ -609,7 +609,7 @@ public class GlobHttpRequestHandler {
             this.serverInfo = serverInfo;
             this.paramType = paramType;
             for (Field field : paramType.getFields()) {
-                converterMap.put(FieldNameAnnotationType.getName(field), GlobHttpUtils.createConverter(field, ","));
+                converterMap.put(FieldName.getName(field), GlobHttpUtils.createConverter(field, ","));
             }
         }
 

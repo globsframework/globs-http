@@ -505,10 +505,13 @@ public class GlobHttpRequestHandler {
         String requestMethod = getRequestMethod(requestLine);
         String requestUri = requestLine.getUri();
 
+        double elapsedTimeInMS = nanoChrono.getElapsedTimeInMS();
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug(RESPONSE_MSG, serverInfo, nanoChrono.getElapsedTimeInMS(), requestMethod, requestUri, statusCode, str);
-        } else {
-            LOGGER.info(RESPONSE_MSG, serverInfo, nanoChrono.getElapsedTimeInMS(), requestMethod, requestUri, statusCode, str.substring(0, Math.min(10000, str.length())));
+            LOGGER.debug(RESPONSE_MSG, serverInfo, elapsedTimeInMS, requestMethod, requestUri, statusCode, str);
+        } else if (LOGGER.isInfoEnabled()) {
+            LOGGER.info(RESPONSE_MSG, serverInfo, elapsedTimeInMS, requestMethod, requestUri, statusCode, str.substring(0, Math.min(10000, str.length())));
+        } else if (elapsedTimeInMS > 500) {
+            LOGGER.warn(RESPONSE_MSG, serverInfo, elapsedTimeInMS, requestMethod, requestUri, statusCode, str.substring(0, Math.min(10000, str.length())));
         }
     }
 

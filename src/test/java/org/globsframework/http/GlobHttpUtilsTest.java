@@ -37,7 +37,7 @@ public class GlobHttpUtilsTest {
                 )
         );
         String s = path.getURI().toString();
-        Assert.assertEquals("path?bool=true&aLong=23&param=eyJfa2luZCI6InBBUkFNIiwic3RyIjoic29tZSBvdGhlciBpbmZvIiwiYUxvbmciOjQyfQ%3D%3D", s);
+        Assert.assertEquals("path?bool=true&aLong=23&param=eyJfa2luZCI6IlBBUkFNIiwic3RyIjoic29tZSBvdGhlciBpbmZvIiwiYUxvbmciOjQyfQ%3D%3D", s);
     }
 
     @Test
@@ -62,7 +62,7 @@ public class GlobHttpUtilsTest {
         Assert.assertEquals(new BasicNameValuePair("aLong", "23"), list.get(1));
         Assert.assertEquals(new BasicNameValuePair("client.name", "John"), list.get(2));
         Assert.assertEquals(new BasicNameValuePair("param",
-                "eyJfa2luZCI6InBBUkFNIiwic3RyIjoic29tZSBvdGhlciBpbmZvIiwiYUxvbmciOjQyfQ=="), list.get(3));
+                "eyJfa2luZCI6IlBBUkFNIiwic3RyIjoic29tZSBvdGhlciBpbmZvIiwiYUxvbmciOjQyfQ=="), list.get(3));
     }
 
     @Test

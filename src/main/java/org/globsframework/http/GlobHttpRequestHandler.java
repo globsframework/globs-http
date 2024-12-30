@@ -267,7 +267,8 @@ public class GlobHttpRequestHandler {
 //                            .filter(headerElement -> headerElement.getName().equals())
             String str = bodyGlobType == null ? null : Files.read(content, StandardCharsets.UTF_8);
             data = Strings.isNullOrEmpty(str) ?
-                    ((bodyGlobType != null) ? HttpInputData.fromGlob(null) : HttpInputData.fromStream(content)) : HttpInputData.fromGlob(GSonUtils.decode(str, bodyGlobType));
+                    ((bodyGlobType != null) ? HttpInputData.fromGlob(null) : HttpInputData.fromStream(content))
+                    : HttpInputData.fromGlob(GSonUtils.decode(str, bodyGlobType));
             String strToLog = operation.hasSensitiveData() && data.isGlob() ? GSonUtils.encodeHidSensitiveData(data.asGlob()) : str;
 
             logRequestData(request, strToLog == null ? "" : strToLog, nanoChrono);

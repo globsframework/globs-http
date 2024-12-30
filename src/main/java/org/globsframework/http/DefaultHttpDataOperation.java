@@ -12,7 +12,6 @@ public class DefaultHttpDataOperation implements MutableHttpDataOperation {
     public static final GlobType EMPTY = DefaultGlobTypeBuilder.init("Empty").get();
     private final HttpOp verb;
     private GlobType bodyType;
-    private Glob emptyBody;
     private GlobType queryType;
     private Glob emptyQuery;
     private GlobType returnType;
@@ -29,35 +28,29 @@ public class DefaultHttpDataOperation implements MutableHttpDataOperation {
         this.bodyType = bodyType;
         this.queryType = queryType;
         this.httpTreatment = httpTreatment;
-        emptyBody = bodyType != null ? bodyType.instantiate() : null;
         emptyQuery = queryType != null ? queryType.instantiate() : null;
         emptyHeader = headerType != null ? headerType.instantiate() : null;
     }
 
-    @Override
     public MutableHttpDataOperation withBody(GlobType globType) {
         bodyType = globType;
         return this;
     }
 
-    @Override
     public MutableHttpDataOperation withHeader(GlobType globType) {
         headerType = globType;
         return this;
     }
 
-    @Override
     public MutableHttpDataOperation withQueryType(GlobType globType) {
         queryType = globType;
         return this;
     }
 
-    @Override
     public void withReturnType(GlobType type) {
         this.returnType = type;
     }
 
-    @Override
     public void withTags(String[] tags) {
         this.tags = tags;
     }
@@ -103,16 +96,15 @@ public class DefaultHttpDataOperation implements MutableHttpDataOperation {
     }
 
     public CompletableFuture<HttpOutputData> consume(HttpInputData data, Glob url, Glob queryParameters, Glob header) throws Exception {
-        return httpTreatment.consume(bodyType != null && data.isGlob() && data.asGlob() == null ? HttpInputData.fromGlob(emptyBody) : data, url, queryParameters == null ? emptyQuery : queryParameters,
+        return httpTreatment.consume(data,
+                url, queryParameters == null ? emptyQuery : queryParameters,
                 header == null ? emptyHeader : header);
     }
 
-    @Override
     public void withComment(String comment) {
         this.comment = comment;
     }
 
-    @Override
     public void withSensitiveData(boolean hasSensitiveData) {
         this.hasSensitiveData = hasSensitiveData;
     }

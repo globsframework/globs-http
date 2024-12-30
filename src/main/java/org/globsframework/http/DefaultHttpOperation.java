@@ -102,7 +102,7 @@ public class DefaultHttpOperation implements MutableHttpDataOperation {
 
     public CompletableFuture<HttpOutputData> consume(HttpInputData data, Glob url, Glob queryParameters, Glob header) throws Exception {
         if (data == null || !data.isGlob() || data.asGlob() == null) {
-            final CompletableFuture<Glob> consume = httpTreatment.consume(emptyBody, url, queryParameters == null ? emptyQuery : queryParameters,
+            final CompletableFuture<Glob> consume = httpTreatment.consume(null, url, queryParameters == null ? emptyQuery : queryParameters,
                     header == null ? emptyHeader : header);
             return consume == null ? CompletableFuture.completedFuture(null) : consume.thenApply(HttpOutputData::asGlob);
         } else {

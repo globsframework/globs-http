@@ -326,7 +326,30 @@ public class GlobHttpRequestHandlerTest {
             String str = new String(httpResponse.getEntity().getContent().readAllBytes());
             Assert.assertEquals("some Data", str);
         }
+    }
 
+    @Test
+    public void EmptyBodyInPostIsNull() throws IOException {
+        String charsetName = "UTF-16";
+
+        httpServerRegister.register("/send", null)
+                .post(BodyContent.TYPE, null, (body, url, queryParameters) -> {
+                    if (body != null) {
+                        throw new IllegalArgumentException("body must be null");
+                    }
+                    return CompletableFuture.completedFuture(body);
+                        }
+                );
+        startServer();
+
+        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+            HttpHost target = new HttpHost("localhost", port, "http");
+
+            HttpPost httpPost = new HttpPost("/send");
+            httpPost.setEntity(new StringEntity("", ContentType.APPLICATION_JSON));
+            HttpResponse httpResponse = httpclient.execute(target, httpPost);
+            Assert.assertEquals(204, httpResponse.getStatusLine().getStatusCode());
+        }
     }
 
     @Test

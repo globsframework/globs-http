@@ -591,9 +591,9 @@ public class GlobHttpRequestHandlerTest {
     }
 
     private void startServer() {
-        Pair<HttpServer, Integer> httpServerIntegerPair = httpServerRegister.startAndWaitForStartup(bootstrap);
-        server = httpServerIntegerPair.getFirst();
-        port = httpServerIntegerPair.getSecond();
+        HttpServerRegister.HttpStartup httpServerIntegerPair = httpServerRegister.startAndWaitForStartup(bootstrap);
+        server = httpServerIntegerPair.httpServer();
+        port = httpServerIntegerPair.listenPort();
         System.out.println("port:" + port);
     }
 

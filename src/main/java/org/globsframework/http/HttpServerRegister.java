@@ -53,13 +53,13 @@ public class HttpServerRegister {
         }
     }
 
-    public Verb register(String url, GlobType queryUrl) {
+    public Verb register(String url, GlobType pathParameters) {
         Verb current = verbMap.get(url);
         if (current == null) {
-            Verb verb = new Verb(url, queryUrl);
+            Verb verb = new Verb(url, pathParameters);
             verbMap.put(url, verb);
             return verb;
-        } else if (current.pathParameters != queryUrl) {
+        } else if (current.pathParameters != pathParameters) {
             throw new RuntimeException(serverInfo + ": Same query Type is expected for same url on different verb (" + url + ")");
         }
         return current;
@@ -501,7 +501,9 @@ public class HttpServerRegister {
         return serverBootstrap.create();
     }
 
-    public Pair<HttpServer, Integer> startAndWaitForStartup(ServerBootstrap bootstrap) {
+    public record HttpStartup(HttpServer httpServer, int listenPort) {}
+
+    public HttpStartup startAndWaitForStartup(ServerBootstrap bootstrap) {
         HttpServer server = init(bootstrap);
         try {
             server.start();
@@ -510,7 +512,7 @@ public class HttpServerRegister {
             int port = address.getPort();
             openApiDoc = createOpenApiDoc(port);
             LOGGER.info(serverInfo + " OpenApi doc : {}", GSonUtils.encode(openApiDoc, false));
-            return Pair.makePair(server, port);
+            return new HttpStartup(server, port);
         } catch (Exception e) {
             String message = serverInfo + " Fail to start server" + serverInfo;
             LOGGER.error(message);

@@ -1,11 +1,13 @@
 package org.globsframework.http;
 
-import org.apache.http.HttpException;
-import org.apache.http.*;
-import org.apache.http.impl.nio.bootstrap.HttpServer;
-import org.apache.http.impl.nio.bootstrap.ServerBootstrap;
-import org.apache.http.nio.protocol.*;
-import org.apache.http.protocol.HttpContext;
+import org.apache.hc.core5.function.Supplier;
+import org.apache.hc.core5.http.HttpRequestMapper;
+import org.apache.hc.core5.http.URIScheme;
+import org.apache.hc.core5.http.impl.bootstrap.AsyncServerBootstrap;
+import org.apache.hc.core5.http.impl.bootstrap.HttpAsyncServer;
+import org.apache.hc.core5.http.nio.AsyncServerExchangeHandler;
+import org.apache.hc.core5.http2.impl.nio.bootstrap.H2ServerBootstrap;
+import org.apache.hc.core5.reactor.ListenerEndpoint;
 import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.metamodel.GlobTypeBuilderFactory;
 import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
@@ -15,17 +17,17 @@ import org.globsframework.core.model.Glob;
 import org.globsframework.core.model.MutableGlob;
 import org.globsframework.core.utils.Ref;
 import org.globsframework.core.utils.Strings;
-import org.globsframework.core.utils.collections.Pair;
 import org.globsframework.http.openapi.model.*;
 import org.globsframework.json.GSonUtils;
 import org.globsframework.json.annottations.IsJsonContent_;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
 
 public class HttpServerRegister {
     private static final Logger LOGGER = LoggerFactory.getLogger(HttpServerRegister.class);
@@ -475,16 +477,23 @@ public class HttpServerRegister {
         return p.get();
     }
 
-    public HttpServer init(ServerBootstrap serverBootstrap) {
-        HttpRequestHttpAsyncRequestHandlerTree handler = new HttpRequestHttpAsyncRequestHandlerTree(serverInfo);
-        serverBootstrap.registerHandler("*", handler);
+
+    interface BootStratServer {
+
+        void setRequestRouter(final HttpRequestMapper<Supplier<AsyncServerExchangeHandler>> requestRouter);
+
+        HttpAsyncServer create();
+    }
+
+    public HttpAsyncServer init(BootStratServer serverBootstrap) {
+
+        RequestDispatcher requestDispatcher = new RequestDispatcher(serverInfo);
         for (Map.Entry<String, Verb> stringVerbEntry : verbMap.entrySet()) {
             Verb verb = stringVerbEntry.getValue();
-            GlobHttpRequestHandler globHttpRequestHandler = new GlobHttpRequestHandler(serverInfo, verb.complete());
+            GlobHttpRequestHandlerBuilder globHttpRequestHandler = new GlobHttpRequestHandlerBuilder(serverInfo, verb.complete());
             Collection<String> path = globHttpRequestHandler.createRegExp();
-            handler.register(path, globHttpRequestHandler);
+            requestDispatcher.register(path, globHttpRequestHandler);
             for (HttpOperation operation : stringVerbEntry.getValue().operations) {
-
                 MutableGlob logs = HttpAPIDesc.TYPE.instantiate()
                         .set(HttpAPIDesc.serverName, serverInfo)
                         .set(HttpAPIDesc.url, stringVerbEntry.getKey())
@@ -495,24 +504,72 @@ public class HttpServerRegister {
                 LOGGER.info(serverInfo + " Api : {}", GSonUtils.encode(logs, false));
             }
         }
-        if (Strings.isNotEmpty(serverInfo)) {
-            serverBootstrap.setServerInfo(serverInfo);
-        }
+//        if (Strings.isNotEmpty(serverInfo)) {
+//            serverBootstrap.setServerInfo(serverInfo);
+//        }
+        serverBootstrap.setRequestRouter((request, context) ->
+                () -> new HttpRequestHttpAsyncServerExchangeTree(requestDispatcher, request, context));
         return serverBootstrap.create();
     }
 
-    public record HttpStartup(HttpServer httpServer, int listenPort) {}
+    public static class Server {
+        private final HttpAsyncServer server;
+        private final int port;
 
-    public HttpStartup startAndWaitForStartup(ServerBootstrap bootstrap) {
-        HttpServer server = init(bootstrap);
+        public Server(HttpAsyncServer server, int port) {
+            this.server = server;
+            this.port = port;
+        }
+
+        public int getPort() {
+            return port;
+        }
+
+        public HttpAsyncServer getServer() {
+            return server;
+        }
+    }
+
+    public Server startAndWaitForStartup(H2ServerBootstrap bootstrap, int wantedPort) {
+        HttpAsyncServer server = init(new BootStratServer() {
+            @Override
+            public void setRequestRouter(HttpRequestMapper<Supplier<AsyncServerExchangeHandler>> requestRouter) {
+                bootstrap.setRequestRouter(requestRouter);
+            }
+
+            @Override
+            public HttpAsyncServer create() {
+                return bootstrap.create();
+            }
+        });
+        return initHttpServer(wantedPort, server);
+    }
+
+    public Server startAndWaitForStartup(AsyncServerBootstrap bootstrap, int wantedPort) {
+        HttpAsyncServer server = init(new BootStratServer() {
+            @Override
+            public void setRequestRouter(HttpRequestMapper<Supplier<AsyncServerExchangeHandler>> requestRouter) {
+                bootstrap.setRequestRouter(requestRouter);
+            }
+
+            @Override
+            public HttpAsyncServer create() {
+                return bootstrap.create();
+            }
+        });
+        return initHttpServer(wantedPort, server);
+    }
+
+    private Server initHttpServer(int wantedPort, HttpAsyncServer server) {
         try {
             server.start();
-            server.getEndpoint().waitFor();
-            InetSocketAddress address = (InetSocketAddress) server.getEndpoint().getAddress();
+            Future<ListenerEndpoint> listen = server.listen(new InetSocketAddress(wantedPort), URIScheme.HTTP);
+            ListenerEndpoint listenerEndpoint = listen.get();
+            InetSocketAddress address = (InetSocketAddress) listenerEndpoint.getAddress();
             int port = address.getPort();
             openApiDoc = createOpenApiDoc(port);
             LOGGER.info(serverInfo + " OpenApi doc : {}", GSonUtils.encode(openApiDoc, false));
-            return new HttpStartup(server, port);
+            return new Server(server, port);
         } catch (Exception e) {
             String message = serverInfo + " Fail to start server" + serverInfo;
             LOGGER.error(message);
@@ -541,6 +598,8 @@ public class HttpServerRegister {
         OperationInfo declareTags(String[] tags);
 
         OperationInfo comment(String comment);
+
+        OperationInfo withExecutor(Executor executor);
 
         void addHeader(String name, String value);
     }
@@ -571,58 +630,6 @@ public class HttpServerRegister {
 
     }
 
-    public static class HttpRequestHttpAsyncRequestHandlerTree implements HttpAsyncRequestHandler<HttpRequest> {
-        private final String serverInfo;
-        private StrNode[] nodes = new StrNode[0];
-
-        public HttpRequestHttpAsyncRequestHandlerTree(String serverInfo) {
-            this.serverInfo = serverInfo;
-        }
-
-        public HttpAsyncRequestConsumer<HttpRequest> processRequest(HttpRequest httpRequest, HttpContext httpContext) {
-            return new BasicAsyncRequestConsumer();
-        }
-
-        public void handle(HttpRequest httpRequest, HttpAsyncExchange httpExchange, HttpContext context) throws HttpException, IOException {
-            RequestLine requestLine = httpRequest.getRequestLine();
-            String uri = requestLine.getUri();
-            int i = uri.indexOf("?");
-            String urlStr = uri.substring(1, i == -1 ? uri.length() : i); // remove first /
-            String paramStr = i == -1 ? null : uri.substring(i + 1);
-            String[] split = urlStr.split("/");
-            int min = Math.min(split.length, nodes.length - 1);
-            boolean dispatch = nodes[min].dispatch(split, paramStr, httpRequest, httpExchange, context);
-            if (!dispatch) {
-                for (int pos = min; pos >= 0; pos--) {
-                    if (nodes[pos].dispatchWildcard(split, paramStr, httpRequest, httpExchange, context)) {
-                        return;
-                    }
-                }
-            } else {
-                return;
-            }
-            HttpResponse response = httpExchange.getResponse();
-            response.setStatusCode(HttpStatus.SC_FORBIDDEN);
-            httpExchange.submitResponse(new BasicAsyncResponseProducer(response));
-            LOGGER.warn(serverInfo + " : Unexpected path : " + urlStr);
-        }
-
-        public void register(Collection<String> path, GlobHttpRequestHandler globHttpRequestHandler) {
-            int length = nodes.length;
-            if (length <= path.size()) {
-                nodes = Arrays.copyOf(nodes, path.size() + 1);
-                for (; length < nodes.length; length++) {
-                    nodes[length] = new StrNode(serverInfo);
-                }
-            }
-            if (globHttpRequestHandler.hasWildcardAtEnd()) {
-                nodes[path.size()].registerWildcard(path, globHttpRequestHandler);
-            } else {
-                nodes[path.size()].register(path, globHttpRequestHandler);
-            }
-        }
-    }
-
     static class StrNode {
         private final String serverInfo;
         private SubStrNode[] subStrNodes = new SubStrNode[0];
@@ -632,39 +639,30 @@ public class HttpServerRegister {
             this.serverInfo = serverInfo;
         }
 
-        public boolean dispatch(String[] path, String paramStr, HttpRequest httpRequest, HttpAsyncExchange httpExchange, HttpContext context) throws IOException {
+        public GlobHttpRequestHandlerFactory createRequestHandler(String[] path, String method, String paramStr, boolean hasBody) {
             for (SubStrNode subStrNode : this.subStrNodes) {
                 if (subStrNode.match(path)) {
-                    subStrNode.globHttpRequestHandler.handle(path, paramStr, httpRequest, httpExchange, context);
-                    return true;
+                    return subStrNode.httpRequestHandlerBuilder.create(path, method, paramStr, hasBody);
                 }
             }
-            return false;
-            // check nodes with all end elements.
-            // No Match.
-//            HttpResponse response = httpExchange.getResponse();
-//            response.setStatusCode(HttpStatus.SC_FORBIDDEN);
-//            httpExchange.submitResponse(new BasicAsyncResponseProducer(response));
-//            LOGGER.warn(serverInfo + " Unexpected : " + Arrays.toString(path));
+            return null;
         }
 
-        public boolean dispatchWildcard(String[] path, String paramStr, HttpRequest httpRequest, HttpAsyncExchange httpExchange, HttpContext context)
-                throws IOException {
+        public GlobHttpRequestHandlerFactory findAndCreateRequestHandler(String[] path, String method, String paramStr, boolean hasBody) {
             for (SubStrNode subStrNode : this.subWithWildCard) {
                 if (subStrNode.match(path)) {
-                    subStrNode.globHttpRequestHandler.handle(path, paramStr, httpRequest, httpExchange, context);
-                    return true;
+                    return subStrNode.httpRequestHandlerBuilder.create(path, method, paramStr, hasBody);
                 }
             }
-            return false;
+            return null;
         }
 
-        public void register(Collection<String> path, GlobHttpRequestHandler globHttpRequestHandler) {
+        public void register(Collection<String> path, GlobHttpRequestHandlerBuilder globHttpRequestHandler) {
             subStrNodes = Arrays.copyOf(subStrNodes, subStrNodes.length + 1);
             subStrNodes[subStrNodes.length - 1] = new SubStrNode(path, globHttpRequestHandler);
         }
 
-        public void registerWildcard(Collection<String> path, GlobHttpRequestHandler globHttpRequestHandler) {
+        public void registerWildcard(Collection<String> path, GlobHttpRequestHandlerBuilder globHttpRequestHandler) {
             subWithWildCard = Arrays.copyOf(subWithWildCard, subWithWildCard.length + 1);
             subWithWildCard[subWithWildCard.length - 1] = new SubStrNode(path, globHttpRequestHandler);
         }
@@ -672,11 +670,11 @@ public class HttpServerRegister {
 
     static class SubStrNode {
         private final String[] path;
-        private final GlobHttpRequestHandler globHttpRequestHandler;
+        private final GlobHttpRequestHandlerBuilder httpRequestHandlerBuilder;
 
-        public SubStrNode(Collection<String> path, GlobHttpRequestHandler globHttpRequestHandler) {
+        public SubStrNode(Collection<String> path, GlobHttpRequestHandlerBuilder globHttpRequestHandler) {
             this.path = path.toArray(String[]::new);
-            this.globHttpRequestHandler = globHttpRequestHandler;
+            this.httpRequestHandlerBuilder = globHttpRequestHandler;
         }
 
         boolean match(String[] path) {
@@ -953,6 +951,11 @@ public class HttpServerRegister {
 
             public OperationInfo comment(String comment) {
                 operation.withComment(comment);
+                return this;
+            }
+
+            public OperationInfo withExecutor(Executor executor) {
+                operation.withExecutor(executor);
                 return this;
             }
 

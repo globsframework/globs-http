@@ -10,7 +10,8 @@ public interface HttpOutputData {
 
     Glob getGlob();
 
-    InputStream getStream();
+    record SizedStream(InputStream stream, long size) {}
+    SizedStream getStream();
 
 
     static HttpOutputData asGlob(Glob glob) {
@@ -23,13 +24,14 @@ public interface HttpOutputData {
                 return glob;
             }
 
-            public InputStream getStream() {
+            public SizedStream getStream() {
                 return null;
             }
+
         };
     }
 
-    static HttpOutputData asStream(InputStream data) {
+    static HttpOutputData asStream(InputStream data, long size) {
         return new HttpOutputData() {
             public boolean isGlob() {
                 return false;
@@ -39,9 +41,10 @@ public interface HttpOutputData {
                 return null;
             }
 
-            public InputStream getStream() {
-                return data;
+            public SizedStream getStream() {
+                return new SizedStream(data, size);
             }
+
         };
     }
 }

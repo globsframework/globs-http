@@ -2,6 +2,8 @@ package org.globsframework.http;
 
 import org.globsframework.core.metamodel.GlobType;
 
+import java.util.concurrent.Executor;
+
 public interface MutableHttpDataOperation extends HttpOperation {
     MutableHttpDataOperation withBody(GlobType globType);
 

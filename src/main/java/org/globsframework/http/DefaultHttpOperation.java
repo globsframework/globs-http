@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 public class DefaultHttpOperation implements MutableHttpDataOperation {
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultHttpOperation.class);
@@ -26,6 +27,7 @@ public class DefaultHttpOperation implements MutableHttpDataOperation {
     private boolean hasSensitiveData = false;
     private GlobType headerType;
     private Glob emptyHeader;
+    private Executor executor = Runnable::run;
 
     public DefaultHttpOperation(HttpOp verb, GlobType bodyType, GlobType queryType, HttpTreatmentWithHeader httpTreatment) {
         this.verb = verb;
@@ -88,8 +90,16 @@ public class DefaultHttpOperation implements MutableHttpDataOperation {
         return headerType;
     }
 
+    public Executor getExecutor() {
+        return executor;
+    }
+
     public void addHeader(String name, String value) {
         this.headers.put(name, value);
+    }
+
+    public void withExecutor(Executor executor) {
+        this.executor = executor;
     }
 
     public String getComment() {

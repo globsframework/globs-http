@@ -1,8 +1,8 @@
 package org.globsframework.http;
 
-import org.apache.http.NameValuePair;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.message.BasicNameValuePair;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.core5.http.NameValuePair;
+import org.apache.hc.core5.http.message.BasicNameValuePair;
 import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
 import org.globsframework.core.metamodel.annotations.FieldName_;
@@ -22,7 +22,7 @@ public class GlobHttpUtilsTest {
                 .set(PARAM.bool, true)
                 .set(PARAM.str, "Some String with &=sdfsfd")
         );
-        String s = path.getURI().toString();
+        String s = path.getRequestUri();
         Assert.assertEquals("path?str=Some+String+with+%26%3Dsdfsfd&bool=true&aLong=23", s);
     }
 
@@ -36,14 +36,14 @@ public class GlobHttpUtilsTest {
                         .set(PARAM.aLong, 42)
                 )
         );
-        String s = path.getURI().toString();
+        String s = path.getRequestUri();
         Assert.assertEquals("path?bool=true&aLong=23&param=eyJfa2luZCI6IlBBUkFNIiwic3RyIjoic29tZSBvdGhlciBpbmZvIiwiYUxvbmciOjQyfQ%3D%3D", s);
     }
 
     @Test
     public void createPost_should_return_basic_route_when_params_are_null() {
         HttpPost path = GlobHttpUtils.createPost("path", null);
-        Assert.assertEquals("path", path.getURI().toString());
+        Assert.assertEquals("path", path.getRequestUri());
     }
 
     @Test

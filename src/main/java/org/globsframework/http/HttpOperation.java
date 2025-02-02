@@ -4,8 +4,11 @@ import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.model.Glob;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 public interface HttpOperation {
+
+    void withExecutor(Executor executor);
 
     String getComment();
 
@@ -30,4 +33,6 @@ public interface HttpOperation {
     interface HeaderConsumer {
         void push(String name, String value);
     }
+
+    Executor getExecutor();
 }

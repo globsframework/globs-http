@@ -5,7 +5,10 @@ import org.globsframework.core.model.Glob;
 import java.io.InputStream;
 
 public interface HttpInputData {
-    InputStream asStream();
+
+    record SizedStream(InputStream stream, long size) {}
+
+    SizedStream asStream();
 
     Glob asGlob();
 
@@ -14,7 +17,7 @@ public interface HttpInputData {
     static HttpInputData fromGlob(Glob glob) {
         return new HttpInputData() {
             @Override
-            public InputStream asStream() {
+            public SizedStream asStream() {
                 return null;
             }
 
@@ -30,11 +33,11 @@ public interface HttpInputData {
         };
     }
 
-    static HttpInputData fromStream(InputStream inputStream) {
+    static HttpInputData fromStream(InputStream inputStream, long size) {
         return new HttpInputData() {
             @Override
-            public InputStream asStream() {
-                return inputStream;
+            public SizedStream asStream() {
+                return new SizedStream(inputStream, size);
             }
 
             @Override

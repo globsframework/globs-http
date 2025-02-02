@@ -7,6 +7,7 @@ import org.globsframework.core.model.Glob;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 public class DefaultHttpDataOperation implements MutableHttpDataOperation {
     public static final GlobType EMPTY = DefaultGlobTypeBuilder.init("Empty").get();
@@ -22,6 +23,7 @@ public class DefaultHttpDataOperation implements MutableHttpDataOperation {
     private boolean hasSensitiveData = false;
     private GlobType headerType;
     private Glob emptyHeader;
+    private Executor executor = Runnable::run;
 
     public DefaultHttpDataOperation(HttpOp verb, GlobType bodyType, GlobType queryType, HttpDataTreatmentWithHeader httpTreatment) {
         this.verb = verb;
@@ -83,8 +85,16 @@ public class DefaultHttpDataOperation implements MutableHttpDataOperation {
         return headerType;
     }
 
+    public Executor getExecutor() {
+        return executor;
+    }
+
     public void addHeader(String name, String value) {
         this.headers.put(name, value);
+    }
+
+    public void withExecutor(Executor executor) {
+        this.executor = executor;
     }
 
     public String getComment() {

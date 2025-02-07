@@ -1,4 +1,4 @@
-package org.globsframework.http;
+package org.globsframework.http.streams;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -6,7 +6,7 @@ import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
 
-class MultiByteArrayInputStream extends InputStream {
+public class MultiByteArrayInputStream extends InputStream {
     private List<byte[]> buffer = new LinkedList<>();
     private byte[] currentBuffer;
     private int currentPos = 0;
@@ -35,7 +35,7 @@ class MultiByteArrayInputStream extends InputStream {
                 currentPos = 0;
                 return -1;
             }
-            currentBuffer = buffer.removeFirst();
+            currentBuffer = buffer.remove(0);
             currentPos = 0;
         }
         return currentBuffer[currentPos++] & 0xFF;
@@ -51,7 +51,7 @@ class MultiByteArrayInputStream extends InputStream {
                 currentPos = 0;
                 return -1;
             }
-            currentBuffer = buffer.removeFirst();
+            currentBuffer = buffer.remove(0);
             currentPos = 0;
         }
         int read = Math.min(len, currentBuffer.length - currentPos);

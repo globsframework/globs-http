@@ -21,12 +21,12 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class AsyncHttpServer {
     static byte[] responseData = "Hello World".getBytes();
-    static Executor executor = Executors.newVirtualThreadPerTaskExecutor();
+    static Executor executor = Runnable::run;
+            //Executors.newVirtualThreadPerTaskExecutor();
 
 
     public static void main(String[] args) throws ExecutionException, InterruptedException {

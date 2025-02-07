@@ -20,6 +20,8 @@ import org.globsframework.core.utils.ReusableByteArrayOutputStream;
 import org.globsframework.http.model.HttpBodyData;
 import org.globsframework.http.model.HttpGlobResponse;
 import org.globsframework.http.model.StatusCode;
+import org.globsframework.http.streams.MultiBufferOutputStream;
+import org.globsframework.http.streams.MultiByteArrayInputStream;
 import org.globsframework.json.GSonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,16 +30,19 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.util.List;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger("org.globsframework.http.DefaultGlobHttpRequestHandler");
+    public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
     private final HttpOperation operation;
     private final Glob urlGlob;
     private final Glob paramType;
     private final HttpRequest request;
-    private final EntityDetails entityDetails;
+    private final EntityDetails requestEntityDetails;
     private final ResponseChannel responseChannel;
     private final HttpContext context;
     private final Glob header;
@@ -47,12 +52,12 @@ class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
     private ByteBuffer currentResponseBuffer;
 
     public DefaultGlobHttpRequestHandler(HttpOperation operation, Glob urlGlob, Glob paramType, HttpRequest request,
-                                         EntityDetails entityDetails, ResponseChannel responseChannel, HttpContext context) {
+                                         EntityDetails requestEntityDetails, ResponseChannel responseChannel, HttpContext context) {
         this.operation = operation;
         this.urlGlob = urlGlob;
         this.paramType = paramType;
         this.request = request;
-        this.entityDetails = entityDetails;
+        this.requestEntityDetails = requestEntityDetails;
         this.responseChannel = responseChannel;
         this.context = context;
         GlobType headerType = operation.getHeaderType();
@@ -84,7 +89,7 @@ class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
                     Glob glob = GSonUtils.decode(new InputStreamReader(multiByteArrayInputStream), operation.getBodyType());
                     callHandler(HttpInputData.fromGlob(glob));
                 } else {
-                    callHandler(HttpInputData.fromStream(multiByteArrayInputStream, entityDetails.getContentLength()));
+                    callHandler(HttpInputData.fromStream(multiByteArrayInputStream, requestEntityDetails.getContentLength()));
                 }
             });
         } else {
@@ -95,22 +100,28 @@ class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
     public void consumeRequest(ByteBuffer src) {
         if (multiByteArrayInputStream != null) {
             multiByteArrayInputStream.addBuffer(src);
-        } else if (src.limit() - src.position() == entityDetails.getContentLength()) {
+        } else if (src.limit() - src.position() == requestEntityDetails.getContentLength()) {
             HttpInputData inputData;
             if (operation.getBodyType() != null) {
-                CharBuffer decode = UTF_8.decode(src);
-                Glob glob = GSonUtils.decode(new Reader() {
-                    public int read(char[] chars, int offset, int length) throws IOException {
-                        int maxLen = Math.min(length, decode.remaining());
-                        if (maxLen > 0) {
-                            decode.get(chars, offset, maxLen);
+                Glob glob = null;
+                try {
+                    CharBuffer decode = UTF_8.decode(src);
+                    glob = GSonUtils.decode(new Reader() {
+                        public int read(char[] chars, int offset, int length) throws IOException {
+                            int maxLen = Math.min(length, decode.remaining());
+                            if (maxLen > 0) {
+                                decode.get(chars, offset, maxLen);
+                            }
+                            return maxLen;
                         }
-                        return maxLen;
-                    }
 
-                    public void close() throws IOException {
-                    }
-                }, operation.getBodyType());
+                        public void close() throws IOException {
+                        }
+                    }, operation.getBodyType());
+                } catch (Exception e) {
+                    send500(e);
+                    return;
+                }
                 inputData = HttpInputData.fromGlob(glob);
             } else {
                 int len = src.remaining();
@@ -131,7 +142,13 @@ class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
         try {
             operation.consume(inputData, urlGlob, paramType, header)
                     .whenComplete((httpOutputData, throwable) -> {
-                        if (httpOutputData != null) {
+                        if (throwable != null) {
+                            if (throwable instanceof CompletionException) {
+                                manageException(throwable.getCause());
+                            } else {
+                                manageException(throwable);
+                            }
+                        } else if (httpOutputData != null) {
                             if (httpOutputData.isGlob()) {
                                 Glob glob = httpOutputData.getGlob();
                                 if (glob == null) {
@@ -181,54 +198,82 @@ class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
                                 };
                                 responseSize = data.size();
                             }
-                            try {
-                                responseChannel.sendResponse(new BasicHttpResponse(200),
-                                        new BasicEntityDetails(responseSize,
-                                                ContentType.APPLICATION_JSON), context);
-                            } catch (org.apache.hc.core5.http.HttpException e) {
-                                LOGGER.error("Fail to send response (http error)", e);
-                            } catch (IOException e) {
-                                LOGGER.error("Fail to send response (io error)", e);
-                            }
+                            sendHttpResponse(new BasicHttpResponse(200), new BasicEntityDetails(responseSize,
+                                    ContentType.APPLICATION_JSON));
                         } else {
                             send204();
                         }
                     });
         } catch (Exception ex) {
+            manageException(ex);
+        }
+    }
+
+    private void manageException(Throwable throwable) {
+        if (throwable instanceof HttpExceptionWithContent) {
+            sendStatus(((HttpExceptionWithContent) throwable).getCode(),
+                    GSonUtils.encodeWithoutKind(((HttpExceptionWithContent) throwable).getContent()),
+                    ContentType.APPLICATION_JSON
+            );
+        } else if (throwable instanceof org.globsframework.http.HttpException) {
+            sendStatusWithReason(((org.globsframework.http.HttpException) throwable).getCode(),
+                    ((org.globsframework.http.HttpException) throwable).getOriginalMessage());
+        } else {
+            send500(throwable);
+        }
+    }
+
+    private void send500(Throwable ex) {
+        LOGGER.error("Fail to handle request", ex);
+        sendHttpResponse(new BasicHttpResponse(500), null);
+    }
+
+    private void sendStatusWithReason(int statusCode, String reason) {
+        LOGGER.info("Response code " + statusCode + " : " + reason);
+        sendHttpResponse(new BasicHttpResponse(statusCode, reason), null);
+    }
+
+    private void sendStatus(int statusCode, String message, ContentType contentType) {
+        LOGGER.info("Response code " + statusCode + " : " + message);
+        byte[] data = message.getBytes(UTF_8);
+        AtomicReference<ByteBuffer> wrap = new AtomicReference<>(ByteBuffer.wrap(data));
+        stream = () -> {
             try {
-                LOGGER.error("Fail to handle request", ex);
-                responseChannel.sendResponse(new BasicHttpResponse(500), null, context);
-            } catch (org.apache.hc.core5.http.HttpException e) {
-                LOGGER.error("Fail to send response (http error)", e);
-            } catch (IOException e) {
-                LOGGER.error("Fail to send response (io error)", e);
+                return wrap.get();
+            } finally {
+                wrap.set(null);
             }
+        };
+        sendHttpResponse(new BasicHttpResponse(statusCode), new BasicEntityDetails(data.length, contentType));
+    }
+
+    private void sendHttpResponse(BasicHttpResponse statusCode,
+                                  EntityDetails responseEntityDetails) {
+        try {
+            responseChannel.sendResponse(statusCode, responseEntityDetails, context);
+        } catch (HttpException e) {
+            LOGGER.error("Fail to send response (http error)", e);
+        } catch (IOException e) {
+            LOGGER.error("Fail to send response (io error)", e);
         }
     }
 
     private void responseFromHttpContent(Glob glob) {
-        try {
             var ref = new Object() {
-                byte[] bytes = glob.get(GlobHttpContent.content);
+                byte[] bytes = glob.get(GlobHttpContent.content, EMPTY_BYTE_ARRAY);
             };
-            stream = ref.bytes != null ? () -> {
+            stream = ref.bytes.length > 0 ? () -> {
                 try {
                     return ref.bytes != null ? ByteBuffer.wrap(ref.bytes) : null;
                 } finally {
                     ref.bytes = null;
                 }
             } : null;
-            responseChannel.sendResponse(
-                    new BasicHttpResponse(glob.get(GlobHttpContent.statusCode, 200)),
-                    new BasicEntityDetails(ref.bytes == null ? 0 : ref.bytes.length,
-                            ContentType.create(
-                                    glob.get(GlobHttpContent.mimeType),
-                                    glob.get(GlobHttpContent.charset))), context);
-        } catch (HttpException e) {
-            LOGGER.error("Fail to send response (http error)", e);
-        } catch (IOException e) {
-            LOGGER.error("Fail to send response (io error)", e);
-        }
+        sendHttpResponse(new BasicHttpResponse(glob.get(GlobHttpContent.statusCode, ref.bytes.length == 0 ? 204 : 200)),
+                ref.bytes.length == 0 ? null : new BasicEntityDetails(ref.bytes.length,
+                        ContentType.create(
+                                glob.get(GlobHttpContent.mimeType, "application/octet-stream"),
+                                glob.get(GlobHttpContent.charset))));
     }
 
     private void responseCustomHttpContent(Glob glob) {
@@ -237,11 +282,10 @@ class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
             Field fieldWithStatusCode = globType.findFieldWithAnnotation(StatusCode.UNIQUE_KEY);
             Field fieldWithData = globType.findFieldWithAnnotation(HttpBodyData.UNIQUE_KEY);
 
-            Integer statusCode;
+            int statusCode;
             String strData;
             if (fieldWithStatusCode instanceof IntegerField statusField
                     && (fieldWithData instanceof GlobField || fieldWithData instanceof GlobArrayField)) {
-                statusCode = glob.get(statusField);
 
                 if (fieldWithData instanceof GlobField globDataField) {
                     Glob data = glob.get(globDataField);
@@ -250,6 +294,8 @@ class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
                     Glob[] data = glob.get((GlobArrayField) fieldWithData);
                     strData = data != null ? GSonUtils.encode(data, false) : null;
                 }
+
+                statusCode = glob.get(statusField, strData == null ? 204 : 200);
 
                 var ref = new Object() {
                     byte[] bytes = strData != null ? strData.getBytes(UTF_8) : null;
@@ -263,8 +309,9 @@ class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
                 } : null;
                 responseChannel.sendResponse(
                         new BasicHttpResponse(statusCode),
-                        new BasicEntityDetails(ref.bytes == null ? 0 : ref.bytes.length,
-                                ContentType.APPLICATION_JSON), context);
+                        ref.bytes == null ? null :
+                                new BasicEntityDetails(ref.bytes.length,
+                                        ContentType.APPLICATION_JSON), context);
             }
         } catch (HttpException e) {
             LOGGER.error("Fail to send response (http error)", e);
@@ -274,13 +321,7 @@ class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
     }
 
     private void send204() {
-        try {
-            responseChannel.sendResponse(new BasicHttpResponse(204), null, context);
-        } catch (HttpException e) {
-            LOGGER.error("Fail to send response (http error)", e);
-        } catch (IOException e) {
-            LOGGER.error("Fail to send response (io error)", e);
-        }
+        sendHttpResponse(new BasicHttpResponse(204), null);
     }
 
     interface DataToSendProvider {
@@ -352,7 +393,8 @@ class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
 //        return boundary;
 //    }
 
-        public static class MultipartInputStream extends InputStream {
+    // TODO =>feed a glob
+    public static class MultipartInputStream extends InputStream {
         private final MultipartStream multipartStream;
         final ReusableByteArrayOutputStream output = new ReusableByteArrayOutputStream();
         private byte[] content;

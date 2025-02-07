@@ -1,4 +1,4 @@
-package org.globsframework.http;
+package org.globsframework.http.streams;
 
 import java.io.IOException;
 import java.io.OutputStream;

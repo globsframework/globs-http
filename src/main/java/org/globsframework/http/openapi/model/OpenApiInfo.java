@@ -1,19 +1,26 @@
 package org.globsframework.http.openapi.model;
 
 import org.globsframework.core.metamodel.GlobType;
-import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
+import org.globsframework.core.metamodel.GlobTypeBuilder;
+import org.globsframework.core.metamodel.GlobTypeBuilderFactory;
 import org.globsframework.core.metamodel.fields.StringField;
 
 public class OpenApiInfo {
-    public static GlobType TYPE;
+    public static final GlobType TYPE;
 
-    public static StringField title;
+    public static final StringField title;
 
-    public static StringField description;
+    public static final StringField description;
 
-    public static StringField version;
+    public static final StringField version;
 
     static {
-        GlobTypeLoaderFactory.create(OpenApiInfo.class).load();
+        GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiInfo");
+        TYPE = typeBuilder.unCompleteType();
+        title = typeBuilder.declareStringField("title");
+        description = typeBuilder.declareStringField("description");
+        version = typeBuilder.declareStringField("version");
+        typeBuilder.complete();
+//        GlobTypeLoaderFactory.create(OpenApiInfo.class).load();
     }
 }

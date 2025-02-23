@@ -1,20 +1,25 @@
 package org.globsframework.http.openapi.model;
 
 import org.globsframework.core.metamodel.GlobType;
-import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
+import org.globsframework.core.metamodel.GlobTypeBuilder;
+import org.globsframework.core.metamodel.GlobTypeBuilderFactory;
 import org.globsframework.core.metamodel.annotations.Target;
 import org.globsframework.core.metamodel.fields.GlobField;
+import org.globsframework.json.annottations.JsonAsObject;
 import org.globsframework.json.annottations.JsonAsObject_;
 
 public class OpenApiBodyAndResponseContent {
-    public static GlobType TYPE;
+    public static final GlobType TYPE;
 
     @Target(OpenApiBodyMimeType.class)
     @JsonAsObject_
-    public static GlobField mimeType;
+    public static final GlobField mimeType;
 
 
     static {
-        GlobTypeLoaderFactory.create(OpenApiBodyAndResponseContent.class).load();
+        GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiBodyAndResponseContent");
+        TYPE = typeBuilder.unCompleteType();
+        mimeType = typeBuilder.declareGlobField("mimeType", OpenApiBodyMimeType.TYPE, JsonAsObject.UNIQUE_GLOB);
+//        GlobTypeLoaderFactory.create(OpenApiBodyAndResponseContent.class).load();
     }
 }

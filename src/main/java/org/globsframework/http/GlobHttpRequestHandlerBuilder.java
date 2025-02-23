@@ -2,17 +2,19 @@ package org.globsframework.http;
 
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.client5.http.classic.methods.*;
-import org.apache.hc.core5.http.*;
+import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpException;
+import org.apache.hc.core5.http.NameValuePair;
 import org.apache.hc.core5.http.nio.CapacityChannel;
 import org.apache.hc.core5.http.nio.DataStreamChannel;
 import org.apache.hc.core5.http.nio.ResponseChannel;
 import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.net.URLEncodedUtils;
 import org.globsframework.core.metamodel.GlobType;
-import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
+import org.globsframework.core.metamodel.GlobTypeBuilder;
 import org.globsframework.core.metamodel.annotations.FieldName;
 import org.globsframework.core.metamodel.fields.Field;
+import org.globsframework.core.metamodel.impl.DefaultGlobTypeBuilder;
 import org.globsframework.core.model.Glob;
 import org.globsframework.core.model.MutableGlob;
 import org.globsframework.core.utils.Strings;
@@ -77,15 +79,17 @@ public class GlobHttpRequestHandlerBuilder {
     }
 
     public static class EmptyType {
-        public static GlobType TYPE;
+        public static final GlobType TYPE;
 
         static {
-            GlobTypeLoaderFactory.create(EmptyType.class).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("EmptyType");
+            TYPE = typeBuilder.get();
+//            GlobTypeLoaderFactory.create(EmptyType.class).load();
         }
     }
 
 
-        public static class HttpHandler {
+    public static class HttpHandler {
         private final String serverInfo;
         public final HttpOperation operation;
         public final ParamProcessor paramProcessor;
@@ -140,7 +144,7 @@ public class GlobHttpRequestHandlerBuilder {
     public GlobHttpRequestHandlerFactory create(String[] path, String method, String paramStr, boolean hasBody) {
         if (method.equals(HttpHead.METHOD_NAME)) {
             return (request, entityDetails, responseChannel, context) ->
-                        new ResponseGlobHttpRequestHandler(responseChannel, context, 403);
+                    new ResponseGlobHttpRequestHandler(responseChannel, context, 403);
         }
         Glob urlGlob = urlMatcher.parse(path);
         HttpHandler httpHandler = switch (method) {

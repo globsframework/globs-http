@@ -1,27 +1,36 @@
 package org.globsframework.http.openapi.model;
 
 import org.globsframework.core.metamodel.GlobType;
-import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
+import org.globsframework.core.metamodel.GlobTypeBuilder;
+import org.globsframework.core.metamodel.GlobTypeBuilderFactory;
 import org.globsframework.core.metamodel.annotations.Target;
 import org.globsframework.core.metamodel.fields.BooleanField;
 import org.globsframework.core.metamodel.fields.GlobField;
 import org.globsframework.core.metamodel.fields.StringField;
 
 public class OpenApiParameter {
-    public static GlobType TYPE;
+    public static final GlobType TYPE;
 
-    public static StringField in;
+    public static final StringField in;
 
-    public static StringField name;
+    public static final StringField name;
 
-    public static StringField description;
+    public static final StringField description;
 
-    public static BooleanField required;
+    public static final BooleanField required;
 
     @Target(OpenApiSchemaProperty.class)
-    public static GlobField schema;
+    public static final GlobField schema;
 
     static {
-        GlobTypeLoaderFactory.create(OpenApiParameter.class).load();
+        GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiParameter");
+        TYPE = typeBuilder.unCompleteType();
+        in = typeBuilder.declareStringField("in");
+        name = typeBuilder.declareStringField("name");
+        description = typeBuilder.declareStringField("description");
+        required = typeBuilder.declareBooleanField("required");
+        schema = typeBuilder.declareGlobField("schema", OpenApiSchemaProperty.TYPE);
+        typeBuilder.complete();
+//        GlobTypeLoaderFactory.create(OpenApiParameter.class).load();
     }
 }

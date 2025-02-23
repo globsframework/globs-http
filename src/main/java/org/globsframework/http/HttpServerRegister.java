@@ -9,8 +9,8 @@ import org.apache.hc.core5.http.nio.AsyncServerExchangeHandler;
 import org.apache.hc.core5.http2.impl.nio.bootstrap.H2ServerBootstrap;
 import org.apache.hc.core5.reactor.ListenerEndpoint;
 import org.globsframework.core.metamodel.GlobType;
+import org.globsframework.core.metamodel.GlobTypeBuilder;
 import org.globsframework.core.metamodel.GlobTypeBuilderFactory;
-import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
 import org.globsframework.core.metamodel.annotations.Comment;
 import org.globsframework.core.metamodel.fields.*;
 import org.globsframework.core.model.Glob;
@@ -19,6 +19,7 @@ import org.globsframework.core.utils.Ref;
 import org.globsframework.core.utils.Strings;
 import org.globsframework.http.openapi.model.*;
 import org.globsframework.json.GSonUtils;
+import org.globsframework.json.annottations.IsJsonContent;
 import org.globsframework.json.annottations.IsJsonContent_;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -605,27 +606,37 @@ public class HttpServerRegister {
     }
 
     public static class HttpAPIDesc {
-        public static GlobType TYPE;
+        public static final GlobType TYPE;
 
-        public static StringField serverName;
+        public static final StringField serverName;
 
-        public static StringField url;
+        public static final StringField url;
 
-        public static StringField verb;
-
-        @IsJsonContent_
-        public static StringField queryParam;
+        public static final StringField verb;
 
         @IsJsonContent_
-        public static StringField body;
+        public static final StringField queryParam;
 
         @IsJsonContent_
-        public static StringField returnType;
+        public static final StringField body;
 
-        public static StringField comment;
+        @IsJsonContent_
+        public static final StringField returnType;
+
+        public static final StringField comment;
 
         static {
-            GlobTypeLoaderFactory.create(HttpAPIDesc.class).load();
+            GlobTypeBuilder globTypeBuilder = GlobTypeBuilderFactory.create("HttpAPIDesc");
+            TYPE = globTypeBuilder.unCompleteType();
+            serverName = globTypeBuilder.declareStringField("serverName");
+            url = globTypeBuilder.declareStringField("url");
+            verb = globTypeBuilder.declareStringField("verb");
+            queryParam = globTypeBuilder.declareStringField("queryParam", IsJsonContent.UNIQUE_GLOB);
+            body = globTypeBuilder.declareStringField("body", IsJsonContent.UNIQUE_GLOB);
+            returnType = globTypeBuilder.declareStringField("returnType", IsJsonContent.UNIQUE_GLOB);
+            comment = globTypeBuilder.declareStringField("comment");
+            globTypeBuilder.complete();
+//            GlobTypeLoaderFactory.create(HttpAPIDesc.class).load();
         }
 
     }

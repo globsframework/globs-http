@@ -8,7 +8,7 @@
     <packaging>jar</packaging>
     <artifactId>globs-http</artifactId>
     <name>Generic Lightweight ObjectS http</name>
-    <version>4.1.1</version>
+    <version>3.1.1</version>
 
     <developers>
         <developer>
@@ -141,17 +141,17 @@
         <dependency>
             <groupId>org.globsframework</groupId>
             <artifactId>globs</artifactId>
-            <version>4.1.1</version>
+            <version>3.1.1</version>
         </dependency>
         <dependency>
             <groupId>org.globsframework</groupId>
             <artifactId>globs-gson</artifactId>
-            <version>4.1.1</version>
+            <version>3.1.1</version>
         </dependency>
         <dependency>
             <groupId>org.globsframework</groupId>
             <artifactId>globs-bin-serialisation</artifactId>
-            <version>4.1.1</version>
+            <version>3.1.1</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.apache.httpcomponents.core5/httpcore5 -->
         <dependency>

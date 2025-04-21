@@ -18,6 +18,7 @@ import org.globsframework.core.model.FieldValues;
 import org.globsframework.core.model.Glob;
 import org.globsframework.core.utils.Utils;
 import org.globsframework.json.GSonUtils;
+import org.globsframework.serialisation.BinReader;
 import org.globsframework.serialisation.BinReaderFactory;
 import org.globsframework.serialisation.BinWriterFactory;
 import org.globsframework.serialisation.glob.GlobBinReader;
@@ -99,7 +100,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
             return outputStream.toByteArray();
         };
         GlobDeserializer deserializer = resolvers -> {
-            GlobBinReader globBinReader = binReaderFactory.createGlobBinReader(resolvers);
+            BinReader globBinReader = binReaderFactory.createGlobBinReader(resolvers);
             return data -> globBinReader.read(new ByteArrayInputStream(data));
         };
         return new EtcDSharedDataAccess(client, serializer, deserializer, prefix, separator);

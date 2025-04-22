@@ -31,11 +31,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 public class EtcDSharedDataAccess implements SharedDataAccess {
     private final static Logger LOGGER = LoggerFactory.getLogger(EtcDSharedDataAccess.class);
@@ -109,7 +107,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     public static String extractPath(String prefix, FieldValues glob, GlobType type, String separator) {
         List<Field> orderedField = type.streamFields().filter(field -> field.hasAnnotation(PathIndex.KEY))
                 .sorted(Comparator.comparing(field1 -> field1.getAnnotation(PathIndex.KEY).get(PathIndex.index)))
-                .toList();
+                .collect(Collectors.toList());
         StringBuilder builder = new StringBuilder();
         if (prefix != null) {
             builder.append(separator).append(prefix);
@@ -157,7 +155,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         ByteSequence k = ByteSequence.from(path, StandardCharsets.UTF_8);
         ByteSequence v = ByteSequence.from(serializer.write(glob));
 
-        return leaseClient.grant(duration.toSeconds())
+        return leaseClient.grant(duration.toMillis() * 1000)
                 .thenApply(LeaseGrantResponse::getID)
                 .thenCompose(leaseId -> {
                     LOGGER.info("register " + path + " with lease id" + leaseId);
@@ -180,7 +178,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     }
 
     public CompletableFuture<UnLeaser> createLease(Duration duration) {
-        return leaseClient.grant(duration.toSeconds())
+        return leaseClient.grant(duration.toMillis() * 1000)
                 .thenApply(LeaseGrantResponse::getID)
                 .thenApply(leaseId -> {
                     LOGGER.info("lease " + leaseId + " created.");
@@ -249,7 +247,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
             List<KeyValue> kvs = getResponse.getKvs();
             long revision = getResponse.getHeader().getRevision();
             if (kvs.isEmpty()) {
-                return new ResultAndRevision(List.of(), revision);
+                return new ResultAndRevision(Collections.emptyList(), revision);
             }
             List<Glob> data = new ArrayList<>();
             for (KeyValue keyValue : kvs) {
@@ -397,7 +395,20 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
         }
     }
 
-    record ResultAndRevision(List<Glob> data, long revision) {
+    static class ResultAndRevision{
+        private final List<Glob> data;
+        private final long revision;
+
+        ResultAndRevision(List<Glob> data, long revision) {
+            this.data = data;
+            this.revision = revision;
+        }
+        public List<Glob> data() {
+            return data;
+        }
+        public long revision() {
+            return revision;
+        }
     }
 
     private static class LoggerListener implements Listener {

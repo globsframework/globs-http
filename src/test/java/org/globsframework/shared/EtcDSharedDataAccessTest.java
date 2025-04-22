@@ -324,7 +324,7 @@ public class EtcDSharedDataAccessTest {
                             .set(Data1.num, 1)
                             .get())
                     .get(10, TimeUnit.SECONDS)
-                    .orElseThrow().get(Data1.someData));
+                    .orElseThrow(() -> new RuntimeException()).get(Data1.someData));
 
             Assert.assertNotNull(puts.poll(10, TimeUnit.SECONDS));
 
@@ -418,7 +418,7 @@ public class EtcDSharedDataAccessTest {
             Thread.sleep(2000);
             Assert.assertEquals("blabla", etcDSharedDataAccess.get(Data1.TYPE, data)
                     .get(1, TimeUnit.SECONDS)
-                    .orElseThrow().get(Data1.someData));
+                    .orElseThrow(() -> new RuntimeException()).get(Data1.someData));
             unLeaser.end();
             Thread.sleep(3000);
             List<Glob> globs = etcDSharedDataAccess.getUnder(Data1.TYPE, FieldValues.EMPTY)
@@ -449,13 +449,13 @@ public class EtcDSharedDataAccessTest {
                         .set(Data1.num, 1)
                         .get())
                 .get(1, TimeUnit.MINUTES)
-                .orElseThrow().get(Data1.someData));
+                .orElseThrow(() -> new RuntimeException()).get(Data1.someData));
         Thread.sleep(4000);
-        Assert.assertTrue(etcDSharedDataAccess.get(Data1.TYPE, FieldValuesBuilder.init()
+        Assert.assertFalse(etcDSharedDataAccess.get(Data1.TYPE, FieldValuesBuilder.init()
                 .set(Data1.shop, "mg.the-oz.com")
                 .set(Data1.workerName, "w1")
                 .set(Data1.num, 1)
-                .get()).get(1, TimeUnit.MINUTES).isEmpty());
+                .get()).get(1, TimeUnit.MINUTES).isPresent());
 
         SharedDataAccess.UnLeaser unLeaser = etcDSharedDataAccess.registerWithLease(data, 3, TimeUnit.SECONDS)
                 .get(1, TimeUnit.MINUTES);
@@ -473,7 +473,7 @@ public class EtcDSharedDataAccessTest {
                         .set(Data1.num, 1)
                         .get())
                 .get(1, TimeUnit.MINUTES)
-                .orElseThrow().get(Data1.someData));
+                .orElseThrow(() -> new RuntimeException()).get(Data1.someData));
     }
 
     public static class Data1 {

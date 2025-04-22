@@ -97,7 +97,7 @@ public class HttpServerRegister {
         });
 
 
-        return openApiDoc.duplicate().set(OpenApiType.paths, paths.toArray(Glob[]::new));
+        return openApiDoc.duplicate().set(OpenApiType.paths, paths.toArray(new Glob[0]));
     }
 
     private boolean hasSelectedTag(Glob path, GlobField field, String targetScope) {
@@ -125,10 +125,10 @@ public class HttpServerRegister {
                         .set(OpenApiInfo.version, "1.0")
                 )
                 .set(OpenApiType.components, OpenApiComponents.TYPE.instantiate()
-                        .set(OpenApiComponents.schemas, schemas.values().toArray(Glob[]::new)))
+                        .set(OpenApiComponents.schemas, schemas.values().toArray(new Glob[0])))
                 .set(OpenApiType.servers, new Glob[]{OpenApiServers.TYPE.instantiate()
                         .set(OpenApiServers.url, "http://localhost:" + port)})
-                .set(OpenApiType.paths, paths.toArray(Glob[]::new));
+                .set(OpenApiType.paths, paths.toArray(new Glob[0]));
     }
 
     private void createVerbDoc(Map<GlobType, Glob> schemas, List<Glob> paths, Map.Entry<String, Verb> stringVerbEntry) {
@@ -229,7 +229,7 @@ public class HttpServerRegister {
     }
 
     private void setPathDescription(MutableGlob path, HttpOperation operation, MutableGlob desc, List<Glob> parameters) {
-        desc.set(OpenApiPathDsc.parameters, parameters.toArray(Glob[]::new));
+        desc.set(OpenApiPathDsc.parameters, parameters.toArray(new Glob[0]));
         switch (operation.verb()) {
             case post:
                 path.set(OpenApiPath.post, desc);
@@ -259,7 +259,7 @@ public class HttpServerRegister {
             for (Field field : bodyType.getFields()) {
                 param.add(subType(field, schemas));
             }
-            schema.set(OpenApiSchemaProperty.properties, param.toArray(Glob[]::new));
+            schema.set(OpenApiSchemaProperty.properties, param.toArray(new Glob[0]));
         }
         return OpenApiSchemaProperty.TYPE.instantiate()
                 .set(OpenApiSchemaProperty.ref, "#/components/schemas/" + bodyType.getName());
@@ -424,7 +424,7 @@ public class HttpServerRegister {
 
                 MutableGlob schema = OpenApiSchemaProperty.TYPE.instantiate();
                 schema.set(OpenApiSchemaProperty.name, field.getName());
-                schema.set(OpenApiSchemaProperty.anyOf, sub.toArray(Glob[]::new));
+                schema.set(OpenApiSchemaProperty.anyOf, sub.toArray(new Glob[0]));
 //                ref.set(OpenApiSchemaProperty.name, field.getName());
 //                        .set(OpenApiSchemaProperty.format, "binary")
 //                        .set(OpenApiSchemaProperty.type, "object");
@@ -435,7 +435,7 @@ public class HttpServerRegister {
                 List<Glob> sub = new ArrayList<>();
                 for (GlobType targetType : targetTypes) {
                     String name = targetType.getName() + "_union";
-                    var first = schemas.entrySet().stream().filter(e -> e.getKey().getName().equals(name)).findFirst();
+                    Optional<Map.Entry<GlobType, Glob>> first = schemas.entrySet().stream().filter(e -> e.getKey().getName().equals(name)).findFirst();
                     sub.add(first.map(entry ->
                                     OpenApiSchemaProperty.TYPE.instantiate()
                                             .set(OpenApiSchemaProperty.ref, "#/components/schemas/" + entry.getKey().getName()))
@@ -452,7 +452,7 @@ public class HttpServerRegister {
                         .set(OpenApiSchemaProperty.name, field.getName())
                         .set(OpenApiSchemaProperty.type, ARRAY_STR)
                         .set(OpenApiSchemaProperty.items, OpenApiSchemaProperty.TYPE.instantiate()
-                                .set(OpenApiSchemaProperty.anyOf, sub.toArray(Glob[]::new))
+                                .set(OpenApiSchemaProperty.anyOf, sub.toArray(new Glob[0]))
                         );
                 p.set(ref);
             }
@@ -684,7 +684,7 @@ public class HttpServerRegister {
         private final GlobHttpRequestHandlerBuilder httpRequestHandlerBuilder;
 
         public SubStrNode(Collection<String> path, GlobHttpRequestHandlerBuilder globHttpRequestHandler) {
-            this.path = path.toArray(String[]::new);
+            this.path = path.toArray(new String[0]);
             this.httpRequestHandlerBuilder = globHttpRequestHandler;
         }
 

@@ -16,6 +16,7 @@ import org.globsframework.core.metamodel.fields.GlobField;
 import org.globsframework.core.metamodel.fields.IntegerField;
 import org.globsframework.core.model.Glob;
 import org.globsframework.core.model.MutableGlob;
+import org.globsframework.core.utils.Ref;
 import org.globsframework.core.utils.ReusableByteArrayOutputStream;
 import org.globsframework.http.model.HttpBodyData;
 import org.globsframework.http.model.HttpGlobResponse;
@@ -29,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -259,18 +261,16 @@ class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
     }
 
     private void responseFromHttpContent(Glob glob) {
-            var ref = new Object() {
-                byte[] bytes = glob.get(GlobHttpContent.content, EMPTY_BYTE_ARRAY);
-            };
-            stream = ref.bytes.length > 0 ? () -> {
+            Ref<byte[]> ref = new Ref(glob.get(GlobHttpContent.content, EMPTY_BYTE_ARRAY));
+            stream = ref.get().length > 0 ? () -> {
                 try {
-                    return ref.bytes != null ? ByteBuffer.wrap(ref.bytes) : null;
+                    return ref.get() != null ? ByteBuffer.wrap(ref.get()) : null;
                 } finally {
-                    ref.bytes = null;
+                    ref.set(null);
                 }
             } : null;
-        sendHttpResponse(new BasicHttpResponse(glob.get(GlobHttpContent.statusCode, ref.bytes.length == 0 ? 204 : 200)),
-                ref.bytes.length == 0 ? null : new BasicEntityDetails(ref.bytes.length,
+        sendHttpResponse(new BasicHttpResponse(glob.get(GlobHttpContent.statusCode, ref.get().length == 0 ? 204 : 200)),
+                ref.get().length == 0 ? null : new BasicEntityDetails(ref.get().length,
                         ContentType.create(
                                 glob.get(GlobHttpContent.mimeType, "application/octet-stream"),
                                 glob.get(GlobHttpContent.charset))));
@@ -284,33 +284,31 @@ class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
 
             int statusCode;
             String strData;
-            if (fieldWithStatusCode instanceof IntegerField statusField
+            if (fieldWithStatusCode instanceof IntegerField
                     && (fieldWithData instanceof GlobField || fieldWithData instanceof GlobArrayField)) {
 
-                if (fieldWithData instanceof GlobField globDataField) {
-                    Glob data = glob.get(globDataField);
+                if (fieldWithData instanceof GlobField ) {
+                    Glob data = glob.get(fieldWithData.asGlobField());
                     strData = data != null ? GSonUtils.encode(data, false) : null;
                 } else {
                     Glob[] data = glob.get((GlobArrayField) fieldWithData);
                     strData = data != null ? GSonUtils.encode(data, false) : null;
                 }
 
-                statusCode = glob.get(statusField, strData == null ? 204 : 200);
+                statusCode = glob.get(fieldWithStatusCode.asIntegerField(), strData == null ? 204 : 200);
 
-                var ref = new Object() {
-                    byte[] bytes = strData != null ? strData.getBytes(UTF_8) : null;
-                };
-                stream = ref.bytes != null ? () -> {
+                Ref<byte[]> ref = new Ref<>(strData != null ? strData.getBytes(UTF_8) : null);
+                stream = ref.get() != null ? () -> {
                     try {
-                        return ref.bytes != null ? ByteBuffer.wrap(ref.bytes) : null;
+                        return ref.get() != null ? ByteBuffer.wrap(ref.get()) : null;
                     } finally {
-                        ref.bytes = null;
+                        ref.set(null);
                     }
                 } : null;
                 responseChannel.sendResponse(
                         new BasicHttpResponse(statusCode),
-                        ref.bytes == null ? null :
-                                new BasicEntityDetails(ref.bytes.length,
+                        ref.get() == null ? null :
+                                new BasicEntityDetails(ref.get().length,
                                         ContentType.APPLICATION_JSON), context);
             }
         } catch (HttpException e) {
@@ -343,7 +341,7 @@ class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
         if ((currentResponseBuffer == null || !currentResponseBuffer.hasRemaining()) && stream != null) {
             currentResponseBuffer = stream.nextBufferToSend();
             if (currentResponseBuffer == null || !currentResponseBuffer.hasRemaining()) {
-                channel.endStream(List.of());
+                channel.endStream(Collections.emptyList());
             }
         }
     }

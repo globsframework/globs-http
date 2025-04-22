@@ -12,6 +12,7 @@ import org.apache.hc.core5.net.URLEncodedUtils;
 import org.globsframework.core.metamodel.fields.*;
 import org.globsframework.core.model.Glob;
 import org.globsframework.core.model.MutableGlob;
+import org.globsframework.core.utils.Ref;
 import org.globsframework.json.GSonUtils;
 
 import java.nio.charset.StandardCharsets;
@@ -97,31 +98,31 @@ public class GlobHttpUtils {
         for (Field field : parameters.getType().getFields()) {
             if (!parameters.isNull(field)) {
                 if (!field.getDataType().isPrimive()) {
-                    var visitor = new FieldValueVisitor.AbstractWithErrorVisitor() {
-                        String out;
+                    Ref<String> out = new Ref<>();
+                    FieldValueVisitor visitor = new FieldValueVisitor.AbstractWithErrorVisitor() {
 
                         public void visitGlob(GlobField field, Glob value) throws Exception {
                             String encode = GSonUtils.encode(value, true);
-                            out = Base64.getUrlEncoder().encodeToString(encode.getBytes(StandardCharsets.UTF_8));
+                            out.set(Base64.getUrlEncoder().encodeToString(encode.getBytes(StandardCharsets.UTF_8)));
                         }
 
                         public void visitGlobArray(GlobArrayField field, Glob[] value) throws Exception {
                             String encode = GSonUtils.encode(value, true);
-                            out = Base64.getUrlEncoder().encodeToString(encode.getBytes(StandardCharsets.UTF_8));
+                            out.set(Base64.getUrlEncoder().encodeToString(encode.getBytes(StandardCharsets.UTF_8)));
                         }
 
                         public void visitUnionGlob(GlobUnionField field, Glob value) throws Exception {
                             String encode = GSonUtils.encode(value, true);
-                            out = Base64.getUrlEncoder().encodeToString(encode.getBytes(StandardCharsets.UTF_8));
+                            out.set(Base64.getUrlEncoder().encodeToString(encode.getBytes(StandardCharsets.UTF_8)));
                         }
 
                         public void visitUnionGlobArray(GlobArrayUnionField field, Glob[] value) throws Exception {
                             String encode = GSonUtils.encode(value, true);
-                            out = Base64.getUrlEncoder().encodeToString(encode.getBytes(StandardCharsets.UTF_8));
+                            out.set(Base64.getUrlEncoder().encodeToString(encode.getBytes(StandardCharsets.UTF_8)));
                         }
                     };
                     field.safeAccept(visitor, parameters.getValue(field));
-                    nameValuePairList.add(new BasicNameValuePair(field.getName(), visitor.out));
+                    nameValuePairList.add(new BasicNameValuePair(field.getName(), out.get()));
                 } else if (field.getDataType().isArray()) {
                     if (field instanceof StringArrayField) {
                         nameValuePairList.add(new BasicNameValuePair(field.getName(), String.join(",", parameters.get((StringArrayField) field))));

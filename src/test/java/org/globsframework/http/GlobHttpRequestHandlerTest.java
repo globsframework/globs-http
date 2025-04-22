@@ -271,7 +271,10 @@ public class GlobHttpRequestHandlerTest {
             httpRequest.setEntity(new StringEntity("Some data send"));
             CloseableHttpResponse httpResponse = httpclient.execute(target, httpRequest);
             Assert.assertEquals(200, httpResponse.getCode());
-            String str = new String(httpResponse.getEntity().getContent().readAllBytes());
+            final InputStream content = httpResponse.getEntity().getContent();
+            final byte[] b = new byte[40];
+            final int read = content.read(b);
+            String str = new String(b, 0, read, StandardCharsets.UTF_8);
             Assert.assertEquals("Some data send", str);
         }
 
@@ -470,7 +473,9 @@ public class GlobHttpRequestHandlerTest {
                     } else if ("John".equalsIgnoreCase(value)) {
                         throw new HttpException(403, "banned");
                     } else if ("Superman".equals(value)) {
-                        return CompletableFuture.failedFuture(new HttpException(408, "too strong"));
+                        return CompletableFuture.supplyAsync(() -> {
+                            throw new HttpException(408, "too strong");
+                        });
                     } else if ("Batman".equals(value)) {
                         throw new IllegalArgumentException("system error");
                     }

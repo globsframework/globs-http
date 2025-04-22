@@ -160,7 +160,7 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
             }
             return CompletableFuture.completedFuture(null);
         } else {
-            return CompletableFuture.failedFuture(new RuntimeException(p + " not found."));
+            return CompletableFuture.runAsync(() -> {throw new RuntimeException(p + " not found.");});
         }
     }
 
@@ -195,7 +195,7 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
             this.id = id;
             this.autoLease = autoLease;
             if (!autoLease) {
-                this.schedule = scheduledExecutorService.schedule(this, duration.toSeconds(), TimeUnit.SECONDS);
+                this.schedule = scheduledExecutorService.schedule(this, duration.toMillis() * 1000, TimeUnit.SECONDS);
             }
             this.duration = duration;
         }
@@ -209,7 +209,7 @@ public class InMemorySharedDataAccess implements SharedDataAccess {
                 return;
             }
             schedule.cancel(false);
-            schedule = scheduledExecutorService.schedule(this, duration.toSeconds(), TimeUnit.SECONDS);
+            schedule = scheduledExecutorService.schedule(this, duration.toMillis() * 1000, TimeUnit.SECONDS);
         }
 
         public long getLeaseId() {

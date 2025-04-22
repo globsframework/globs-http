@@ -10,7 +10,21 @@ public interface HttpOutputData {
 
     Glob getGlob();
 
-    record SizedStream(InputStream stream, long size) {}
+    class SizedStream {
+        public final InputStream stream;
+        public final long size;
+
+        public SizedStream(InputStream stream, long size) {
+            this.stream = stream;
+            this.size = size;
+        }
+        public long size(){
+            return size;
+        }
+        public InputStream stream() {
+            return stream;
+        }
+    }
     SizedStream getStream();
 
 

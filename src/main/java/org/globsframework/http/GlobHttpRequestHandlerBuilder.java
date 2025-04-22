@@ -111,13 +111,32 @@ public class GlobHttpRequestHandlerBuilder {
         this.urlMatcher = DefaultUrlMatcher.create(httpReceiver.getUrlType(), httpReceiver.getUrl());
         for (HttpOperation operation : httpReceiver.getOperations()) {
             switch (operation.verb()) {
-                case post -> onPost = new HttpHandler(serverInfo, operation);
-                case put -> onPut = new HttpHandler(serverInfo, operation);
-                case patch -> onPatch = new HttpHandler(serverInfo, operation);
-                case delete -> onDelete = new HttpHandler(serverInfo, operation);
-                case get -> onGet = new HttpHandler(serverInfo, operation);
-                case option -> onOption = new HttpHandler(serverInfo, operation);
-                default -> throw new IllegalStateException("Unexpected value: " + operation.verb());
+                case post: {
+                    onPost = new HttpHandler(serverInfo, operation);
+                    break;
+                }
+                case put: {
+                    onPut = new HttpHandler(serverInfo, operation);
+                    break;
+                }
+                case patch: {
+                    onPatch = new HttpHandler(serverInfo, operation);
+                    break;
+                }
+                case delete: {
+                    onDelete = new HttpHandler(serverInfo, operation);
+                    break;
+                }
+                case get: {
+                    onGet = new HttpHandler(serverInfo, operation);
+                    break;
+                }
+                case option: {
+                    onOption = new HttpHandler(serverInfo, operation);
+                    break;
+                }
+                default:
+                    throw new IllegalStateException("Unexpected value: " + operation.verb());
             }
         }
     }
@@ -147,15 +166,7 @@ public class GlobHttpRequestHandlerBuilder {
                     new ResponseGlobHttpRequestHandler(responseChannel, context, 403);
         }
         Glob urlGlob = urlMatcher.parse(path);
-        HttpHandler httpHandler = switch (method) {
-            case HttpGet.METHOD_NAME -> onGet;
-            case HttpPost.METHOD_NAME -> onPost;
-            case HttpPut.METHOD_NAME -> onPut;
-            case HttpPatch.METHOD_NAME -> onPatch;
-            case HttpDelete.METHOD_NAME -> onDelete;
-            case HttpOptions.METHOD_NAME -> onOption;
-            default -> throw new IllegalStateException("Unexpected value: " + method);
-        };
+        final HttpHandler httpHandler = getHttpHandler(method);
         if (httpHandler == null) {
             if (method.equals(HttpOptions.METHOD_NAME)) {
                 return (request, entityDetails, responseChannel, context) ->
@@ -166,6 +177,25 @@ public class GlobHttpRequestHandlerBuilder {
         Glob paramType = httpHandler.teatParam(paramStr);
         return (request, entityDetails, responseChannel, context) ->
                 new DefaultGlobHttpRequestHandler(httpHandler.operation, urlGlob, paramType, request, entityDetails, responseChannel, context);
+    }
+
+    private HttpHandler getHttpHandler(String method) {
+        switch (method) {
+            case HttpGet.METHOD_NAME:
+                return onGet;
+            case HttpPost.METHOD_NAME:
+                return onPost;
+            case HttpPut.METHOD_NAME:
+                return onPut;
+            case HttpPatch.METHOD_NAME:
+                return onPatch;
+            case HttpDelete.METHOD_NAME:
+                return onDelete;
+            case HttpOptions.METHOD_NAME:
+                return onOption;
+            default:
+                throw new IllegalStateException("Unexpected value: " + method);
+        }
     }
 
     private static class ResponseGlobHttpRequestHandler implements GlobHttpRequestHandler {

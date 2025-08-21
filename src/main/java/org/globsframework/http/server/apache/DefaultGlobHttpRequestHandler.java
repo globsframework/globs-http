@@ -1,4 +1,4 @@
-package org.globsframework.http;
+package org.globsframework.http.server.apache;
 
 import org.apache.commons.fileupload.MultipartStream;
 import org.apache.hc.core5.http.HttpException;
@@ -17,6 +17,7 @@ import org.globsframework.core.metamodel.fields.IntegerField;
 import org.globsframework.core.model.Glob;
 import org.globsframework.core.model.MutableGlob;
 import org.globsframework.core.utils.ReusableByteArrayOutputStream;
+import org.globsframework.http.*;
 import org.globsframework.http.model.HttpBodyData;
 import org.globsframework.http.model.HttpGlobResponse;
 import org.globsframework.http.model.StatusCode;
@@ -35,7 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
+public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger("org.globsframework.http.DefaultGlobHttpRequestHandler");
     public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
     private final HttpOperation operation;

@@ -62,12 +62,12 @@ public class EtcDSharedDataAccessTest {
 
             }
         }, Data1.TYPE.instantiate()
-                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.shop, "mg.free.fr")
                 .set(Data1.workerName, "w1")
                 .set(Data1.num, 1));
 
         MutableGlob data = Data1.TYPE.instantiate()
-                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.shop, "mg.free.fr")
                 .set(Data1.workerName, "w1")
                 .set(Data1.num, 1)
                 .set(Data1.someData, "blabla");
@@ -90,7 +90,7 @@ public class EtcDSharedDataAccessTest {
         SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createBin(client);
 
         MutableGlob data = Data1.TYPE.instantiate()
-                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.shop, "mg.free.fr")
                 .set(Data1.workerName, "w1")
                 .set(Data1.num, 1)
                 .set(Data1.someData, "blabla");
@@ -120,7 +120,7 @@ public class EtcDSharedDataAccessTest {
                 .get(1, TimeUnit.MINUTES);
         Assert.assertTrue(glob.isPresent());
         MutableGlob data2 = Data1.TYPE.instantiate()
-                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.shop, "mg.free.fr")
                 .set(Data1.workerName, "w2");
 
         etcDSharedDataAccess.register(data)
@@ -137,7 +137,7 @@ public class EtcDSharedDataAccessTest {
         SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createBin(client);
 
         MutableGlob data = Data1.TYPE.instantiate()
-                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.shop, "mg.free.fr")
                 .set(Data1.workerName, "w1")
                 .set(Data1.num, 1)
                 .set(Data1.someData, "blabla");
@@ -194,7 +194,7 @@ public class EtcDSharedDataAccessTest {
         SharedDataAccess etcDSharedDataAccess = EtcDSharedDataAccess.createBin(client);
 
         MutableGlob data = Data1.TYPE.instantiate()
-                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.shop, "mg.free.fr")
                 .set(Data1.workerName, "w1")
                 .set(Data1.num, 1)
                 .set(Data1.someData, "blabla");
@@ -281,7 +281,7 @@ public class EtcDSharedDataAccessTest {
 
         try {
             MutableGlob data = Data1.TYPE.instantiate()
-                    .set(Data1.shop, "mg.the-oz.com")
+                    .set(Data1.shop, "mg.free.fr")
                     .set(Data1.workerName, "w1")
                     .set(Data1.num, 1)
                     .set(Data1.someData, "blabla");
@@ -319,7 +319,7 @@ public class EtcDSharedDataAccessTest {
                     .get(1, TimeUnit.MINUTES);
 
             Assert.assertEquals("blabla", etcDSharedDataAccess.get(Data1.TYPE, FieldValuesBuilder.init()
-                            .set(Data1.shop, "mg.the-oz.com")
+                            .set(Data1.shop, "mg.free.fr")
                             .set(Data1.workerName, "w1")
                             .set(Data1.num, 1)
                             .get())
@@ -346,7 +346,7 @@ public class EtcDSharedDataAccessTest {
             Assert.assertNotNull(puts.poll(10, TimeUnit.SECONDS));
 
             List<Glob> actual = etcDSharedDataAccess.getUnder(Data1.TYPE, FieldValuesBuilder.init()
-                            .set(Data1.shop, "mg.the-oz.com")
+                            .set(Data1.shop, "mg.free.fr")
                             .set(Data1.workerName, "w1")
                             .get())
                     .get(10, TimeUnit.SECONDS);
@@ -406,7 +406,7 @@ public class EtcDSharedDataAccessTest {
     @Ignore
     public void autoLease() throws ExecutionException, InterruptedException {
         MutableGlob data = Data1.TYPE.instantiate()
-                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.shop, "mg.free.fr")
                 .set(Data1.workerName, "w1")
                 .set(Data1.num, 1)
                 .set(Data1.someData, "blabla");
@@ -436,7 +436,7 @@ public class EtcDSharedDataAccessTest {
 
     private void checkLease(SharedDataAccess etcDSharedDataAccess) throws InterruptedException, ExecutionException, TimeoutException {
         MutableGlob data = Data1.TYPE.instantiate()
-                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.shop, "mg.free.fr")
                 .set(Data1.workerName, "w1")
                 .set(Data1.num, 1)
                 .set(Data1.someData, "blabla");
@@ -444,7 +444,7 @@ public class EtcDSharedDataAccessTest {
         etcDSharedDataAccess.registerWithLease(data, 3, TimeUnit.SECONDS)
                 .get(1, TimeUnit.MINUTES);
         Assert.assertEquals("blabla", etcDSharedDataAccess.get(Data1.TYPE, FieldValuesBuilder.init()
-                        .set(Data1.shop, "mg.the-oz.com")
+                        .set(Data1.shop, "mg.free.fr")
                         .set(Data1.workerName, "w1")
                         .set(Data1.num, 1)
                         .get())
@@ -452,7 +452,7 @@ public class EtcDSharedDataAccessTest {
                 .orElseThrow().get(Data1.someData));
         Thread.sleep(4000);
         Assert.assertTrue(etcDSharedDataAccess.get(Data1.TYPE, FieldValuesBuilder.init()
-                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.shop, "mg.free.fr")
                 .set(Data1.workerName, "w1")
                 .set(Data1.num, 1)
                 .get()).get(1, TimeUnit.MINUTES).isEmpty());
@@ -468,7 +468,7 @@ public class EtcDSharedDataAccessTest {
         Thread.sleep(1000);
         unLeaser.touch();
         Assert.assertEquals("blabla", etcDSharedDataAccess.get(Data1.TYPE, FieldValuesBuilder.init()
-                        .set(Data1.shop, "mg.the-oz.com")
+                        .set(Data1.shop, "mg.free.fr")
                         .set(Data1.workerName, "w1")
                         .set(Data1.num, 1)
                         .get())

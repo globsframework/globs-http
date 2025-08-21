@@ -8,7 +8,7 @@ import org.globsframework.core.model.MutableGlob;
 
 import java.util.Arrays;
 
-class DefaultUrlMatcher {
+public class DefaultUrlMatcher {
 
 
     public static UrlMatcher create(GlobType globType, String fullUrl) {

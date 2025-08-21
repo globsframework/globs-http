@@ -1,5 +1,5 @@
 package org.globsframework.http;
 
-enum HttpOp {
+public enum HttpOp {
     post, put, patch, delete, get, option
 }

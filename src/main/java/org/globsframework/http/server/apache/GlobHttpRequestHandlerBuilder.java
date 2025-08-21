@@ -1,4 +1,4 @@
-package org.globsframework.http;
+package org.globsframework.http.server.apache;
 
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.client5.http.classic.methods.*;
@@ -18,6 +18,7 @@ import org.globsframework.core.metamodel.impl.DefaultGlobTypeBuilder;
 import org.globsframework.core.model.Glob;
 import org.globsframework.core.model.MutableGlob;
 import org.globsframework.core.utils.Strings;
+import org.globsframework.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

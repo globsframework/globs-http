@@ -1,11 +1,13 @@
-package org.globsframework.http;
+package org.globsframework.http.server.apache;
+
+import org.globsframework.http.GlobHttpRequestHandlerFactory;
 
 import java.util.Arrays;
 import java.util.Collection;
 
-class RequestDispatcher {
+public class RequestDispatcher {
     private final String serverInfo;
-    private HttpServerRegister.StrNode[] nodes = new HttpServerRegister.StrNode[0];
+    private StrNode[] nodes = new StrNode[0];
 
     public RequestDispatcher(String serverInfo) {
         this.serverInfo = serverInfo;
@@ -54,7 +56,7 @@ class RequestDispatcher {
         if (length <= path.size()) {
             nodes = Arrays.copyOf(nodes, path.size() + 1);
             for (; length < nodes.length; length++) {
-                nodes[length] = new HttpServerRegister.StrNode(serverInfo);
+                nodes[length] = new StrNode();
             }
         }
         if (globHttpRequestHandler.hasWildcardAtEnd()) {

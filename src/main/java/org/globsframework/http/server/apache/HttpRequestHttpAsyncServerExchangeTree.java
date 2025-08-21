@@ -1,4 +1,4 @@
-package org.globsframework.http;
+package org.globsframework.http.server.apache;
 
 import org.apache.hc.core5.http.EntityDetails;
 import org.apache.hc.core5.http.Header;
@@ -10,6 +10,8 @@ import org.apache.hc.core5.http.nio.CapacityChannel;
 import org.apache.hc.core5.http.nio.DataStreamChannel;
 import org.apache.hc.core5.http.nio.ResponseChannel;
 import org.apache.hc.core5.http.protocol.HttpContext;
+import org.globsframework.http.GlobHttpRequestHandler;
+import org.globsframework.http.GlobHttpRequestHandlerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

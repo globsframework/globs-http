@@ -61,12 +61,12 @@ the FieldNumber_ annotation)
 
             }
         }, Data1.TYPE.instantiate()
-                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.shop, "mg.free.fr")
                 .set(Data1.workerName, "w1")
                 .set(Data1.num, 1));
 
         MutableGlob data = Data1.TYPE.instantiate()
-                .set(Data1.shop, "mg.the-oz.com")
+                .set(Data1.shop, "mg.free.fr")
                 .set(Data1.workerName, "w1")
                 .set(Data1.num, 1)
                 .set(Data1.someData, "blabla");

@@ -2,7 +2,6 @@ package org.globsframework.http;
 
 import org.apache.hc.client5.http.classic.methods.*;
 import org.apache.hc.client5.http.entity.DecompressingEntity;
-import org.apache.hc.client5.http.entity.mime.MultipartEntityBuilder;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
@@ -11,11 +10,7 @@ import org.apache.hc.core5.http.impl.bootstrap.AsyncServerBootstrap;
 import org.apache.hc.core5.http.impl.bootstrap.HttpAsyncServer;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
-import org.apache.hc.core5.http.nio.AsyncRequestConsumer;
-import org.apache.hc.core5.http.nio.AsyncServerRequestHandler;
-import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.reactor.IOReactorConfig;
-import org.apache.hc.core5.reactor.ListenerEndpoint;
 import org.apache.hc.core5.util.TimeValue;
 import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
@@ -29,7 +24,10 @@ import org.globsframework.http.model.HttpBodyData_;
 import org.globsframework.http.model.HttpGlobResponse_;
 import org.globsframework.http.model.StatusCode_;
 import org.globsframework.http.openapi.model.GetOpenApiParamType;
+import org.globsframework.http.openapi.model.GlobOpenApi;
 import org.globsframework.http.openapi.model.OpenApiType;
+import org.globsframework.http.server.apache.GlobHttpApacheBuilder;
+import org.globsframework.http.server.apache.Server;
 import org.globsframework.json.GSonUtils;
 import org.globsframework.json.annottations.JsonHideValue_;
 import org.junit.*;
@@ -39,10 +37,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.*;
 
 public class GlobHttpRequestHandlerTest {
@@ -52,7 +46,7 @@ public class GlobHttpRequestHandlerTest {
     private HttpAsyncServer server;
     private int port;
     private HttpServerRegister httpServerRegister;
-
+    private GlobOpenApi globOpenApi;
     private BlockingQueue<Pair<Glob, Glob>> pairs;
 
     @Before
@@ -67,6 +61,7 @@ public class GlobHttpRequestHandlerTest {
                 .setIOReactorConfig(config);
 
         httpServerRegister = new HttpServerRegister("TestServer/1.1");
+        globOpenApi = new GlobOpenApi(httpServerRegister);
 
         pairs = new LinkedBlockingDeque<>();
     }
@@ -183,7 +178,8 @@ public class GlobHttpRequestHandlerTest {
 
         startServer();
 
-        Glob openApiDoc = httpServerRegister.createOpenApiDoc(port);
+        GlobOpenApi globOpenApi = new GlobOpenApi(httpServerRegister);
+        Glob openApiDoc = globOpenApi.getOpenApiDoc();
         String encode = GSonUtils.encode(openApiDoc, false);
         System.out.println(encode);
 
@@ -569,12 +565,11 @@ public class GlobHttpRequestHandlerTest {
                 .get(QueryParameter.TYPE, (body, url, queryParameters) -> null)
                 .declareTags(new String[]{"test-scope"});
 
-        httpServerRegister.registerOpenApi();
+        httpServerRegister.registerOpenApi(globOpenApi);
 
         startServer();
 
-        Glob openApiDoc = httpServerRegister.createOpenApiDoc(port);
-        String encode = GSonUtils.encode(openApiDoc, false);
+        String encode = GSonUtils.encode(globOpenApi.getOpenApiDoc(), false);
         System.out.println(encode);
 
         CloseableHttpClient httpclient = HttpClients.createDefault();
@@ -616,9 +611,11 @@ public class GlobHttpRequestHandlerTest {
     }
 
     private void startServer() {
-        HttpServerRegister.Server httpserverintegerpair = httpServerRegister.startAndWaitForStartup(bootstrap, 0);
+        GlobHttpApacheBuilder globHttpApacheBuilder = new GlobHttpApacheBuilder(httpServerRegister);
+        Server httpserverintegerpair = globHttpApacheBuilder.startAndWaitForStartup(bootstrap, 0);
         server = httpserverintegerpair.getServer();
         port = httpserverintegerpair.getPort();
+        this.globOpenApi.initOpenApiDoc(port);
         System.out.println("port:" + port);
     }
 

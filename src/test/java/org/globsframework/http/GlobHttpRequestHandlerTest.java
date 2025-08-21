@@ -612,9 +612,9 @@ public class GlobHttpRequestHandlerTest {
 
     private void startServer() {
         GlobHttpApacheBuilder globHttpApacheBuilder = new GlobHttpApacheBuilder(httpServerRegister);
-        Server httpserverintegerpair = globHttpApacheBuilder.startAndWaitForStartup(bootstrap, 0);
-        server = httpserverintegerpair.getServer();
-        port = httpserverintegerpair.getPort();
+        Server serverInstance = globHttpApacheBuilder.startAndWaitForStartup(bootstrap, 0);
+        server = serverInstance.getServer();
+        port = serverInstance.getPort();
         this.globOpenApi.initOpenApiDoc(port);
         System.out.println("port:" + port);
     }

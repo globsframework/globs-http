@@ -10,10 +10,7 @@ import org.apache.hc.core5.http.nio.DataStreamChannel;
 import org.apache.hc.core5.http.nio.ResponseChannel;
 import org.apache.hc.core5.http.protocol.HttpContext;
 import org.globsframework.core.metamodel.GlobType;
-import org.globsframework.core.metamodel.fields.Field;
-import org.globsframework.core.metamodel.fields.GlobArrayField;
-import org.globsframework.core.metamodel.fields.GlobField;
-import org.globsframework.core.metamodel.fields.IntegerField;
+import org.globsframework.core.metamodel.fields.*;
 import org.globsframework.core.model.Glob;
 import org.globsframework.core.model.MutableGlob;
 import org.globsframework.core.utils.ReusableByteArrayOutputStream;
@@ -47,6 +44,7 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
     private final ResponseChannel responseChannel;
     private final HttpContext context;
     private final Glob header;
+    private final Header[] requestHeaders;
     private DataToSendProvider stream;
     private MultiByteArrayInputStream multiByteArrayInputStream;
     private long responseSize;
@@ -61,8 +59,9 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
         this.requestEntityDetails = requestEntityDetails;
         this.responseChannel = responseChannel;
         this.context = context;
+        requestHeaders = request.getHeaders();
         GlobType headerType = operation.getHeaderType();
-        this.header = headerType != null ? parseHeader(headerType, request.getHeaders()) : null;
+        this.header = headerType != null ? parseHeader(headerType, requestHeaders) : null;
     }
 
     private Glob parseHeader(GlobType headerType, Header[] allHeaders) {
@@ -71,7 +70,18 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
             final String name = allHeader.getName();
             final Field field = headerType.findField(name);
             if (field != null) {
-                instance.set(field.asStringField(), allHeader.getValue());
+                if (field instanceof StringField) {
+                    instance.set(field.asStringField(), allHeader.getValue());
+                }
+                else if (field instanceof IntegerField) {
+                    instance.set(field.asIntegerField(), Integer.parseInt(allHeader.getValue()));
+                }
+                else if (field instanceof LongField) {
+                    instance.set(field.asLongField(), Long.parseLong(allHeader.getValue()));
+                }
+                else if (field instanceof BooleanField) {
+                    instance.set(field.asBooleanField(), Boolean.parseBoolean(allHeader.getValue()));
+                }
             }
         }
         return instance;
@@ -150,8 +160,8 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
                                 manageException(throwable);
                             }
                         } else if (httpOutputData != null) {
-                            if (httpOutputData.isGlob()) {
-                                Glob glob = httpOutputData.getGlob();
+                            if (httpOutputData instanceof HttpOutputData.GlobHttpOutputData outputData) {
+                                Glob glob = outputData.getGlob();
                                 if (glob == null) {
                                     send204();
                                     return;
@@ -166,7 +176,7 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
                                 }
                                 MultiBufferOutputStream out = new MultiBufferOutputStream();
                                 OutputStreamWriter streamWriter = new OutputStreamWriter(out);
-                                GSonUtils.encode(streamWriter, httpOutputData.getGlob(), false);
+                                GSonUtils.encode(streamWriter, outputData.getGlob(), false);
                                 try {
                                     streamWriter.close();
                                 } catch (IOException e) {
@@ -175,8 +185,8 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
                                 List<ByteBuffer> data = out.data();
                                 stream = () -> data.isEmpty() ? null : data.remove(0);
                                 responseSize = out.size();
-                            } else {
-                                HttpOutputData.SizedStream data = httpOutputData.getStream();
+                            } else if (httpOutputData instanceof HttpOutputData.KnownSizeStreamHttpOutputData outputData) {
+                                HttpOutputData.SizedStream data = outputData.getStream();
                                 if (data == null || data.size() == 0L) {
                                     send204();
                                     return;
@@ -185,7 +195,7 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
                                     byte[] buffer = new byte[8192]; // can be reused
 
                                     public ByteBuffer nextBufferToSend() {
-                                        int read = 0;
+                                        int read;
                                         try {
                                             read = data.stream().read(buffer);
                                         } catch (IOException e) {
@@ -329,7 +339,7 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
         ByteBuffer nextBufferToSend();
     }
 
-    // synchronized because call at sendResponse but can also be called but listen port on io write allowed.
+    // synchronized because call at sendResponse but can also be called buy listen thread on io write allowed.
     public synchronized void produceResponse(DataStreamChannel channel) throws IOException {
         if (currentResponseBuffer != null && currentResponseBuffer.hasRemaining()) {
             channel.write(currentResponseBuffer);

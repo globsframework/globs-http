@@ -4,47 +4,41 @@ import org.globsframework.core.model.Glob;
 
 import java.io.InputStream;
 
-public interface HttpOutputData {
-
-    boolean isGlob();
-
-    Glob getGlob();
+public sealed interface HttpOutputData permits HttpOutputData.GlobHttpOutputData, HttpOutputData.KnownSizeStreamHttpOutputData {
 
     record SizedStream(InputStream stream, long size) {}
-    SizedStream getStream();
-
 
     static HttpOutputData asGlob(Glob glob) {
-        return new HttpOutputData() {
-            public boolean isGlob() {
-                return true;
-            }
-
-            public Glob getGlob() {
-                return glob;
-            }
-
-            public SizedStream getStream() {
-                return null;
-            }
-
-        };
+        return new GlobHttpOutputData(glob);
     }
 
     static HttpOutputData asStream(InputStream data, long size) {
-        return new HttpOutputData() {
-            public boolean isGlob() {
-                return false;
-            }
+        return new KnownSizeStreamHttpOutputData(data, size);
+    }
 
-            public Glob getGlob() {
-                return null;
-            }
+    final class GlobHttpOutputData implements HttpOutputData {
+        private final Glob glob;
 
-            public SizedStream getStream() {
-                return new SizedStream(data, size);
-            }
+        public GlobHttpOutputData(Glob glob) {
+            this.glob = glob;
+        }
 
-        };
+        public Glob getGlob() {
+            return glob;
+        }
+    }
+
+    final class KnownSizeStreamHttpOutputData implements HttpOutputData {
+        private final InputStream data;
+        private final long size;
+
+        public KnownSizeStreamHttpOutputData(InputStream data, long size) {
+            this.data = data;
+            this.size = size;
+        }
+
+        public SizedStream getStream() {
+            return new SizedStream(data, size);
+        }
     }
 }

@@ -36,6 +36,8 @@
     </repositories>
 
     <scm>
+        <connection>scm:git:git@github.com:globsframework/globs-http</connection>
+        <developerConnection>scm:git:git@github.com:globsframework/globs-http</developerConnection>
         <url>https://github.com/globsframework/globs-http</url>
     </scm>
 
@@ -235,7 +237,7 @@
         <dependency>
             <groupId>org.globsframework</groupId>
             <artifactId>globs</artifactId>
-            <version>4.1-SNAPSHOT</version>
+            <version>4.2.0</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>

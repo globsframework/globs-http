@@ -132,17 +132,17 @@
         <dependency>
             <groupId>org.globsframework</groupId>
             <artifactId>globs</artifactId>
-            <version>4.2.0</version>
+            <version>4.13.0</version>
         </dependency>
         <dependency>
             <groupId>org.globsframework</groupId>
             <artifactId>globs-gson</artifactId>
-            <version>4.1.1</version>
+            <version>4.3.0</version>
         </dependency>
         <dependency>
             <groupId>org.globsframework</groupId>
             <artifactId>globs-bin-serialisation</artifactId>
-            <version>4.3.0</version>
+            <version>4.5.0</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.apache.httpcomponents.core5/httpcore5 -->
         <dependency>

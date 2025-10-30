@@ -120,7 +120,7 @@ public class GlobHttpUtils {
                             out = Base64.getUrlEncoder().encodeToString(encode.getBytes(StandardCharsets.UTF_8));
                         }
                     };
-                    field.safeAccept(visitor, parameters.getValue(field));
+                    field.safeAcceptValue(visitor, parameters.getValue(field));
                     nameValuePairList.add(new BasicNameValuePair(field.getName(), visitor.out));
                 } else if (field.getDataType().isArray()) {
                     if (field instanceof StringArrayField) {

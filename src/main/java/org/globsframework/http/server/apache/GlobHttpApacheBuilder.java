@@ -1,11 +1,13 @@
 package org.globsframework.http.server.apache;
 
 import org.apache.hc.core5.function.Supplier;
+import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.HttpRequestMapper;
 import org.apache.hc.core5.http.URIScheme;
 import org.apache.hc.core5.http.impl.bootstrap.AsyncServerBootstrap;
 import org.apache.hc.core5.http.impl.bootstrap.HttpAsyncServer;
 import org.apache.hc.core5.http.nio.AsyncServerExchangeHandler;
+import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.http2.impl.nio.bootstrap.H2ServerBootstrap;
 import org.apache.hc.core5.reactor.ListenerEndpoint;
 import org.globsframework.core.model.MutableGlob;
@@ -23,12 +25,23 @@ import java.util.concurrent.Future;
 public class GlobHttpApacheBuilder {
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobHttpApacheBuilder.class);
     private final HttpServerRegister httpServerRegister;
+    private final RequestDispatcher dispatcher;
 
     public GlobHttpApacheBuilder(HttpServerRegister httpServerRegister) {
         this.httpServerRegister = httpServerRegister;
+        dispatcher = createDispatcher();
     }
 
-    private HttpAsyncServer init(BootStratServer serverBootstrap) {
+    public HttpAsyncServer create(BootStratServer serverBootstrap) {
+        serverBootstrap.setRequestRouter((request, context) -> () -> createAsyncServerExchangeHandler(request, context));
+        return serverBootstrap.create();
+    }
+
+    public AsyncServerExchangeHandler createAsyncServerExchangeHandler(HttpRequest request, HttpContext context) {
+        return  new HttpRequestHttpAsyncServerExchangeTree(dispatcher, request, context);
+    }
+
+    private RequestDispatcher createDispatcher() {
         RequestDispatcher requestDispatcher = new RequestDispatcher(httpServerRegister.serverInfo);
         for (Map.Entry<String, HttpServerRegister.Verb> stringVerbEntry : httpServerRegister.verbMap.entrySet()) {
             HttpServerRegister.Verb verb = stringVerbEntry.getValue();
@@ -47,31 +60,16 @@ public class GlobHttpApacheBuilder {
                 LOGGER.info(httpServerRegister.serverInfo + " Api : {}", GSonUtils.encode(logs, false));
             }
         }
-//        if (Strings.isNotEmpty(serverInfo)) {
-//            serverBootstrap.setServerInfo(serverInfo);
-//        }
-        serverBootstrap.setRequestRouter((request, context) ->
-                () -> new HttpRequestHttpAsyncServerExchangeTree(requestDispatcher, request, context));
-        return serverBootstrap.create();
+        return requestDispatcher;
     }
 
     public Server startAndWaitForStartup(H2ServerBootstrap bootstrap, int wantedPort) {
-        HttpAsyncServer server = init(new BootStratServer() {
-            @Override
-            public void setRequestRouter(HttpRequestMapper<Supplier<AsyncServerExchangeHandler>> requestRouter) {
-                bootstrap.setRequestRouter(requestRouter);
-            }
-
-            @Override
-            public HttpAsyncServer create() {
-                return bootstrap.create();
-            }
-        });
+        final HttpAsyncServer server = createH2Async(bootstrap);
         return initHttpServer(wantedPort, server);
     }
 
-    public Server startAndWaitForStartup(AsyncServerBootstrap bootstrap, int wantedPort) {
-        HttpAsyncServer server = init(new BootStratServer() {
+    public HttpAsyncServer createH2Async(H2ServerBootstrap bootstrap) {
+        HttpAsyncServer server = create(new BootStratServer() {
             @Override
             public void setRequestRouter(HttpRequestMapper<Supplier<AsyncServerExchangeHandler>> requestRouter) {
                 bootstrap.setRequestRouter(requestRouter);
@@ -82,7 +80,26 @@ public class GlobHttpApacheBuilder {
                 return bootstrap.create();
             }
         });
+        return server;
+    }
+
+    public Server startAndWaitForStartup(AsyncServerBootstrap bootstrap, int wantedPort) {
+        final HttpAsyncServer server = createAsync(bootstrap);
         return initHttpServer(wantedPort, server);
+    }
+
+    public HttpAsyncServer createAsync(AsyncServerBootstrap bootstrap) {
+        return create(new BootStratServer() {
+            @Override
+            public void setRequestRouter(HttpRequestMapper<Supplier<AsyncServerExchangeHandler>> requestRouter) {
+                bootstrap.setRequestRouter(requestRouter);
+            }
+
+            @Override
+            public HttpAsyncServer create() {
+                return bootstrap.create();
+            }
+        });
     }
 
     private Server initHttpServer(int wantedPort, HttpAsyncServer server) {

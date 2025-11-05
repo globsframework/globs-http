@@ -1,6 +1,5 @@
 package org.globsframework.http.server.apache;
 
-import org.apache.commons.fileupload.MultipartStream;
 import org.apache.hc.core5.http.HttpException;
 import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.impl.BasicEntityDetails;
@@ -13,7 +12,6 @@ import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.metamodel.fields.*;
 import org.globsframework.core.model.Glob;
 import org.globsframework.core.model.MutableGlob;
-import org.globsframework.core.utils.ReusableByteArrayOutputStream;
 import org.globsframework.http.*;
 import org.globsframework.http.model.HttpBodyData;
 import org.globsframework.http.model.HttpGlobResponse;
@@ -405,60 +403,60 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
 //    }
 
     // TODO =>feed a glob
-    public static class MultipartInputStream extends InputStream {
-        private final MultipartStream multipartStream;
-        final ReusableByteArrayOutputStream output = new ReusableByteArrayOutputStream();
-        private byte[] content;
-        private boolean hasMore;
-        int currentPos;
-        private int size;
-
-        public MultipartInputStream(MultipartStream multipartStream) throws IOException {
-            this.multipartStream = multipartStream;
-            hasMore = multipartStream.skipPreamble();
-            if (hasMore) {
-                readNext();
-            }
-        }
-
-        public int read(byte[] b, int off, int len) throws IOException {
-            if (currentPos < size) {
-                int realLen = Math.min(size - currentPos, len);
-                System.arraycopy(content, currentPos, b, off, realLen);
-                currentPos += realLen;
-                return realLen;
-            } else {
-                if (hasMore) {
-                    readNext();
-                    return read(b, off, len);
-                } else {
-                    return -1;
-                }
-            }
-        }
-
-        public int read() throws IOException {
-            if (currentPos < size) {
-                return content[currentPos++] & 0xff;
-            }
-            if (hasMore) {
-                readNext();
-            } else {
-                return -1;
-            }
-            return read();
-        }
-
-        private void readNext() throws IOException {
-            LOGGER.debug("Read next part");
-            multipartStream.readHeaders();
-            output.reset();
-            multipartStream.readBodyData(output);
-            content = output.getBuffer();
-            currentPos = 0;
-            size = output.size();
-            hasMore = multipartStream.readBoundary();
-        }
-    }
+//    public static class MultipartInputStream extends InputStream {
+//        private final MultipartStream multipartStream;
+//        final ReusableByteArrayOutputStream output = new ReusableByteArrayOutputStream();
+//        private byte[] content;
+//        private boolean hasMore;
+//        int currentPos;
+//        private int size;
+//
+//        public MultipartInputStream(MultipartStream multipartStream) throws IOException {
+//            this.multipartStream = multipartStream;
+//            hasMore = multipartStream.skipPreamble();
+//            if (hasMore) {
+//                readNext();
+//            }
+//        }
+//
+//        public int read(byte[] b, int off, int len) throws IOException {
+//            if (currentPos < size) {
+//                int realLen = Math.min(size - currentPos, len);
+//                System.arraycopy(content, currentPos, b, off, realLen);
+//                currentPos += realLen;
+//                return realLen;
+//            } else {
+//                if (hasMore) {
+//                    readNext();
+//                    return read(b, off, len);
+//                } else {
+//                    return -1;
+//                }
+//            }
+//        }
+//
+//        public int read() throws IOException {
+//            if (currentPos < size) {
+//                return content[currentPos++] & 0xff;
+//            }
+//            if (hasMore) {
+//                readNext();
+//            } else {
+//                return -1;
+//            }
+//            return read();
+//        }
+//
+//        private void readNext() throws IOException {
+//            LOGGER.debug("Read next part");
+//            multipartStream.readHeaders();
+//            output.reset();
+//            multipartStream.readBodyData(output);
+//            content = output.getBuffer();
+//            currentPos = 0;
+//            size = output.size();
+//            hasMore = multipartStream.readBoundary();
+//        }
+//    }
 
 }

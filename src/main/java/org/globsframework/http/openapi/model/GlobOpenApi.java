@@ -423,7 +423,7 @@ public class GlobOpenApi {
             }
 
             @Override
-            public void visitBlob(BlobField field) throws Exception {
+            public void visitBytes(BytesField field) throws Exception {
                 MutableGlob ref = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
                         .set(OpenApiSchemaProperty.format, "binary")

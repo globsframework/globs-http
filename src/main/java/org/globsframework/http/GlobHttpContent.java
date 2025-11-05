@@ -3,14 +3,14 @@ package org.globsframework.http;
 import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.metamodel.GlobTypeBuilder;
 import org.globsframework.core.metamodel.GlobTypeBuilderFactory;
-import org.globsframework.core.metamodel.fields.BlobField;
+import org.globsframework.core.metamodel.fields.BytesField;
 import org.globsframework.core.metamodel.fields.IntegerField;
 import org.globsframework.core.metamodel.fields.StringField;
 
 public class GlobHttpContent {
     public static final GlobType TYPE;
 
-    public static final BlobField content;
+    public static final BytesField content;
 
     public static final StringField mimeType;
 
@@ -21,7 +21,7 @@ public class GlobHttpContent {
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("GlobHttpContent");
         TYPE = typeBuilder.unCompleteType();
-        content = typeBuilder.declareBlobField("content");
+        content = typeBuilder.declareBytesField("content");
         mimeType = typeBuilder.declareStringField("mimeType");
         charset = typeBuilder.declareStringField("charset");
         statusCode = typeBuilder.declareIntegerField("statusCode");

@@ -221,7 +221,7 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
     private void manageException(Throwable throwable) {
         if (throwable instanceof HttpExceptionWithContent) {
             sendStatus(((HttpExceptionWithContent) throwable).getCode(),
-                    GSonUtils.encodeWithoutKind(((HttpExceptionWithContent) throwable).getContent()),
+                    GSonUtils.encode(((HttpExceptionWithContent) throwable).getContent()),
                     ContentType.APPLICATION_JSON
             );
         } else if (throwable instanceof org.globsframework.http.HttpException) {

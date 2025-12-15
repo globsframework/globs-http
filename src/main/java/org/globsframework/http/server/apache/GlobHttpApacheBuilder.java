@@ -38,7 +38,7 @@ public class GlobHttpApacheBuilder {
     }
 
     public AsyncServerExchangeHandler createAsyncServerExchangeHandler(HttpRequest request, HttpContext context) {
-        return  new HttpRequestHttpAsyncServerExchangeTree(dispatcher, request, context);
+        return new HttpRequestHttpAsyncServerExchangeTree(dispatcher, request, context);
     }
 
     private RequestDispatcher createDispatcher() {
@@ -65,7 +65,12 @@ public class GlobHttpApacheBuilder {
 
     public Server startAndWaitForStartup(H2ServerBootstrap bootstrap, int wantedPort) {
         final HttpAsyncServer server = createH2Async(bootstrap);
-        return initHttpServer(wantedPort, server);
+        return initHttpServer(wantedPort, server, false);
+    }
+
+    public Server startAndWaitForStartup(H2ServerBootstrap bootstrap, int wantedPort, boolean isHttps) {
+        final HttpAsyncServer server = createH2Async(bootstrap);
+        return initHttpServer(wantedPort, server, isHttps);
     }
 
     public HttpAsyncServer createH2Async(H2ServerBootstrap bootstrap) {
@@ -85,7 +90,12 @@ public class GlobHttpApacheBuilder {
 
     public Server startAndWaitForStartup(AsyncServerBootstrap bootstrap, int wantedPort) {
         final HttpAsyncServer server = createAsync(bootstrap);
-        return initHttpServer(wantedPort, server);
+        return initHttpServer(wantedPort, server, false);
+    }
+
+    public Server startAndWaitForStartup(AsyncServerBootstrap bootstrap, int wantedPort, boolean isHttps) {
+        final HttpAsyncServer server = createAsync(bootstrap);
+        return initHttpServer(wantedPort, server, isHttps);
     }
 
     public HttpAsyncServer createAsync(AsyncServerBootstrap bootstrap) {
@@ -102,10 +112,10 @@ public class GlobHttpApacheBuilder {
         });
     }
 
-    private Server initHttpServer(int wantedPort, HttpAsyncServer server) {
+    private Server initHttpServer(int wantedPort, HttpAsyncServer server, boolean isHttps) {
         try {
             server.start();
-            Future<ListenerEndpoint> listen = server.listen(new InetSocketAddress(wantedPort), URIScheme.HTTP);
+            Future<ListenerEndpoint> listen = server.listen(new InetSocketAddress(wantedPort), isHttps ? URIScheme.HTTPS : URIScheme.HTTP);
             ListenerEndpoint listenerEndpoint = listen.get();
             InetSocketAddress address = (InetSocketAddress) listenerEndpoint.getAddress();
             int port = address.getPort();

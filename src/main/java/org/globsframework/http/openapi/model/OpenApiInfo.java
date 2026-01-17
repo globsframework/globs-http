@@ -16,11 +16,9 @@ public class OpenApiInfo {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiInfo");
-        TYPE = typeBuilder.unCompleteType();
         title = typeBuilder.declareStringField("title");
         description = typeBuilder.declareStringField("description");
         version = typeBuilder.declareStringField("version");
-        typeBuilder.complete();
-//        GlobTypeLoaderFactory.create(OpenApiInfo.class).load();
+        TYPE = typeBuilder.build();
     }
 }

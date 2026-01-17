@@ -17,9 +17,7 @@ public class OpenApiComponents {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiComponents");
-        TYPE = typeBuilder.unCompleteType();
-        schemas = typeBuilder.declareGlobArrayField("schemas", OpenApiSchemaProperty.TYPE, JsonAsObject.UNIQUE_GLOB);
-        typeBuilder.complete();
-//        GlobTypeLoaderFactory.create(OpenApiComponents.class).load();
+        schemas = typeBuilder.declareGlobArrayField("schemas", () ->OpenApiSchemaProperty.TYPE, JsonAsObject.UNIQUE_GLOB);
+        TYPE = typeBuilder.build();
     }
 }

@@ -24,13 +24,11 @@ public class OpenApiParameter {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiParameter");
-        TYPE = typeBuilder.unCompleteType();
         in = typeBuilder.declareStringField("in");
         name = typeBuilder.declareStringField("name");
         description = typeBuilder.declareStringField("description");
         required = typeBuilder.declareBooleanField("required");
-        schema = typeBuilder.declareGlobField("schema", OpenApiSchemaProperty.TYPE);
-        typeBuilder.complete();
-//        GlobTypeLoaderFactory.create(OpenApiParameter.class).load();
+        schema = typeBuilder.declareGlobField("schema", () -> OpenApiSchemaProperty.TYPE);
+        TYPE = typeBuilder.build();
     }
 }

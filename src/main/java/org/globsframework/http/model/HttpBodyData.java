@@ -21,13 +21,14 @@ public class HttpBodyData {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("HttpBodyData");
-        TYPE = typeBuilder.get();
-        UNIQUE_KEY = KeyBuilder.newEmptyKey(TYPE);
+        typeBuilder.register(GlobCreateFromAnnotation.class, annotation -> getUniqueInstance());
+        TYPE = typeBuilder.build();
         UNIQUE_INSTANCE = TYPE.instantiate();
-        typeBuilder.register(GlobCreateFromAnnotation.class, annotation -> UNIQUE_INSTANCE);
-//        GlobTypeLoaderFactory.create(HttpBodyData.class)
-//                .register(GlobCreateFromAnnotation.class, annotation -> TYPE.instantiate())
-//                .load();
+        UNIQUE_KEY = KeyBuilder.newEmptyKey(TYPE);
+    }
+
+    private static Glob getUniqueInstance() {
+        return UNIQUE_INSTANCE;
     }
 
 }

@@ -10,7 +10,7 @@ public class HttpGlobResultBuilder {
 
     static public Pair<GlobType, GlobArrayField> create(GlobType globType) {
         GlobTypeBuilder globTypeBuilder = DefaultGlobTypeBuilder.init("HttpArrayOf" + globType.getName());
-        GlobArrayField field = globTypeBuilder.declareGlobArrayField("values", globType);
-        return Pair.makePair(globTypeBuilder.get(), field);
+        GlobArrayField field = globTypeBuilder.declareGlobArrayField("values", () -> globType);
+        return Pair.makePair(globTypeBuilder.build(), field);
     }
 }

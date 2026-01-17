@@ -32,14 +32,13 @@ public class OpenApiPath {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiPath");
-        TYPE = typeBuilder.unCompleteType();
         name = typeBuilder.declareStringField("name", JsonValueAsField.UNIQUE_GLOB);
-        put = typeBuilder.declareGlobField("put", OpenApiPathDsc.TYPE);
-        post = typeBuilder.declareGlobField("post", OpenApiPathDsc.TYPE);
-        patch = typeBuilder.declareGlobField("patch", OpenApiPathDsc.TYPE);
-        get = typeBuilder.declareGlobField("get", OpenApiPathDsc.TYPE);
-        delete = typeBuilder.declareGlobField("delete", OpenApiPathDsc.TYPE);
-        typeBuilder.complete();
+        put = typeBuilder.declareGlobField("put", () -> OpenApiPathDsc.TYPE);
+        post = typeBuilder.declareGlobField("post", () -> OpenApiPathDsc.TYPE);
+        patch = typeBuilder.declareGlobField("patch", () -> OpenApiPathDsc.TYPE);
+        get = typeBuilder.declareGlobField("get", () -> OpenApiPathDsc.TYPE);
+        delete = typeBuilder.declareGlobField("delete", () -> OpenApiPathDsc.TYPE);
+        TYPE = typeBuilder.build();
 //        GlobTypeLoaderFactory.create(OpenApiPath.class).load();
     }
 }

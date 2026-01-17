@@ -397,7 +397,7 @@ public class GlobOpenApi {
                                             .set(OpenApiSchemaProperty.ref, "#/components/schemas/" + entry.getKey().getName()))
                             .orElseGet(() -> buildSchema(
                                     GlobTypeBuilderFactory.create(name)
-                                            .addGlobField(targetType.getName(), Collections.emptyList(), targetType).get(), schemas)));
+                                            .addGlobField(targetType.getName(), Collections.emptyList(), () -> targetType).build(), schemas)));
                 }
                 return sub;
             }

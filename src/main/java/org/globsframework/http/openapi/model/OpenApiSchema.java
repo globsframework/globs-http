@@ -17,9 +17,7 @@ public class OpenApiSchema {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiSchema");
-        TYPE = typeBuilder.unCompleteType();
-        properties = typeBuilder.declareGlobField("properties", OpenApiSchemaProperty.TYPE, JsonAsObject.UNIQUE_GLOB);
-        typeBuilder.complete();
-//        GlobTypeLoaderFactory.create(OpenApiSchema.class).load();
+        properties = typeBuilder.declareGlobField("properties", () -> OpenApiSchemaProperty.TYPE, JsonAsObject.UNIQUE_GLOB);
+        TYPE = typeBuilder.build();
     }
 }

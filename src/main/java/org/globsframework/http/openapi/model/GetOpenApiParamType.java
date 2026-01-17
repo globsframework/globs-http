@@ -12,9 +12,7 @@ public class GetOpenApiParamType {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("GetOpenApiParam");
-        TYPE = typeBuilder.unCompleteType();
         scope = typeBuilder.declareStringField("scope");
-        typeBuilder.complete();
-//        GlobTypeLoaderFactory.create(GetOpenApiParamType.class).load();
+        TYPE = typeBuilder.build();
     }
 }

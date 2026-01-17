@@ -46,17 +46,15 @@ public class OpenApiSchemaProperty {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiSchemaProperty");
-        TYPE = typeBuilder.unCompleteType();
         name = typeBuilder.declareStringField("name", JsonValueAsField.UNIQUE_GLOB);
         type = typeBuilder.declareStringField("type");
-        anyOf = typeBuilder.declareGlobArrayField("anyOf", OpenApiSchemaProperty.TYPE);
+        anyOf = typeBuilder.declareGlobArrayField("anyOf", () -> OpenApiSchemaProperty.TYPE);
         format = typeBuilder.declareStringField("format");
         minimum = typeBuilder.declareIntegerField("minimum");
         maximum = typeBuilder.declareIntegerField("maximum");
-        properties = typeBuilder.declareGlobArrayField("properties", OpenApiSchemaProperty.TYPE, JsonAsObject.UNIQUE_GLOB);
-        items = typeBuilder.declareGlobField("items", OpenApiSchemaProperty.TYPE);
+        properties = typeBuilder.declareGlobArrayField("properties", () -> OpenApiSchemaProperty.TYPE, JsonAsObject.UNIQUE_GLOB);
+        items = typeBuilder.declareGlobField("items", () -> OpenApiSchemaProperty.TYPE);
         ref = typeBuilder.declareStringField("$ref");
-        typeBuilder.complete();
-//        GlobTypeLoaderFactory.create(OpenApiSchemaProperty.class).load();
+        TYPE = typeBuilder.build();
     }
 }

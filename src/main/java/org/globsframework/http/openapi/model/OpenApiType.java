@@ -32,13 +32,11 @@ public class OpenApiType {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiType");
-        TYPE = typeBuilder.unCompleteType();
         openAPIVersion = typeBuilder.declareStringField("openapi");
-        info = typeBuilder.declareGlobField("info", OpenApiInfo.TYPE);
-        components = typeBuilder.declareGlobField("components", OpenApiComponents.TYPE);
-        servers = typeBuilder.declareGlobArrayField("servers", OpenApiServers.TYPE);
-        paths = typeBuilder.declareGlobArrayField("paths", OpenApiPath.TYPE, JsonAsObject.UNIQUE_GLOB);
-        typeBuilder.complete();
-//        GlobTypeLoaderFactory.create(OpenApiType.class).load();
+        info = typeBuilder.declareGlobField("info", () -> OpenApiInfo.TYPE);
+        components = typeBuilder.declareGlobField("components", () -> OpenApiComponents.TYPE);
+        servers = typeBuilder.declareGlobArrayField("servers", () -> OpenApiServers.TYPE);
+        paths = typeBuilder.declareGlobArrayField("paths", () -> OpenApiPath.TYPE, JsonAsObject.UNIQUE_GLOB);
+        TYPE = typeBuilder.build();
     }
 }

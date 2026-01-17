@@ -34,15 +34,13 @@ public class OpenApiPathDsc {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiPathDsc");
-        TYPE = typeBuilder.unCompleteType();
         tags = typeBuilder.declareStringArrayField("tags");
         summary = typeBuilder.declareStringField("summary");
         description = typeBuilder.declareStringField("description");
         operationId = typeBuilder.declareStringField("operationId");
-        parameters = typeBuilder.declareGlobArrayField("parameters", OpenApiParameter.TYPE);
-        requestBody = typeBuilder.declareGlobField("requestBody", OpenApiRequestBody.TYPE);
-        responses = typeBuilder.declareGlobArrayField("responses", OpenApiResponses.TYPE, JsonAsObject.UNIQUE_GLOB);
-        typeBuilder.complete();
-//        GlobTypeLoaderFactory.create(OpenApiPathDsc.class).load();
+        parameters = typeBuilder.declareGlobArrayField("parameters", () -> OpenApiParameter.TYPE);
+        requestBody = typeBuilder.declareGlobField("requestBody", () -> OpenApiRequestBody.TYPE);
+        responses = typeBuilder.declareGlobArrayField("responses", () -> OpenApiResponses.TYPE, JsonAsObject.UNIQUE_GLOB);
+        TYPE = typeBuilder.build();
     }
 }

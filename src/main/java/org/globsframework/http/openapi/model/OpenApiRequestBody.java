@@ -23,11 +23,9 @@ public class OpenApiRequestBody {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiRequestBody");
-        TYPE = typeBuilder.unCompleteType();
         description = typeBuilder.declareStringField("description");
         required = typeBuilder.declareBooleanField("required");
-        content = typeBuilder.declareGlobArrayField("content", OpenApiBodyMimeType.TYPE, JsonAsObject.UNIQUE_GLOB);
-        typeBuilder.complete();
-//        GlobTypeLoaderFactory.create(OpenApiRequestBody.class).load();
+        content = typeBuilder.declareGlobArrayField("content", () -> OpenApiBodyMimeType.TYPE, JsonAsObject.UNIQUE_GLOB);
+        TYPE = typeBuilder.build();
     }
 }

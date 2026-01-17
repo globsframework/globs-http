@@ -17,11 +17,9 @@ public class GlobFile {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("GlobFile");
-        TYPE = typeBuilder.unCompleteType();
         file = typeBuilder.declareStringField("file");
         mimeType = typeBuilder.declareStringField("mimeType");
         removeWhenDelivered = typeBuilder.declareBooleanField("removeWhenDelivered");
-        typeBuilder.complete();
-//        GlobTypeLoaderFactory.create(GlobFile.class).load();
+        TYPE = typeBuilder.build();
     }
 }

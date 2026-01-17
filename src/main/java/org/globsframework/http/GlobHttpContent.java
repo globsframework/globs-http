@@ -20,12 +20,10 @@ public class GlobHttpContent {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("GlobHttpContent");
-        TYPE = typeBuilder.unCompleteType();
         content = typeBuilder.declareBytesField("content");
         mimeType = typeBuilder.declareStringField("mimeType");
         charset = typeBuilder.declareStringField("charset");
         statusCode = typeBuilder.declareIntegerField("statusCode");
-        typeBuilder.complete();
-//        GlobTypeLoaderFactory.create(GlobHttpContent.class).load();
+        TYPE = typeBuilder.build();
     }
 }

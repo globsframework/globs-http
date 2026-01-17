@@ -20,10 +20,8 @@ public class OpenApiBodyMimeType {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiBodyMime");
-        TYPE = typeBuilder.unCompleteType();
         mimeType = typeBuilder.declareStringField("mimeType", JsonValueAsField.UNIQUE_GLOB);
-        schema = typeBuilder.declareGlobField("schema", OpenApiSchemaProperty.TYPE);
-        typeBuilder.complete();
-//        GlobTypeLoaderFactory.create(OpenApiBodyMimeType.class).load();
+        schema = typeBuilder.declareGlobField("schema", () -> OpenApiSchemaProperty.TYPE);
+        TYPE = typeBuilder.build();
     }
 }

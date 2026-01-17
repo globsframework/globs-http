@@ -18,8 +18,7 @@ public class OpenApiBodyAndResponseContent {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiBodyAndResponseContent");
-        TYPE = typeBuilder.unCompleteType();
-        mimeType = typeBuilder.declareGlobField("mimeType", OpenApiBodyMimeType.TYPE, JsonAsObject.UNIQUE_GLOB);
-//        GlobTypeLoaderFactory.create(OpenApiBodyAndResponseContent.class).load();
+        mimeType = typeBuilder.declareGlobField("mimeType", () -> OpenApiBodyMimeType.TYPE, JsonAsObject.UNIQUE_GLOB);
+        TYPE = typeBuilder.build();
     }
 }

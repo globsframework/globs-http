@@ -10,7 +10,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 public class DefaultHttpDataOperation implements MutableHttpDataOperation {
-    public static final GlobType EMPTY = DefaultGlobTypeBuilder.init("Empty").get();
+    public static final GlobType EMPTY = DefaultGlobTypeBuilder.init("Empty").build();
     private final HttpOp verb;
     private GlobType bodyType;
     private GlobType queryType;

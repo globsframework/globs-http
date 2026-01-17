@@ -4,7 +4,8 @@ import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.core5.http.NameValuePair;
 import org.apache.hc.core5.http.message.BasicNameValuePair;
 import org.globsframework.core.metamodel.GlobType;
-import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
+import org.globsframework.core.metamodel.GlobTypeBuilder;
+import org.globsframework.core.metamodel.GlobTypeBuilderFactory;
 import org.globsframework.core.metamodel.annotations.FieldName_;
 import org.globsframework.core.metamodel.annotations.Target;
 import org.globsframework.core.metamodel.fields.*;
@@ -79,7 +80,10 @@ public class GlobHttpUtilsTest {
         public static DateField date;
 
         static {
-            GlobTypeLoaderFactory.create(TEST.class).load();
+            GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("TEST");
+            datetime = typeBuilder.declareDateTimeField("datetime");
+            date = typeBuilder.declareDateField("date");
+            TYPE = typeBuilder.build();
         }
 
     }
@@ -121,7 +125,10 @@ public class GlobHttpUtilsTest {
         public static LongField userId;
 
         static {
-            GlobTypeLoaderFactory.create(Url.class).load();
+            GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("Url");
+            code = typeBuilder.declareStringField("code");
+            userId = typeBuilder.declareLongField("userId");
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -141,7 +148,13 @@ public class GlobHttpUtilsTest {
         public static GlobField param;
 
         static {
-            GlobTypeLoaderFactory.create(PARAM.class).load();
+            GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("PARAM");
+            str = typeBuilder.declareStringField("str");
+            bool = typeBuilder.declareBooleanField("bool");
+            aLong = typeBuilder.declareLongField("aLong");
+            composedName = typeBuilder.declareStringField("client.name");
+            param = typeBuilder.declareGlobField("param", () -> PARAM.TYPE);
+            TYPE = typeBuilder.build();
         }
     }
 }

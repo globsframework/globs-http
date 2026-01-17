@@ -14,10 +14,8 @@ public class OpenApiServers {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiServers");
-        TYPE = typeBuilder.unCompleteType();
         url = typeBuilder.declareStringField("url");
         description = typeBuilder.declareStringField("description");
-        typeBuilder.complete();
-//        GlobTypeLoaderFactory.create(OpenApiServers.class).load();
+        TYPE = typeBuilder.build();
     }
 }

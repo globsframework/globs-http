@@ -13,22 +13,22 @@ import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.reactor.IOReactorConfig;
 import org.apache.hc.core5.util.TimeValue;
 import org.globsframework.core.metamodel.GlobType;
-import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
+import org.globsframework.core.metamodel.GlobTypeBuilder;
 import org.globsframework.core.metamodel.annotations.*;
 import org.globsframework.core.metamodel.fields.*;
+import org.globsframework.core.metamodel.impl.DefaultGlobTypeBuilder;
 import org.globsframework.core.model.Glob;
 import org.globsframework.core.utils.Files;
 import org.globsframework.core.utils.Ref;
 import org.globsframework.core.utils.collections.Pair;
-import org.globsframework.http.model.HttpBodyData_;
-import org.globsframework.http.model.HttpGlobResponse_;
-import org.globsframework.http.model.StatusCode_;
+import org.globsframework.http.model.*;
 import org.globsframework.http.openapi.model.GetOpenApiParamType;
 import org.globsframework.http.openapi.model.GlobOpenApi;
 import org.globsframework.http.openapi.model.OpenApiType;
 import org.globsframework.http.server.apache.GlobHttpApacheBuilder;
 import org.globsframework.http.server.apache.Server;
 import org.globsframework.json.GSonUtils;
+import org.globsframework.json.annottations.JsonHideValue;
 import org.globsframework.json.annottations.JsonHideValue_;
 import org.junit.*;
 import org.slf4j.Logger;
@@ -38,6 +38,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.*;
+import java.util.function.Supplier;
 
 public class GlobHttpRequestHandlerTest {
     private static final Logger LOGGER = LoggerFactory.getLogger("test");
@@ -629,7 +630,10 @@ public class GlobHttpRequestHandlerTest {
         public static LongField SUBID;
 
         static {
-            GlobTypeLoaderFactory.create(URLParameter.class, true).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("URLParameter");
+            ID = typeBuilder.declareLongField("id");
+            SUBID = typeBuilder.declareLongField("subId");
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -639,7 +643,9 @@ public class GlobHttpRequestHandlerTest {
         public static StringArrayField path;
 
         static {
-            GlobTypeLoaderFactory.create(URLWithArray.class).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("URLWithArray");
+            path = typeBuilder.declareStringArrayField("path");
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -650,7 +656,9 @@ public class GlobHttpRequestHandlerTest {
         public static LongField ID;
 
         static {
-            GlobTypeLoaderFactory.create(URLOneParameter.class, true).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("URLOneParameter");
+            ID = typeBuilder.declareLongField("id");
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -665,7 +673,11 @@ public class GlobHttpRequestHandlerTest {
         public static StringField token;
 
         static {
-            GlobTypeLoaderFactory.create(HeaderType.class).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("HeaderType");
+            name = typeBuilder.declareStringField("X-Glob-http-ID");
+            id = typeBuilder.declareStringField("id");
+            token = typeBuilder.declareStringField("token");
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -681,7 +693,11 @@ public class GlobHttpRequestHandlerTest {
         public static GlobField param;
 
         static {
-            GlobTypeLoaderFactory.create(QueryParameter.class, true).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("queryParameter");
+            NAME = typeBuilder.declareStringField("name");
+            INFO = typeBuilder.declareStringArrayField("info");
+            param = typeBuilder.declareGlobField("param", () -> QueryParameter.TYPE);
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -691,7 +707,9 @@ public class GlobHttpRequestHandlerTest {
         public static StringField value;
 
         static {
-            GlobTypeLoaderFactory.create(QueryParameter2.class, true).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("queryParameter2");
+            value = typeBuilder.declareStringField("value");
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -707,7 +725,11 @@ public class GlobHttpRequestHandlerTest {
         public static GlobArrayUnionField testUnions;
 
         static {
-            GlobTypeLoaderFactory.create(BodyContent.class).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("BodyContent");
+            DATA = typeBuilder.declareStringField("DATA");
+            testUnion = typeBuilder.declareGlobUnionField("testUnion", new Supplier[]{() -> U1.TYPE, () -> U2.TYPE});
+            testUnions = typeBuilder.declareGlobUnionArrayField("testUnions", new Supplier[]{() -> U1.TYPE, () -> U2.TYPE});
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -723,7 +745,11 @@ public class GlobHttpRequestHandlerTest {
         public static GlobField field2;
 
         static {
-            GlobTypeLoaderFactory.create(CustomBodyWithStatusCode.class).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("CustomBodyWithStatusCode");
+            typeBuilder.addAnnotation(HttpGlobResponse.UNIQUE_INSTANCE);
+            field1 = typeBuilder.declareIntegerField("field1", StatusCode.UNIQUE_INSTANCE);
+            field2 = typeBuilder.declareGlobField("field2", () -> BodyContent.TYPE, HttpBodyData.UNIQUE_INSTANCE);
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -734,7 +760,9 @@ public class GlobHttpRequestHandlerTest {
         public static StringField value;
 
         static {
-            GlobTypeLoaderFactory.create(Response1.class).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("Response1");
+            value = typeBuilder.declareStringField("value", KeyField.ZERO);
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -749,7 +777,10 @@ public class GlobHttpRequestHandlerTest {
         public static StringField field2;
 
         static {
-            GlobTypeLoaderFactory.create(ResponseWithSensibleData.class).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("ResponseWithSensibleData");
+            field1 = typeBuilder.declareStringField("field1", KeyField.ZERO, JsonHideValue.UNIQUE_GLOB);
+            field2 = typeBuilder.declareStringField("field2", KeyField.ONE);
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -760,7 +791,9 @@ public class GlobHttpRequestHandlerTest {
         public static StringField someValue;
 
         static {
-            GlobTypeLoaderFactory.create(U1.class).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("U1");
+            someValue = typeBuilder.declareStringField("someValue", KeyField.ZERO);
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -771,7 +804,9 @@ public class GlobHttpRequestHandlerTest {
         public static StringField someOtherValue;
 
         static {
-            GlobTypeLoaderFactory.create(U2.class).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("U2");
+            someOtherValue = typeBuilder.declareStringField("someOtherValue", KeyField.ZERO);
+            TYPE = typeBuilder.build();
         }
     }
 }

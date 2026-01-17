@@ -21,13 +21,14 @@ public class StatusCode {
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("StatusCode");
-        TYPE = typeBuilder.get();
+        typeBuilder.register(GlobCreateFromAnnotation.class, annotation -> getUniqueInstance());
+        TYPE = typeBuilder.build();
         UNIQUE_KEY = KeyBuilder.newEmptyKey(TYPE);
         UNIQUE_INSTANCE = TYPE.instantiate();
-        typeBuilder.register(GlobCreateFromAnnotation.class, annotation -> UNIQUE_INSTANCE);
-//        GlobTypeLoaderFactory.create(StatusCode.class, "StatusCode")
-//                .register(GlobCreateFromAnnotation.class, annotation -> TYPE.instantiate())
-//                .load();
+    }
+
+    private static Glob getUniqueInstance() {
+        return UNIQUE_INSTANCE;
     }
 
 }

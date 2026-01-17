@@ -110,7 +110,6 @@ public class HttpServerRegister {
 
         static {
             GlobTypeBuilder globTypeBuilder = GlobTypeBuilderFactory.create("HttpAPIDesc");
-            TYPE = globTypeBuilder.unCompleteType();
             serverName = globTypeBuilder.declareStringField("serverName");
             url = globTypeBuilder.declareStringField("url");
             verb = globTypeBuilder.declareStringField("verb");
@@ -118,8 +117,7 @@ public class HttpServerRegister {
             body = globTypeBuilder.declareStringField("body", IsJsonContent.UNIQUE_GLOB);
             returnType = globTypeBuilder.declareStringField("returnType", IsJsonContent.UNIQUE_GLOB);
             comment = globTypeBuilder.declareStringField("comment");
-            globTypeBuilder.complete();
-//            GlobTypeLoaderFactory.create(HttpAPIDesc.class).load();
+            TYPE = globTypeBuilder.build();
         }
 
     }

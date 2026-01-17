@@ -1,9 +1,11 @@
 package org.globsframework.http;
 
 import org.globsframework.core.metamodel.GlobType;
-import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
+import org.globsframework.core.metamodel.GlobTypeBuilder;
+import org.globsframework.core.metamodel.GlobTypeBuilderFactory;
 import org.globsframework.core.metamodel.fields.StringArrayField;
 import org.globsframework.core.metamodel.fields.StringField;
+import org.globsframework.core.metamodel.impl.DefaultGlobTypeBuilder;
 import org.globsframework.core.model.Glob;
 import org.junit.Assert;
 import org.junit.Test;
@@ -71,7 +73,11 @@ public class DefaultUrlMatcherTest {
         public static StringField D;
 
         static {
-            GlobTypeLoaderFactory.create(TEST_1.class).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("TEST_1");
+            A = typeBuilder.declareStringField("A");
+            B = typeBuilder.declareStringField("B");
+            D = typeBuilder.declareStringField("D");
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -81,7 +87,9 @@ public class DefaultUrlMatcherTest {
         public static StringField A;
 
         static {
-            GlobTypeLoaderFactory.create(TEST_2.class).load();
+            GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("TEST_2");
+            A = typeBuilder.declareStringField("A");
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -91,7 +99,9 @@ public class DefaultUrlMatcherTest {
         public static StringArrayField ALL;
 
         static {
-            GlobTypeLoaderFactory.create(TEST_3.class).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("TEST_3");
+            ALL = typeBuilder.declareStringArrayField("ALL");
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -103,7 +113,10 @@ public class DefaultUrlMatcherTest {
         public static StringArrayField ALL;
 
         static {
-            GlobTypeLoaderFactory.create(TEST_4.class).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("TEST_4");
+            A = typeBuilder.declareStringField("A");
+            ALL = typeBuilder.declareStringArrayField("ALL");
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -115,11 +128,11 @@ public class DefaultUrlMatcherTest {
         public static StringField customerId;
         public static StringField workflowId;
 
-        private URLParameterCustomerWorkflow() {
-        } //Hiding default public constructor
-
         static {
-            GlobTypeLoaderFactory.create(URLParameterCustomerWorkflow.class, true).load();
+            GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("URLParameterCustomerWorkflow");
+            customerId = typeBuilder.declareStringField("customerId");
+            workflowId = typeBuilder.declareStringField("workflowId");
+            TYPE = typeBuilder.build();
         }
     }
 }

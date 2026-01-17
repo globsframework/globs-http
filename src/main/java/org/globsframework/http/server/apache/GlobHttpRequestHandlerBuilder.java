@@ -84,8 +84,7 @@ public class GlobHttpRequestHandlerBuilder {
 
         static {
             GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("EmptyType");
-            TYPE = typeBuilder.get();
-//            GlobTypeLoaderFactory.create(EmptyType.class).load();
+            TYPE = typeBuilder.build();
         }
     }
 

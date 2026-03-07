@@ -177,6 +177,13 @@ public class GlobHttpRequestHandlerTest {
                     return CompletableFuture.completedFuture(HttpOutputData.asStream(inputStream, body.asStream().size()));
                 });
 
+        httpServerRegister.register("/binaryCall", null)
+                .getBin(null, null, (body, url, queryParameters, headerType) -> CompletableFuture.completedFuture(
+                        HttpOutputData.asGlobArray(new Glob[] {
+                                Response1.TYPE.instantiate().set(Response1.value, "d1") ,
+                                Response1.TYPE.instantiate().set(Response1.value, "d2") })));
+
+
         startServer();
 
         GlobOpenApi globOpenApi = new GlobOpenApi(httpServerRegister);
@@ -270,6 +277,15 @@ public class GlobHttpRequestHandlerTest {
             Assert.assertEquals(200, httpResponse.getCode());
             String str = new String(httpResponse.getEntity().getContent().readAllBytes());
             Assert.assertEquals("Some data send", str);
+        }
+
+        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+            HttpGet httpRequest = new HttpGet("/binaryCall");
+            httpRequest.setEntity(new StringEntity("Some data send"));
+            CloseableHttpResponse httpResponse = httpclient.execute(target, httpRequest);
+            Assert.assertEquals(200, httpResponse.getCode());
+            String str = new String(httpResponse.getEntity().getContent().readAllBytes());
+            Assert.assertEquals("[{\"value\":\"d1\"},{\"value\":\"d2\"}]", str);
         }
 
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {

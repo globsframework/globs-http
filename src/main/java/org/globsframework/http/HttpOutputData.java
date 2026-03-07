@@ -4,12 +4,16 @@ import org.globsframework.core.model.Glob;
 
 import java.io.InputStream;
 
-public sealed interface HttpOutputData permits HttpOutputData.GlobHttpOutputData, HttpOutputData.KnownSizeStreamHttpOutputData {
+public sealed interface HttpOutputData permits HttpOutputData.GlobArrayHttpOutputData, HttpOutputData.GlobHttpOutputData, HttpOutputData.KnownSizeStreamHttpOutputData {
 
     record SizedStream(InputStream stream, long size) {}
 
     static HttpOutputData asGlob(Glob glob) {
         return new GlobHttpOutputData(glob);
+    }
+
+    static HttpOutputData asGlobArray(Glob[] glob) {
+        return new GlobArrayHttpOutputData(glob);
     }
 
     static HttpOutputData asStream(InputStream data, long size) {
@@ -24,6 +28,18 @@ public sealed interface HttpOutputData permits HttpOutputData.GlobHttpOutputData
         }
 
         public Glob getGlob() {
+            return glob;
+        }
+    }
+
+    final class GlobArrayHttpOutputData implements HttpOutputData {
+        private final Glob[] glob;
+
+        public GlobArrayHttpOutputData(Glob[] glob) {
+            this.glob = glob;
+        }
+
+        public Glob[] getGlob() {
             return glob;
         }
     }

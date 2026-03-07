@@ -1,7 +1,7 @@
 package org.globsframework.http.server.apache;
 
-import org.apache.hc.core5.http.HttpException;
 import org.apache.hc.core5.http.*;
+import org.apache.hc.core5.http.HttpException;
 import org.apache.hc.core5.http.impl.BasicEntityDetails;
 import org.apache.hc.core5.http.message.BasicHttpResponse;
 import org.apache.hc.core5.http.nio.CapacityChannel;
@@ -70,14 +70,11 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
             if (field != null) {
                 if (field instanceof StringField) {
                     instance.set(field.asStringField(), allHeader.getValue());
-                }
-                else if (field instanceof IntegerField) {
+                } else if (field instanceof IntegerField) {
                     instance.set(field.asIntegerField(), Integer.parseInt(allHeader.getValue()));
-                }
-                else if (field instanceof LongField) {
+                } else if (field instanceof LongField) {
                     instance.set(field.asLongField(), Long.parseLong(allHeader.getValue()));
-                }
-                else if (field instanceof BooleanField) {
+                } else if (field instanceof BooleanField) {
                     instance.set(field.asBooleanField(), Boolean.parseBoolean(allHeader.getValue()));
                 }
             }
@@ -158,57 +155,12 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
                                 manageException(throwable);
                             }
                         } else if (httpOutputData != null) {
-                            if (httpOutputData instanceof HttpOutputData.GlobHttpOutputData outputData) {
-                                Glob glob = outputData.getGlob();
-                                if (glob == null) {
-                                    send204();
-                                    return;
-                                }
-                                if (glob.getType() == GlobHttpContent.TYPE) {
-                                    responseFromHttpContent(glob);
-                                    return;
-                                }
-                                if (glob.getType().hasAnnotation(HttpGlobResponse.UNIQUE_KEY)) {
-                                    responseCustomHttpContent(glob);
-                                    return;
-                                }
-                                MultiBufferOutputStream out = new MultiBufferOutputStream();
-                                OutputStreamWriter streamWriter = new OutputStreamWriter(out);
-                                GSonUtils.encode(streamWriter, outputData.getGlob(), false);
-                                try {
-                                    streamWriter.close();
-                                } catch (IOException e) {
-                                    throw new RuntimeException(e);
-                                }
-                                List<ByteBuffer> data = out.data();
-                                stream = () -> data.isEmpty() ? null : data.remove(0);
-                                responseSize = out.size();
-                            } else if (httpOutputData instanceof HttpOutputData.KnownSizeStreamHttpOutputData outputData) {
-                                HttpOutputData.SizedStream data = outputData.getStream();
-                                if (data == null || data.size() == 0L) {
-                                    send204();
-                                    return;
-                                }
-                                stream = new DataToSendProvider() {
-                                    byte[] buffer = new byte[8192]; // can be reused
-
-                                    public ByteBuffer nextBufferToSend() {
-                                        int read;
-                                        try {
-                                            read = data.stream().read(buffer);
-                                        } catch (IOException e) {
-                                            return null;
-                                        }
-                                        if (read < 0) {
-                                            return null;
-                                        }
-                                        return ByteBuffer.wrap(buffer, 0, read);
-                                    }
-                                };
-                                responseSize = data.size();
+                            switch (httpOutputData) {
+                                case HttpOutputData.GlobArrayHttpOutputData outputData -> reponseGlobArray(outputData);
+                                case HttpOutputData.GlobHttpOutputData outputData -> responseGlob(outputData);
+                                case HttpOutputData.KnownSizeStreamHttpOutputData outputData ->
+                                        responseStream(outputData);
                             }
-                            sendHttpResponse(new BasicHttpResponse(200), new BasicEntityDetails(responseSize,
-                                    ContentType.APPLICATION_JSON));
                         } else {
                             send204();
                         }
@@ -216,6 +168,78 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
         } catch (Exception ex) {
             manageException(ex);
         }
+    }
+
+    private void responseStream(HttpOutputData.KnownSizeStreamHttpOutputData outputData) {
+        HttpOutputData.SizedStream data = outputData.getStream();
+        if (data.size() == 0L) {
+            send204();
+            return;
+        }
+        stream = new DataToSendProvider() {
+            byte[] buffer = new byte[8192]; // can be reused
+
+            public ByteBuffer nextBufferToSend() {
+                int read;
+                try {
+                    read = data.stream().read(buffer);
+                } catch (IOException e) {
+                    return null;
+                }
+                if (read < 0) {
+                    return null;
+                }
+                return ByteBuffer.wrap(buffer, 0, read);
+            }
+        };
+        responseSize = data.size();
+        sendHttpResponse(new BasicHttpResponse(200), new BasicEntityDetails(responseSize,
+                ContentType.APPLICATION_JSON));
+    }
+
+    private void responseGlob(HttpOutputData.GlobHttpOutputData outputData) {
+        Glob glob = outputData.getGlob();
+        if (glob == null) {
+            send204();
+            return;
+        }
+        if (glob.getType() == GlobHttpContent.TYPE) {
+            responseFromHttpContent(glob);
+            return;
+        }
+        if (glob.getType().hasAnnotation(HttpGlobResponse.UNIQUE_KEY)) {
+            responseCustomHttpContent(glob);
+            return;
+        }
+        MultiBufferOutputStream out = new MultiBufferOutputStream();
+        OutputStreamWriter streamWriter = new OutputStreamWriter(out);
+        GSonUtils.encode(streamWriter, outputData.getGlob(), false);
+        try {
+            streamWriter.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        List<ByteBuffer> data = out.data();
+        stream = () -> data.isEmpty() ? null : data.remove(0);
+        responseSize = out.size();
+        sendHttpResponse(new BasicHttpResponse(200), new BasicEntityDetails(responseSize,
+                ContentType.APPLICATION_JSON));
+    }
+
+    private void reponseGlobArray(HttpOutputData.GlobArrayHttpOutputData outputData) {
+        MultiBufferOutputStream out = new MultiBufferOutputStream();
+        OutputStreamWriter streamWriter = new OutputStreamWriter(out);
+        GSonUtils.encode(streamWriter, outputData.getGlob(), false);
+        try {
+            streamWriter.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        List<ByteBuffer> data = out.data();
+        stream = () -> data.isEmpty() ? null : data.remove(0);
+        responseSize = out.size();
+        sendHttpResponse(new BasicHttpResponse(200), new BasicEntityDetails(responseSize,
+                ContentType.APPLICATION_JSON));
     }
 
     private void manageException(Throwable throwable) {
@@ -268,16 +292,16 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
     }
 
     private void responseFromHttpContent(Glob glob) {
-            var ref = new Object() {
-                byte[] bytes = glob.get(GlobHttpContent.content, EMPTY_BYTE_ARRAY);
-            };
-            stream = ref.bytes.length > 0 ? () -> {
-                try {
-                    return ref.bytes != null ? ByteBuffer.wrap(ref.bytes) : null;
-                } finally {
-                    ref.bytes = null;
-                }
-            } : null;
+        var ref = new Object() {
+            byte[] bytes = glob.get(GlobHttpContent.content, EMPTY_BYTE_ARRAY);
+        };
+        stream = ref.bytes.length > 0 ? () -> {
+            try {
+                return ref.bytes != null ? ByteBuffer.wrap(ref.bytes) : null;
+            } finally {
+                ref.bytes = null;
+            }
+        } : null;
         sendHttpResponse(new BasicHttpResponse(glob.get(GlobHttpContent.statusCode, ref.bytes.length == 0 ? 204 : 200)),
                 ref.bytes.length == 0 ? null : new BasicEntityDetails(ref.bytes.length,
                         ContentType.create(
@@ -294,7 +318,7 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
             int statusCode;
             String strData;
             if (fieldWithStatusCode instanceof IntegerField statusField
-                    && (fieldWithData instanceof GlobField || fieldWithData instanceof GlobArrayField)) {
+                && (fieldWithData instanceof GlobField || fieldWithData instanceof GlobArrayField)) {
 
                 if (fieldWithData instanceof GlobField globDataField) {
                     Glob data = glob.get(globDataField);

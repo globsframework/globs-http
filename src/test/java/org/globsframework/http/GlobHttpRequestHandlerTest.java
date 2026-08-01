@@ -1,13 +1,13 @@
 package org.globsframework.http;
 
 import org.apache.hc.client5.http.classic.methods.*;
-import org.apache.hc.client5.http.entity.DecompressingEntity;
+import org.apache.hc.client5.http.entity.compress.DecompressingEntity;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.impl.bootstrap.AsyncServerBootstrap;
 import org.apache.hc.core5.http.impl.bootstrap.HttpAsyncServer;
+import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.reactor.IOReactorConfig;
@@ -18,7 +18,6 @@ import org.globsframework.core.metamodel.annotations.*;
 import org.globsframework.core.metamodel.fields.*;
 import org.globsframework.core.metamodel.impl.DefaultGlobTypeBuilder;
 import org.globsframework.core.model.Glob;
-import org.globsframework.core.utils.Files;
 import org.globsframework.core.utils.Ref;
 import org.globsframework.core.utils.collections.Pair;
 import org.globsframework.http.model.*;
@@ -37,6 +36,8 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.concurrent.*;
 import java.util.function.Supplier;
 
@@ -197,8 +198,8 @@ public class GlobHttpRequestHandlerTest {
             HttpGet httpRequest = GlobHttpUtils.createGet("/test/123/TOTO/4567", QueryParameter.TYPE.instantiate()
                     .set(QueryParameter.NAME, "ZERZE").set(QueryParameter.INFO, new String[]{"A", "B", "C", "D"})
                     .set(QueryParameter.param, QueryParameter.TYPE.instantiate().set(QueryParameter.NAME, "AAAZZZ")));
-            HttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(204, httpResponse.getCode());
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(204, httpResponse.code());
             Pair<Glob, Glob> poll = pairs.poll(2, TimeUnit.SECONDS);
             Assert.assertNotNull(poll);
             Assert.assertEquals(123, poll.getFirst().get(URLParameter.ID, 0));
@@ -212,9 +213,8 @@ public class GlobHttpRequestHandlerTest {
         // regression (#3): a path longer than any registered exact route must not prefix-match a shorter one
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             HttpGet httpRequest = new HttpGet("/test/123/TOTO/4567/EXTRA");
-            CloseableHttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(403, httpResponse.getCode());
-            EntityUtils.consume(httpResponse.getEntity());
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(403, httpResponse.code());
         }
 
         pairs.clear();
@@ -222,8 +222,8 @@ public class GlobHttpRequestHandlerTest {
             HttpGet httpRequest = GlobHttpUtils.createGet("/test/123/TOTO", QueryParameter.TYPE.instantiate()
                     .set(QueryParameter.NAME, "ZERZE").set(QueryParameter.INFO, new String[]{"A", "B", "C", "D"})
                     .set(QueryParameter.param, QueryParameter.TYPE.instantiate().set(QueryParameter.NAME, "AAAZZZ")));
-            HttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(204, httpResponse.getCode());
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(204, httpResponse.code());
             Assert.assertEquals("/test/{id}/TOTO", activeId[0]);
         }
 
@@ -232,8 +232,8 @@ public class GlobHttpRequestHandlerTest {
             HttpGet httpRequest = new HttpGet("/test/123/TOTO?name=-10%25%20sur%20les%20articles%20de%20la%20saison%20hiver%202022");
 //                    GlobHttpUtils.createGet("/test/123/TOTO", QueryParameter.TYPE.instantiate()
 //                    .set(QueryParameter.NAME, "-10%%20sur%20les%20articles%20de%20la%20saison%20hiver%202022"));
-            HttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(204, httpResponse.getCode());
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(204, httpResponse.code());
             Assert.assertEquals("/test/{id}/TOTO", activeId[0]);
             Pair<Glob, Glob> poll = pairs.poll(2, TimeUnit.SECONDS);
             Assert.assertNotNull(poll);
@@ -246,8 +246,8 @@ public class GlobHttpRequestHandlerTest {
                     .set(QueryParameter.NAME, "ZERZE").set(QueryParameter.INFO, new String[]{"A", "B", "C", "D"})
                     .set(QueryParameter.param, QueryParameter.TYPE.instantiate().set(QueryParameter.NAME, "AAAZZZ")));
             httpRequest.addHeader(FieldName.getName(HeaderType.name), "my header");
-            HttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(200, httpResponse.getCode());
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(200, httpResponse.code());
             Assert.assertEquals("/test/{id}", activeId[0]);
             Assert.assertNotNull(headers.get());
             Assert.assertEquals("my header", headers.get().get(HeaderType.name));
@@ -256,10 +256,9 @@ public class GlobHttpRequestHandlerTest {
         pairs.clear();
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             HttpGet httpRequest = new HttpGet("/query/123");
-            CloseableHttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(200, httpResponse.getCode());
-            Assert.assertEquals("{\"value\":\"some important information.\"}",
-                    EntityUtils.toString(httpResponse.getEntity()));
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(200, httpResponse.code());
+            Assert.assertEquals("{\"value\":\"some important information.\"}", httpResponse.body());
         }
 
         pairs.clear();
@@ -268,32 +267,30 @@ public class GlobHttpRequestHandlerTest {
             httpRequest.setEntity(new StringEntity(GSonUtils.encode(BodyContent.TYPE.instantiate()
                     .set(BodyContent.DATA, ""), false
             )));
-            HttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(204, httpResponse.getCode());
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(204, httpResponse.code());
         }
 
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             HttpPost httpRequest = new HttpPost("/post");
-            HttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(204, httpResponse.getCode());
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(204, httpResponse.code());
         }
 
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             HttpPost httpRequest = new HttpPost("/binaryCall");
             httpRequest.setEntity(new StringEntity("Some data send"));
-            CloseableHttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(200, httpResponse.getCode());
-            String str = new String(httpResponse.getEntity().getContent().readAllBytes());
-            Assert.assertEquals("Some data send", str);
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(200, httpResponse.code());
+            Assert.assertEquals("Some data send", httpResponse.body());
         }
 
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             HttpGet httpRequest = new HttpGet("/binaryCall");
             httpRequest.setEntity(new StringEntity("Some data send"));
-            CloseableHttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(200, httpResponse.getCode());
-            String str = new String(httpResponse.getEntity().getContent().readAllBytes());
-            Assert.assertEquals("[{\"value\":\"d1\"},{\"value\":\"d2\"}]", str);
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(200, httpResponse.code());
+            Assert.assertEquals("[{\"value\":\"d1\"},{\"value\":\"d2\"}]", httpResponse.body());
         }
 
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
@@ -301,57 +298,56 @@ public class GlobHttpRequestHandlerTest {
             httpRequest.setEntity(new StringEntity(GSonUtils.encode(BodyContent.TYPE.instantiate()
                     .set(BodyContent.DATA, ""), false
             )));
-            HttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(204, httpResponse.getCode());
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(204, httpResponse.code());
         }
 
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             HttpDelete httpRequest = new HttpDelete("/delete/123");
-            CloseableHttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(200, httpResponse.getCode());
-            EntityUtils.consume(httpResponse.getEntity());
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(200, httpResponse.code());
         }
 
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             HttpOptions httpRequest = new HttpOptions("/post");
-            HttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(200, httpResponse.getCode());
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(200, httpResponse.code());
         }
 
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             HttpHead httpRequest = new HttpHead("/post");
-            HttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(403, httpResponse.getCode());
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(403, httpResponse.code());
         }
 
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             HttpPatch httpRequest = new HttpPatch("/test-custom-status-code");
-            CloseableHttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(201, httpResponse.getCode());
-            Assert.assertEquals("{\"DATA\":\"custom data works\"}", EntityUtils.toString(httpResponse.getEntity()));
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(201, httpResponse.code());
+            Assert.assertEquals("{\"DATA\":\"custom data works\"}", httpResponse.body());
         }
 
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             //check longer query.
             HttpGet httpRequest = new HttpGet("/query/with/additional/unexpectedPath");
-            HttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(403, httpResponse.getCode());
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(403, httpResponse.code());
         }
 
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             //check longer query.
             HttpGet httpRequest = new HttpGet("/path/with/additional/expected");
-            CloseableHttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(200, httpResponse.getCode());
-            Assert.assertEquals("{\"DATA\":\"Get with with,additional,expected\"}", Files.loadStreamToString(httpResponse.getEntity().getContent(), "UTF-8"));
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(200, httpResponse.code());
+            Assert.assertEquals("{\"DATA\":\"Get with with,additional,expected\"}", httpResponse.body());
         }
 
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             //check longer query.
             HttpGet httpRequest = new HttpGet("/path/with");
-            CloseableHttpResponse httpResponse = httpclient.execute(target, httpRequest);
-            Assert.assertEquals(200, httpResponse.getCode());
-            Assert.assertEquals("{\"DATA\":\"Get with with\"}", Files.loadStreamToString(httpResponse.getEntity().getContent(), "UTF-8"));
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(200, httpResponse.code());
+            Assert.assertEquals("{\"DATA\":\"Get with with\"}", httpResponse.body());
         }
 //        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
 //            MultipartEntityBuilder multipartEntityBuilder = MultipartEntityBuilder.create();
@@ -385,8 +381,8 @@ public class GlobHttpRequestHandlerTest {
 
             HttpPost httpPost = new HttpPost("/send");
             httpPost.setEntity(new StringEntity("", ContentType.APPLICATION_JSON));
-            HttpResponse httpResponse = httpclient.execute(target, httpPost);
-            Assert.assertEquals(204, httpResponse.getCode());
+            Resp httpResponse = execute(httpclient, target, httpPost);
+            Assert.assertEquals(204, httpResponse.code());
         }
     }
 
@@ -416,17 +412,17 @@ public class GlobHttpRequestHandlerTest {
             {
             HttpPost httpPost = new HttpPost("/send");
             httpPost.setEntity(new StringEntity(GSonUtils.encode(glob, false), ContentType.APPLICATION_JSON));
-            CloseableHttpResponse httpResponse = httpclient.execute(target, httpPost);
-            Assert.assertEquals(204, httpResponse.getCode());
+            Resp httpResponse = execute(httpclient, target, httpPost);
+            Assert.assertEquals(204, httpResponse.code());
             }
 
             {
                 HttpGet httpGet = new HttpGet("/receive");
-                CloseableHttpResponse httpResponse = httpclient.execute(target, httpGet);
-                Assert.assertEquals(200, httpResponse.getCode());
-                Assert.assertEquals("text/plain; charset=" + charsetName, httpResponse.getEntity().getContentType());
-                Assert.assertEquals(14, httpResponse.getEntity().getContentLength());
-                Assert.assertEquals("coucou", EntityUtils.toString(httpResponse.getEntity()));
+                Resp httpResponse = execute(httpclient, target, httpGet);
+                Assert.assertEquals(200, httpResponse.code());
+                Assert.assertEquals("text/plain; charset=" + charsetName, httpResponse.contentType());
+                Assert.assertEquals(14, httpResponse.contentLength());
+                Assert.assertEquals("coucou", httpResponse.body());
             }
         }
     }
@@ -436,12 +432,12 @@ public class GlobHttpRequestHandlerTest {
     public void testGlobFile() throws IOException, InterruptedException, ParseException {
         File sentFile = File.createTempFile("httpContent", ".json");
         sentFile.deleteOnExit();
-        Files.dumpStringToFile(sentFile, "file data sent");
+        Files.writeString(sentFile.toPath(), "file data sent");
         String sentFileAbsolutePath = sentFile.getAbsolutePath();
 
         File receivedFile = File.createTempFile("httpContent", ".json");
         receivedFile.deleteOnExit();
-        Files.dumpStringToFile(receivedFile, "file data received");
+        Files.writeString(receivedFile.toPath(), "file data received");
         String receivedFileAbsolutePath = receivedFile.getAbsolutePath();
 
         httpServerRegister.register("/send", null)
@@ -466,14 +462,14 @@ public class GlobHttpRequestHandlerTest {
                     .set(GlobFile.mimeType, "text/plain")
                     .set(GlobFile.file, sentFileAbsolutePath)
                     .set(GlobFile.removeWhenDelivered, true), false), ContentType.APPLICATION_JSON));
-            CloseableHttpResponse httpResponse = httpclient.execute(target, httpPost);
-            Assert.assertEquals(204, httpResponse.getCode());
+            Resp httpResponse = execute(httpclient, target, httpPost);
+            Assert.assertEquals(204, httpResponse.code());
 
             HttpGet httpGet = new HttpGet("/receive");
-            httpResponse = httpclient.execute(target, httpGet);
-            Assert.assertEquals(200, httpResponse.getCode());
-            Assert.assertEquals("text/plain; charset=UTF-8", httpResponse.getEntity().getContentType());
-            Assert.assertEquals("file data received", EntityUtils.toString(httpResponse.getEntity()));
+            httpResponse = execute(httpclient, target, httpGet);
+            Assert.assertEquals(200, httpResponse.code());
+            Assert.assertEquals("text/plain; charset=UTF-8", httpResponse.contentType());
+            Assert.assertEquals("file data received", httpResponse.body());
         }
     }
 
@@ -506,39 +502,34 @@ public class GlobHttpRequestHandlerTest {
             HttpHost target = new HttpHost("http", "localhost", port);
 
             HttpGet httpGet = new HttpGet("/hello?value=Marc");
-            CloseableHttpResponse httpResponse = httpclient.execute(target, httpGet);
-            Assert.assertEquals(200, httpResponse.getCode());
-            String strContent = EntityUtils.toString(httpResponse.getEntity());
+            Resp httpResponse = execute(httpclient, target, httpGet);
+            Assert.assertEquals(200, httpResponse.code());
             Assert.assertEquals(Response1.TYPE.instantiate()
-                    .set(Response1.value, "welcome Marc"), GSonUtils.decode(strContent, Response1.TYPE));
+                    .set(Response1.value, "welcome Marc"), GSonUtils.decode(httpResponse.body(), Response1.TYPE));
 
             httpGet = new HttpGet("/hello?value=Cow");
-            httpResponse = httpclient.execute(target, httpGet);
-            Assert.assertEquals(405, httpResponse.getCode());
-            strContent = EntityUtils.toString(httpResponse.getEntity());
+            httpResponse = execute(httpclient, target, httpGet);
+            Assert.assertEquals(405, httpResponse.code());
             Assert.assertEquals(Response1.TYPE.instantiate()
-                    .set(Response1.value, "no animal allowed"), GSonUtils.decode(strContent, Response1.TYPE));
+                    .set(Response1.value, "no animal allowed"), GSonUtils.decode(httpResponse.body(), Response1.TYPE));
 
             httpGet = new HttpGet("/hello?value=John");
-            httpResponse = httpclient.execute(target, httpGet);
-            Assert.assertEquals(403, httpResponse.getCode());
-            strContent = EntityUtils.toString(httpResponse.getEntity());
-            Assert.assertEquals("", strContent);
-            Assert.assertEquals("banned", httpResponse.getReasonPhrase());
+            httpResponse = execute(httpclient, target, httpGet);
+            Assert.assertEquals(403, httpResponse.code());
+            Assert.assertEquals("", httpResponse.body());
+            Assert.assertEquals("banned", httpResponse.reasonPhrase());
 
             httpGet = new HttpGet("/hello?value=Superman");
-            httpResponse = httpclient.execute(target, httpGet);
-            Assert.assertEquals(408, httpResponse.getCode());
-            strContent = EntityUtils.toString(httpResponse.getEntity());
-            Assert.assertEquals("", strContent);
-            Assert.assertEquals("too strong", httpResponse.getReasonPhrase());
+            httpResponse = execute(httpclient, target, httpGet);
+            Assert.assertEquals(408, httpResponse.code());
+            Assert.assertEquals("", httpResponse.body());
+            Assert.assertEquals("too strong", httpResponse.reasonPhrase());
 
             httpGet = new HttpGet("/hello?value=Batman");
-            httpResponse = httpclient.execute(target, httpGet);
-            Assert.assertEquals(500, httpResponse.getCode());
-            strContent = EntityUtils.toString(httpResponse.getEntity());
-            Assert.assertEquals("", strContent);
-            Assert.assertEquals("Internal Server Error", httpResponse.getReasonPhrase());
+            httpResponse = execute(httpclient, target, httpGet);
+            Assert.assertEquals(500, httpResponse.code());
+            Assert.assertEquals("", httpResponse.body());
+            Assert.assertEquals("Internal Server Error", httpResponse.reasonPhrase());
         }
     }
 
@@ -560,24 +551,22 @@ public class GlobHttpRequestHandlerTest {
             HttpGet httpGet = GlobHttpUtils.createGet("/query", QueryParameter2.TYPE.instantiate()
                     .set(QueryParameter2.value, "uncompressed"));
             httpGet.setHeader(HttpHeaders.ACCEPT_ENCODING, "none");
-            CloseableHttpResponse httpResponse = httpclient.execute(target, httpGet);
-            Assert.assertEquals(200, httpResponse.getCode());
-            Assert.assertFalse(httpResponse.getEntity() instanceof DecompressingEntity);
-            String strContent = EntityUtils.toString(httpResponse.getEntity());
-            Assert.assertEquals("{\"value\":\"uncompressed\"}", strContent);
+            Resp httpResponse = execute(httpclient, target, httpGet);
+            Assert.assertEquals(200, httpResponse.code());
+            Assert.assertFalse(DecompressingEntity.class.isAssignableFrom(httpResponse.entityClass()));
+            Assert.assertEquals("{\"value\":\"uncompressed\"}", httpResponse.body());
             Assert.assertEquals(Response1.TYPE.instantiate()
-                    .set(Response1.value, "uncompressed"), GSonUtils.decode(strContent, Response1.TYPE));
+                    .set(Response1.value, "uncompressed"), GSonUtils.decode(httpResponse.body(), Response1.TYPE));
 
             httpGet = GlobHttpUtils.createGet("/query", QueryParameter2.TYPE.instantiate()
                     .set(QueryParameter2.value, "compressed"));
             httpGet.setHeader(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate");
-            httpResponse = httpclient.execute(target, httpGet);
-            Assert.assertEquals(200, httpResponse.getCode());
-            Assert.assertTrue(httpResponse.getEntity() instanceof DecompressingEntity);
-            strContent = EntityUtils.toString(httpResponse.getEntity());
-            Assert.assertEquals("{\"value\":\"compressed\"}", strContent);
+            httpResponse = execute(httpclient, target, httpGet);
+            Assert.assertEquals(200, httpResponse.code());
+            Assert.assertTrue(DecompressingEntity.class.isAssignableFrom(httpResponse.entityClass()));
+            Assert.assertEquals("{\"value\":\"compressed\"}", httpResponse.body());
             Assert.assertEquals(Response1.TYPE.instantiate()
-                    .set(Response1.value, "compressed"), GSonUtils.decode(strContent, Response1.TYPE));
+                    .set(Response1.value, "compressed"), GSonUtils.decode(httpResponse.body(), Response1.TYPE));
         }
     }
 
@@ -597,15 +586,13 @@ public class GlobHttpRequestHandlerTest {
         String encode = GSonUtils.encode(globOpenApi.getOpenApiDoc(), false);
         System.out.println(encode);
 
-        CloseableHttpClient httpclient = HttpClients.createDefault();
+        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+            HttpHost target = new HttpHost("http", "localhost", port);
 
-        HttpHost target = new HttpHost("http",  "localhost", port);
-
-        {
             HttpGet httpGet = GlobHttpUtils.createGet("/api?" + GetOpenApiParamType.scope.getName() + "=test-scope", null);
-            CloseableHttpResponse httpResponse = httpclient.execute(target, httpGet);
-            Assert.assertEquals(200, httpResponse.getCode());
-            String body = Files.loadStreamToString(httpResponse.getEntity().getContent(), "UTF-8");
+            Resp httpResponse = execute(httpclient, target, httpGet);
+            Assert.assertEquals(200, httpResponse.code());
+            String body = httpResponse.body();
             String expectedBody = "{\"openapi\":\"3.0.1\",\"info\":{\"title\":\"TestServer/1.1\",\"description\":\"TestServer/1.1\",\"version\":\"1.0\"},\"components\":{\"schemas\":{\"queryParameter\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"info\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"param\":{\"$ref\":\"#/components/schemas/queryParameter\"}}}}},\"servers\":[{\"url\":\"http://localhost:" + port + "\"}],\"paths\":{\"/test/{id}\":{\"get\":{\"tags\":[\"test-scope\"],\"parameters\":[{\"in\":\"path\",\"name\":\"id\",\"required\":true,\"schema\":{\"type\":\"integer\",\"format\":\"int64\"}},{\"in\":\"query\",\"name\":\"name\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"query\",\"name\":\"info\",\"required\":true,\"schema\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}},{\"in\":\"query\",\"name\":\"param\",\"required\":true,\"schema\":{\"$ref\":\"#/components/schemas/queryParameter\"}}],\"responses\":{\"200\":{\"description\":\"None\"}}}}}}";
             Assert.assertEquals(expectedBody, body);
 
@@ -624,7 +611,7 @@ public class GlobHttpRequestHandlerTest {
     public void xmlInOut() throws IOException {
         File httpContent = File.createTempFile("httpContent", ".xml");
         httpContent.deleteOnExit();
-        Files.dumpStringToFile(httpContent, "[]");
+        Files.writeString(httpContent.toPath(), "[]");
 
         httpServerRegister.register("/test/{id}/TOTO/{subId}", URLParameter.TYPE)
                 .get(QueryParameter.TYPE, (body, url, queryParameters) -> {
@@ -633,6 +620,25 @@ public class GlobHttpRequestHandlerTest {
                 });
 
         startServer();
+    }
+
+    /**
+     * The content of a response, read inside the response handler : the entity is not usable anymore
+     * once {@link CloseableHttpClient#execute(HttpHost, ClassicHttpRequest, HttpClientResponseHandler)} returned.
+     */
+    private record Resp(int code, String reasonPhrase, String contentType, long contentLength,
+                        Class<?> entityClass, String body) {
+    }
+
+    private static Resp execute(CloseableHttpClient httpclient, HttpHost target, ClassicHttpRequest request) throws IOException {
+        return httpclient.execute(target, request, response -> {
+            HttpEntity entity = response.getEntity();
+            return new Resp(response.getCode(), response.getReasonPhrase(),
+                    entity != null ? entity.getContentType() : null,
+                    entity != null ? entity.getContentLength() : -1,
+                    entity != null ? entity.getClass() : null,
+                    entity != null ? EntityUtils.toString(entity) : "");
+        });
     }
 
     private void startServer() {

@@ -9,7 +9,7 @@ import org.apache.hc.core5.http.nio.CapacityChannel;
 import org.apache.hc.core5.http.nio.DataStreamChannel;
 import org.apache.hc.core5.http.nio.ResponseChannel;
 import org.apache.hc.core5.http.protocol.HttpContext;
-import org.apache.hc.core5.net.URLEncodedUtils;
+import org.apache.hc.core5.net.WWWFormCodec;
 import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.metamodel.GlobTypeBuilder;
 import org.globsframework.core.metamodel.annotations.FieldName;
@@ -64,7 +64,7 @@ public class GlobHttpRequestHandlerBuilder {
         public Glob treat(String queryParams) {
             if (Strings.isNotEmpty(queryParams)) {
                 MutableGlob instantiate = paramType.instantiateWithDefaults();
-                List<NameValuePair> parse = URLEncodedUtils.parse(queryParams, StandardCharsets.UTF_8);
+                List<NameValuePair> parse = WWWFormCodec.parse(queryParams, StandardCharsets.UTF_8);
                 for (NameValuePair nameValuePair : parse) {
                     GlobHttpUtils.FromStringConverter fromStringConverter = converterMap.get(nameValuePair.getName());
                     if (fromStringConverter != null) {

@@ -8,7 +8,7 @@ import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.NameValuePair;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.message.BasicNameValuePair;
-import org.apache.hc.core5.net.URLEncodedUtils;
+import org.apache.hc.core5.net.WWWFormCodec;
 import org.globsframework.core.metamodel.fields.*;
 import org.globsframework.core.model.Glob;
 import org.globsframework.core.model.MutableGlob;
@@ -26,7 +26,7 @@ public class GlobHttpUtils {
         StringBuilder r = new StringBuilder();
         r.append("/");
         for (String s : split) {
-            if (s.length() != 0) {
+            if (!s.isEmpty()) {
                 if (s.startsWith("{") && s.endsWith("}")) {
                     String param = s.substring(1, s.length() - 1);
                     Field field = urlParam.getType().getField(param);
@@ -85,7 +85,7 @@ public class GlobHttpUtils {
     }
 
     public static String formatURL(Glob parameters) {
-        return URLEncodedUtils.format(glob2ValuePairList(parameters), StandardCharsets.UTF_8);
+        return WWWFormCodec.format(glob2ValuePairList(parameters), StandardCharsets.UTF_8);
     }
 
     static List<NameValuePair> glob2ValuePairList(Glob parameters) {
@@ -123,18 +123,19 @@ public class GlobHttpUtils {
                     field.safeAcceptValue(visitor, parameters.getValue(field));
                     nameValuePairList.add(new BasicNameValuePair(field.getName(), visitor.out));
                 } else if (field.getDataType().isArray()) {
-                    if (field instanceof StringArrayField) {
-                        nameValuePairList.add(new BasicNameValuePair(field.getName(), String.join(",", parameters.get((StringArrayField) field))));
-                    } else if (field instanceof LongArrayField) {
-                        nameValuePairList.add(new BasicNameValuePair(field.getName(),
-                                Arrays.stream(parameters.get((LongArrayField) field))
-                                        .mapToObj(Long::toString).collect(Collectors.joining(","))));
-                    } else if (field instanceof DoubleArrayField) {
-                        nameValuePairList.add(new BasicNameValuePair(field.getName(),
-                                Arrays.stream(parameters.get((DoubleArrayField) field))
-                                        .mapToObj(Double::toString).collect(Collectors.joining(","))));
-                    } else {
-                        throw new RuntimeException("Field type " + field.getDataType() + " not managed " + field.getFullName());
+                    switch (field) {
+                        case StringArrayField stringArrayField ->
+                                nameValuePairList.add(new BasicNameValuePair(field.getName(), String.join(",", parameters.get(stringArrayField))));
+                        case LongArrayField longArrayField ->
+                                nameValuePairList.add(new BasicNameValuePair(field.getName(),
+                                        Arrays.stream(parameters.get(longArrayField))
+                                                .mapToObj(Long::toString).collect(Collectors.joining(","))));
+                        case DoubleArrayField doubleArrayField ->
+                                nameValuePairList.add(new BasicNameValuePair(field.getName(),
+                                        Arrays.stream(parameters.get(doubleArrayField))
+                                                .mapToObj(Double::toString).collect(Collectors.joining(","))));
+                        default ->
+                                throw new RuntimeException("Field type " + field.getDataType() + " not managed " + field.getFullName());
                     }
                 } else {
                     nameValuePairList.add(new BasicNameValuePair(field.getName(),
@@ -233,7 +234,7 @@ public class GlobHttpUtils {
     }
 
     public static class ToBooleanConverter implements FromStringConverter {
-        private BooleanField field;
+        private final BooleanField field;
 
         public ToBooleanConverter(BooleanField field) {
             this.field = field;
@@ -247,7 +248,7 @@ public class GlobHttpUtils {
     }
 
     public static class ToDateTimeConverter implements FromStringConverter {
-        private DateTimeField dateTimeField;
+        private final DateTimeField dateTimeField;
 
         public ToDateTimeConverter(DateTimeField dateTimeField) {
             this.dateTimeField = dateTimeField;
@@ -271,7 +272,7 @@ public class GlobHttpUtils {
     }
 
     public static class ToDateConverter implements FromStringConverter {
-        private DateField dateField;
+        private final DateField dateField;
 
         public ToDateConverter(DateField dateField) {
             this.dateField = dateField;
@@ -310,7 +311,7 @@ public class GlobHttpUtils {
 
     public static class ToStringArrayConverter implements FromStringConverter {
         final StringArrayField field;
-        private String arraySeparator;
+        private final String arraySeparator;
 
         public ToStringArrayConverter(StringArrayField field, String arraySeparator) {
             this.field = field;
@@ -339,7 +340,7 @@ public class GlobHttpUtils {
 
     public static class ToLongArrayConverter implements FromStringConverter {
         final LongArrayField field;
-        private String arraySeparator;
+        private final String arraySeparator;
 
         public ToLongArrayConverter(LongArrayField field, String arraySeparator) {
             this.field = field;

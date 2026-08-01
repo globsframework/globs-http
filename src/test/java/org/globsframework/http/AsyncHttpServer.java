@@ -38,7 +38,7 @@ public class AsyncHttpServer {
 
         HttpAsyncServer httpAsyncServer = h2ServerBootstrap.create();
         httpAsyncServer.start();
-        Future<ListenerEndpoint> listen = httpAsyncServer.listen(new InetSocketAddress(4000));
+        Future<ListenerEndpoint> listen = httpAsyncServer.listen(new InetSocketAddress(4000), URIScheme.HTTP);
         ListenerEndpoint listenerEndpoint = listen.get();
         System.out.println("port " + listenerEndpoint.getAddress());
         synchronized (httpAsyncServer) {

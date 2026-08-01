@@ -209,6 +209,14 @@ public class GlobHttpRequestHandlerTest {
             Assert.assertEquals("/test/{id}/TOTO/{subId}", activeId[0]);
         }
 
+        // regression (#3): a path longer than any registered exact route must not prefix-match a shorter one
+        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+            HttpGet httpRequest = new HttpGet("/test/123/TOTO/4567/EXTRA");
+            CloseableHttpResponse httpResponse = httpclient.execute(target, httpRequest);
+            Assert.assertEquals(403, httpResponse.getCode());
+            EntityUtils.consume(httpResponse.getEntity());
+        }
+
         pairs.clear();
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             HttpGet httpRequest = GlobHttpUtils.createGet("/test/123/TOTO", QueryParameter.TYPE.instantiate()

@@ -533,7 +533,7 @@ public class GlobOpenApi {
 
         @Override
         public void visitGlob(GlobField field) throws Exception {
-            schema = buildSchema(field.getGlobType(), schemas);
+            schema = buildSchema(field.getTargetType(), schemas);
         }
 
         @Override

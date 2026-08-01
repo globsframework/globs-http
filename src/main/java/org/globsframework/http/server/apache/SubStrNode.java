@@ -12,15 +12,23 @@ public class SubStrNode {
     }
 
     boolean match(String[] path) {
-        String[] strings = this.path;
-        for (int i = 0, stringsLength = strings.length; i < stringsLength; i++) {
-            String s = strings[i];
+        String[] p = this.path;
+        int i = 0, stringsLength = p.length;
+        while (i < stringsLength) {
+            String s = p[i];
             if (s != null) {
                 if (!s.equals(path[i])) {
                     return false;
                 }
             }
+            i++;
         }
         return true;
+    }
+
+    // For exact (non-wildcard) routes the request must have exactly the same number of
+    // segments, otherwise a longer path would prefix-match a shorter route.
+    boolean matchExact(String[] path) {
+        return this.path.length == path.length && match(path);
     }
 }

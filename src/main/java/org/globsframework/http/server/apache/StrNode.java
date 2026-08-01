@@ -11,7 +11,7 @@ public class StrNode {
 
     public GlobHttpRequestHandlerFactory createRequestHandler(String[] path, String method, String paramStr, boolean hasBody) {
         for (SubStrNode subStrNode : this.subStrNodes) {
-            if (subStrNode.match(path)) {
+            if (subStrNode.matchExact(path)) {
                 return subStrNode.httpRequestHandlerBuilder.create(path, method, paramStr, hasBody);
             }
         }

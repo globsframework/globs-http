@@ -46,6 +46,7 @@ public class DefaultHttpOperation implements MutableHttpDataOperation {
 
     public DefaultHttpOperation withHeader(GlobType globType) {
         headerType = globType;
+        emptyHeader = globType != null ? globType.instantiate() : null;
         return this;
     }
 

@@ -27,7 +27,7 @@ public class OpenApiResponses {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiResponses");
         code = typeBuilder.declareStringField("code", JsonValueAsField.UNIQUE_GLOB);
         description = typeBuilder.declareStringField("description");
-        content = typeBuilder.declareGlobArrayField("conten", () -> OpenApiBodyMimeType.TYPE, JsonAsObject.UNIQUE_GLOB);
+        content = typeBuilder.declareGlobArrayField("content", () -> OpenApiBodyMimeType.TYPE, JsonAsObject.UNIQUE_GLOB);
         TYPE = typeBuilder.build();
     }
 }

@@ -42,8 +42,9 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
     private final ResponseChannel responseChannel;
     private final HttpContext context;
     private final Glob header;
-    private final Header[] requestHeaders;
-    private DataToSendProvider stream;
+    // volatile: assigned by the worker thread (in the response* methods, before sendResponse)
+    // and read by the I/O reactor thread under the monitor in produceResponse/availableInResponse.
+    private volatile DataToSendProvider stream;
     private MultiByteArrayInputStream multiByteArrayInputStream;
     private long responseSize;
     private ByteBuffer currentResponseBuffer;
@@ -57,9 +58,8 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
         this.requestEntityDetails = requestEntityDetails;
         this.responseChannel = responseChannel;
         this.context = context;
-        requestHeaders = request.getHeaders();
         GlobType headerType = operation.getHeaderType();
-        this.header = headerType != null ? parseHeader(headerType, requestHeaders) : null;
+        this.header = headerType != null ? parseHeader(headerType, request.getHeaders()) : null;
     }
 
     private Glob parseHeader(GlobType headerType, Header[] allHeaders) {
@@ -361,38 +361,46 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
         ByteBuffer nextBufferToSend();
     }
 
-    // synchronized because call at sendResponse but can also be called buy listen thread on io write allowed.
+    // synchronized because produce() may be invoked both from the worker thread (synchronously,
+    // via sendResponse) and from the I/O reactor thread on output-ready events.
     public synchronized void produceResponse(DataStreamChannel channel) throws IOException {
+        // Finish writing a buffer that was only partially accepted by the channel last time.
         if (currentResponseBuffer != null && currentResponseBuffer.hasRemaining()) {
             channel.write(currentResponseBuffer);
-        } else {
-            if (stream != null) {
-                currentResponseBuffer = stream.nextBufferToSend();
-                if (currentResponseBuffer != null) {
-                    channel.write(currentResponseBuffer);
-                }
+            if (currentResponseBuffer.hasRemaining()) {
+                return; // channel cannot accept more for now; wait for the next output event
             }
+            currentResponseBuffer = null;
         }
-        if ((currentResponseBuffer == null || !currentResponseBuffer.hasRemaining()) && stream != null) {
-            currentResponseBuffer = stream.nextBufferToSend();
-            if (currentResponseBuffer == null || !currentResponseBuffer.hasRemaining()) {
+        // Write as many buffers as the channel will accept, then terminate the stream.
+        while (stream != null) {
+            ByteBuffer next = stream.nextBufferToSend();
+            if (next == null) {
+                stream = null;
                 channel.endStream(List.of());
+                return;
+            }
+            if (!next.hasRemaining()) {
+                continue;
+            }
+            channel.write(next);
+            if (next.hasRemaining()) {
+                currentResponseBuffer = next; // channel full; keep the rest for the next event
+                return;
             }
         }
     }
 
+    // synchronized and non-destructive: available() is only a hint (see AsyncDataProducer) and must
+    // not consume the stream, otherwise it would race with produceResponse over the shared buffer.
     @Override
-    public int availableInResponse() {
+    public synchronized int availableInResponse() {
         if (currentResponseBuffer != null && currentResponseBuffer.hasRemaining()) {
             return currentResponseBuffer.remaining();
         }
-        if (stream != null) {
-            currentResponseBuffer = stream.nextBufferToSend();
-            if (currentResponseBuffer != null) {
-                return currentResponseBuffer.remaining();
-            }
-        }
-        return 0;
+        // As long as the provider is set there may be more data to send (or a stream to terminate):
+        // return a positive hint so produceResponse() gets triggered to do the actual work.
+        return stream != null ? 1 : 0;
     }
 
     @Override

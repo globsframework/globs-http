@@ -608,6 +608,54 @@ public class GlobHttpRequestHandlerTest {
     }
 
     @Test
+    public void multiValueStringQueryParam() throws IOException, InterruptedException {
+        httpServerRegister.register("/multi/{id}", URLOneParameter.TYPE)
+                .get(QueryParameter.TYPE, (body, url, queryParameters) -> {
+                    pairs.add(Pair.makePair(url, queryParameters));
+                    return null;
+                });
+
+        startServer();
+
+        HttpHost target = new HttpHost("http", "localhost", port);
+
+        // a repeated param and a comma separated one both feed the same StringArrayField
+        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+            HttpGet httpRequest = new HttpGet("/multi/123?name=ZERZE&info=A&info=B%2CC");
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(204, httpResponse.code());
+            Pair<Glob, Glob> poll = pairs.poll(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(poll);
+            Assert.assertEquals(123, poll.getFirst().get(URLOneParameter.ID, 0));
+            Assert.assertEquals("ZERZE", poll.getSecond().get(QueryParameter.NAME));
+            Assert.assertArrayEquals(new String[]{"A", "B", "C"}, poll.getSecond().get(QueryParameter.INFO));
+        }
+
+        // a single value gives an array of one element
+        pairs.clear();
+        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+            HttpGet httpRequest = GlobHttpUtils.createGet("/multi/123", QueryParameter.TYPE.instantiate()
+                    .set(QueryParameter.INFO, new String[]{"only one"}));
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(204, httpResponse.code());
+            Pair<Glob, Glob> poll = pairs.poll(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(poll);
+            Assert.assertArrayEquals(new String[]{"only one"}, poll.getSecond().get(QueryParameter.INFO));
+        }
+
+        // an absent param leaves the field null
+        pairs.clear();
+        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+            HttpGet httpRequest = new HttpGet("/multi/123?name=ZERZE");
+            Resp httpResponse = execute(httpclient, target, httpRequest);
+            Assert.assertEquals(204, httpResponse.code());
+            Pair<Glob, Glob> poll = pairs.poll(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(poll);
+            Assert.assertNull(poll.getSecond().get(QueryParameter.INFO));
+        }
+    }
+
+    @Test
     public void xmlInOut() throws IOException {
         File httpContent = File.createTempFile("httpContent", ".xml");
         httpContent.deleteOnExit();

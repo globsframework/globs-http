@@ -9,6 +9,8 @@ import org.globsframework.core.metamodel.GlobTypeBuilderFactory;
 import org.globsframework.core.metamodel.annotations.FieldName_;
 import org.globsframework.core.metamodel.annotations.Target;
 import org.globsframework.core.metamodel.fields.*;
+import org.globsframework.core.model.Glob;
+import org.globsframework.core.model.MutableGlob;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -79,10 +81,13 @@ public class GlobHttpUtilsTest {
 
         public static DateField date;
 
+        public static StringArrayField multiString;
+
         static {
             GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("TEST");
             datetime = typeBuilder.declareDateTimeField("datetime");
             date = typeBuilder.declareDateField("date");
+            multiString = typeBuilder.declareStringArrayField("multiString");
             TYPE = typeBuilder.build();
         }
 
@@ -104,6 +109,45 @@ public class GlobHttpUtilsTest {
             converter.convert(TEST.TYPE.instantiate(), "2021-09-01T14:55:43");
             converter.convert(TEST.TYPE.instantiate(), "2021-09-01");
         }
+    }
+
+    @Test
+    public void multiValueStringIsAccumulatedByTheConverter() {
+        // query params : the same name may appear several times, and each value may itself be a list
+        GlobHttpUtils.FromStringConverter converter = GlobHttpUtils.createConverter(TEST.multiString, ",");
+        MutableGlob glob = TEST.TYPE.instantiate();
+
+        converter.convert(glob, "A,B");
+        Assert.assertArrayEquals(new String[]{"A", "B"}, glob.get(TEST.multiString));
+
+        converter.convert(glob, "C");
+        Assert.assertArrayEquals(new String[]{"A", "B", "C"}, glob.get(TEST.multiString));
+
+        converter.convert(glob, null);
+        Assert.assertArrayEquals(new String[]{"A", "B", "C"}, glob.get(TEST.multiString));
+    }
+
+    @Test
+    public void multiValueStringWithoutSeparatorKeepsTheWholeValue() {
+        // path params are built without separator : a comma is a plain character
+        GlobHttpUtils.FromStringConverter converter = GlobHttpUtils.createConverter(TEST.multiString, null);
+        MutableGlob glob = TEST.TYPE.instantiate();
+
+        converter.convert(glob, "A,B");
+        Assert.assertArrayEquals(new String[]{"A,B"}, glob.get(TEST.multiString));
+    }
+
+    @Test
+    public void multiValueStringIsSentAsASingleCommaSeparatedParam() {
+        Glob parameters = TEST.TYPE.instantiate().set(TEST.multiString, new String[]{"A", "B", "C"});
+
+        List<NameValuePair> list = GlobHttpUtils.glob2ValuePairList(parameters);
+        Assert.assertEquals(1, list.size());
+        Assert.assertEquals(new BasicNameValuePair("multiString", "A,B,C"), list.get(0));
+
+        MutableGlob decoded = TEST.TYPE.instantiate();
+        GlobHttpUtils.createConverter(TEST.multiString, ",").convert(decoded, list.get(0).getValue());
+        Assert.assertArrayEquals(new String[]{"A", "B", "C"}, decoded.get(TEST.multiString));
     }
 
     @Test

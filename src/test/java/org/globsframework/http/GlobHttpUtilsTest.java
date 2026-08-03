@@ -189,7 +189,7 @@ public class GlobHttpUtilsTest {
         public static StringField composedName;
 
         @Target(PARAM.class)
-        public static GlobField param;
+        public static GlobField<PARAM> param;
 
         static {
             GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("PARAM");

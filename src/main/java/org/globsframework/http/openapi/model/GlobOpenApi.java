@@ -53,7 +53,7 @@ public class GlobOpenApi {
         return openApiDoc.duplicate().set(OpenApiType.paths, paths.toArray(Glob[]::new));
     }
 
-    private boolean hasSelectedTag(Glob path, GlobField field, String targetScope) {
+    private boolean hasSelectedTag(Glob path, GlobField<?> field, String targetScope) {
         Glob pathDescription = path.get(field);
         if (pathDescription == null) {
             return false;
@@ -366,7 +366,7 @@ public class GlobOpenApi {
             }
 
             @Override
-            public void visitGlob(GlobField field) throws Exception {
+            public void visitGlob(GlobField<?> field) throws Exception {
                 MutableGlob ref = buildSchema(field.getTargetType(), schemas);
                 ref.set(OpenApiSchemaProperty.name, field.getName());
 //                        .set(OpenApiSchemaProperty.format, "binary")
@@ -413,7 +413,7 @@ public class GlobOpenApi {
                 p.set(ref);
             }
 
-            public void visitGlobArray(GlobArrayField field) throws Exception {
+            public void visitGlobArray(GlobArrayField<?> field) throws Exception {
                 MutableGlob ref = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
                         .set(OpenApiSchemaProperty.type, ARRAY_STR)
@@ -532,12 +532,12 @@ public class GlobOpenApi {
         }
 
         @Override
-        public void visitGlob(GlobField field) throws Exception {
+        public void visitGlob(GlobField<?> field) throws Exception {
             schema = buildSchema(field.getTargetType(), schemas);
         }
 
         @Override
-        public void visitGlobArray(GlobArrayField field) throws Exception {
+        public void visitGlobArray(GlobArrayField<?> field) throws Exception {
             schema = OpenApiSchemaProperty.TYPE.instantiate()
                     .set(OpenApiSchemaProperty.type, ARRAY_STR)
                     .set(OpenApiSchemaProperty.items, buildSchema(field.getTargetType(), schemas));

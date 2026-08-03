@@ -100,12 +100,12 @@ public class GlobHttpUtils {
                     var visitor = new FieldValueVisitor.AbstractWithErrorVisitor() {
                         String out;
 
-                        public void visitGlob(GlobField field, Glob value) throws Exception {
+                        public void visitGlob(GlobField<?> field, Glob value) throws Exception {
                             String encode = GSonUtils.encode(value, true);
                             out = Base64.getUrlEncoder().encodeToString(encode.getBytes(StandardCharsets.UTF_8));
                         }
 
-                        public void visitGlobArray(GlobArrayField field, Glob[] value) throws Exception {
+                        public void visitGlobArray(GlobArrayField<?> field, Glob[] value) throws Exception {
                             String encode = GSonUtils.encode(value, true);
                             out = Base64.getUrlEncoder().encodeToString(encode.getBytes(StandardCharsets.UTF_8));
                         }
@@ -183,7 +183,7 @@ public class GlobHttpUtils {
                 fromStringConverter1 = new ToBooleanConverter(field);
             }
 
-            public void visitGlob(GlobField field) throws Exception {
+            public void visitGlob(GlobField<?> field) throws Exception {
                 fromStringConverter1 = new FromStringConverter() {
                     public void convert(MutableGlob glob, String str) {
                         glob.set(field, GSonUtils.decode(new String(Base64.getUrlDecoder().decode(str), StandardCharsets.UTF_8), field.getTargetType()));
@@ -191,7 +191,7 @@ public class GlobHttpUtils {
                 };
             }
 
-            public void visitGlobArray(GlobArrayField field) throws Exception {
+            public void visitGlobArray(GlobArrayField<?> field) throws Exception {
                 fromStringConverter1 = new FromStringConverter() {
                     public void convert(MutableGlob glob, String str) {
                         glob.set(field, GSonUtils.decodeArray(new String(Base64.getUrlDecoder().decode(str), StandardCharsets.UTF_8), field.getTargetType()));

@@ -318,13 +318,13 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
             int statusCode;
             String strData;
             if (fieldWithStatusCode instanceof IntegerField statusField
-                && (fieldWithData instanceof GlobField || fieldWithData instanceof GlobArrayField)) {
+                && (fieldWithData instanceof GlobField<?> || fieldWithData instanceof GlobArrayField)) {
 
-                if (fieldWithData instanceof GlobField globDataField) {
+                if (fieldWithData instanceof GlobField<?> globDataField) {
                     Glob data = glob.get(globDataField);
                     strData = data != null ? GSonUtils.encode(data, false) : null;
                 } else {
-                    Glob[] data = glob.get((GlobArrayField) fieldWithData);
+                    Glob[] data = glob.get((GlobArrayField<?>) fieldWithData);
                     strData = data != null ? GSonUtils.encode(data, false) : null;
                 }
 

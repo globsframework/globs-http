@@ -20,7 +20,7 @@ public class OpenApiParameter {
     public static final BooleanField required;
 
     @Target(OpenApiSchemaProperty.class)
-    public static final GlobField schema;
+    public static final GlobField<OpenApiSchemaProperty> schema;
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiParameter");

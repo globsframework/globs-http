@@ -16,7 +16,7 @@ public class OpenApiBodyMimeType {
     public static final StringField mimeType;
 
     @Target(OpenApiSchemaProperty.class)
-    public static final GlobField schema;
+    public static final GlobField<OpenApiSchemaProperty> schema;
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiBodyMime");

@@ -768,7 +768,7 @@ public class GlobHttpRequestHandlerTest {
         public static StringArrayField INFO;
 
         @Target(QueryParameter.class)
-        public static GlobField param;
+        public static GlobField<QueryParameter> param;
 
         static {
             GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("queryParameter");
@@ -820,7 +820,7 @@ public class GlobHttpRequestHandlerTest {
 
         @Target(BodyContent.class)
         @HttpBodyData_
-        public static GlobField field2;
+        public static GlobField<BodyContent> field2;
 
         static {
             GlobTypeBuilder typeBuilder = new DefaultGlobTypeBuilder("CustomBodyWithStatusCode");

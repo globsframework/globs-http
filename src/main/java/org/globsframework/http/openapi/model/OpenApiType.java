@@ -18,17 +18,17 @@ public class OpenApiType {
     public static final StringField openAPIVersion;
 
     @Target(OpenApiInfo.class)
-    public static final GlobField info;
+    public static final GlobField<OpenApiInfo> info;
 
     @Target(OpenApiComponents.class)
-    public static final GlobField components;
+    public static final GlobField<OpenApiComponents> components;
 
     @Target(OpenApiServers.class)
-    public static final GlobArrayField servers;
+    public static final GlobArrayField<OpenApiServers> servers;
 
     @Target(OpenApiPath.class)
     @JsonAsObject_
-    public static final GlobArrayField paths;
+    public static final GlobArrayField<OpenApiPath> paths;
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiType");

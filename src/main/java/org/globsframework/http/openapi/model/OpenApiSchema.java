@@ -13,7 +13,7 @@ public class OpenApiSchema {
 
     @Target(OpenApiSchemaProperty.class)
     @JsonAsObject_
-    public static final GlobField properties;
+    public static final GlobField<OpenApiSchemaProperty> properties;
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiSchema");

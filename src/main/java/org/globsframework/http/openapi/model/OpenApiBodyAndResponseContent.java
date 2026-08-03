@@ -13,7 +13,7 @@ public class OpenApiBodyAndResponseContent {
 
     @Target(OpenApiBodyMimeType.class)
     @JsonAsObject_
-    public static final GlobField mimeType;
+    public static final GlobField<OpenApiBodyMimeType> mimeType;
 
 
     static {

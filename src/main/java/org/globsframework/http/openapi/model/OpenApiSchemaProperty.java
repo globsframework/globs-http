@@ -36,10 +36,10 @@ public class OpenApiSchemaProperty {
 
     @Target(OpenApiSchemaProperty.class)
     @JsonAsObject_
-    public static final GlobArrayField properties;
+    public static final GlobArrayField<OpenApiSchemaProperty> properties;
 
     @Target(OpenApiSchemaProperty.class)
-    public static final GlobField items;
+    public static final GlobField<OpenApiSchemaProperty> items;
 
     @FieldName_("$ref")
     public static final StringField ref;

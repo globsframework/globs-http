@@ -23,14 +23,14 @@ public class OpenApiPathDsc {
     public static final StringField operationId;
 
     @Target(OpenApiParameter.class)
-    public static final GlobArrayField parameters;
+    public static final GlobArrayField<OpenApiParameter> parameters;
 
     @Target(OpenApiRequestBody.class)
-    public static final GlobField requestBody;
+    public static final GlobField<OpenApiRequestBody> requestBody;
 
     @Target(OpenApiResponses.class)
     @JsonAsObject_
-    public static final GlobArrayField responses;
+    public static final GlobArrayField<OpenApiResponses> responses;
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiPathDsc");

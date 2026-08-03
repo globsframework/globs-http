@@ -16,19 +16,19 @@ public class OpenApiPath {
     public static final StringField name;
 
     @Target(OpenApiPathDsc.class)
-    public static final GlobField put;
+    public static final GlobField<OpenApiPathDsc> put;
 
     @Target(OpenApiPathDsc.class)
-    public static final GlobField post;
+    public static final GlobField<OpenApiPathDsc> post;
 
     @Target(OpenApiPathDsc.class)
-    public static final GlobField patch;
+    public static final GlobField<OpenApiPathDsc> patch;
 
     @Target(OpenApiPathDsc.class)
-    public static final GlobField get;
+    public static final GlobField<OpenApiPathDsc> get;
 
     @Target(OpenApiPathDsc.class)
-    public static final GlobField delete;
+    public static final GlobField<OpenApiPathDsc> delete;
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiPath");

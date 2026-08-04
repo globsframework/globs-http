@@ -14,6 +14,7 @@ import org.globsframework.core.model.Glob;
 import org.globsframework.core.model.MutableGlob;
 import org.globsframework.http.*;
 import org.globsframework.http.model.HttpBodyData;
+import org.globsframework.http.model.HttpHeader;
 import org.globsframework.http.model.HttpGlobResponse;
 import org.globsframework.http.model.StatusCode;
 import org.globsframework.http.streams.MultiBufferOutputStream;
@@ -25,7 +26,11 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -34,6 +39,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger("org.globsframework.http.DefaultGlobHttpRequestHandler");
     public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+    private static final Map<GlobType, Map<String, Field>> HEADER_FIELDS = new ConcurrentHashMap<>();
     private final HttpOperation operation;
     private final Glob urlGlob;
     private final Glob paramType;
@@ -62,11 +68,27 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
         this.header = headerType != null ? parseHeader(headerType, request.getHeaders()) : null;
     }
 
+    /**
+     * Header names are case-insensitive (RFC 9110) and clients do not agree on a casing, so fields are
+     * matched on the lower-cased name. The per-type map is built once and cached rather than rescanning
+     * the metamodel for every header of every request.
+     */
+    private static Map<String, Field> fieldsByLowerCaseName(GlobType headerType) {
+        return HEADER_FIELDS.computeIfAbsent(headerType, type -> {
+            Map<String, Field> byName = new HashMap<>();
+            for (Field field : type.getFields()) {
+                byName.put(field.getName().toLowerCase(Locale.ROOT), field);
+            }
+            return byName;
+        });
+    }
+
     private Glob parseHeader(GlobType headerType, Header[] allHeaders) {
         MutableGlob instance = headerType.instantiate();
+        Map<String, Field> byName = fieldsByLowerCaseName(headerType);
         for (Header allHeader : allHeaders) {
             final String name = allHeader.getName();
-            final Field field = headerType.findField(name);
+            final Field field = byName.get(name.toLowerCase(Locale.ROOT));
             if (field != null) {
                 if (field instanceof StringField) {
                     instance.set(field.asStringField(), allHeader.getValue());
@@ -283,6 +305,10 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
     private void sendHttpResponse(BasicHttpResponse statusCode,
                                   EntityDetails responseEntityDetails) {
         try {
+            // Headers declared through HttpServerRegister.addHeader used to be dropped: the only code
+            // pushing them into the response lived in the pre-httpcore5 handler. Every response goes
+            // through here, so this is where they belong.
+            operation.headers(statusCode::addHeader);
             responseChannel.sendResponse(statusCode, responseEntityDetails, context);
         } catch (HttpException e) {
             LOGGER.error("Fail to send response (http error)", e);
@@ -302,7 +328,12 @@ public class DefaultGlobHttpRequestHandler implements GlobHttpRequestHandler {
                 ref.bytes = null;
             }
         } : null;
-        sendHttpResponse(new BasicHttpResponse(glob.get(GlobHttpContent.statusCode, ref.bytes.length == 0 ? 204 : 200)),
+        BasicHttpResponse response =
+                new BasicHttpResponse(glob.get(GlobHttpContent.statusCode, ref.bytes.length == 0 ? 204 : 200));
+        for (Glob header : glob.getOrEmpty(GlobHttpContent.headers)) {
+            response.addHeader(header.get(HttpHeader.name), header.get(HttpHeader.value));
+        }
+        sendHttpResponse(response,
                 ref.bytes.length == 0 ? null : new BasicEntityDetails(ref.bytes.length,
                         ContentType.create(
                                 glob.get(GlobHttpContent.mimeType, "application/octet-stream"),

@@ -93,7 +93,10 @@ Partially-written buffers are parked in `currentResponseBuffer` until the next o
 the returned `Glob`'s *type* selects the encoding in `DefaultGlobHttpRequestHandler`:
 
 - `null` future / `null` Glob / zero-size stream → **204**.
-- `GlobHttpContent.TYPE` → raw bytes with `mimeType`/`charset`/`statusCode` taken from the Glob.
+- `GlobHttpContent.TYPE` → raw bytes with `mimeType`/`charset`/`statusCode`/`headers` taken from the Glob.
+  `headers` (a `GlobArrayField` of `model/HttpHeader`) is how a handler sets a header whose value it only
+  knows per request — a session id, a `Location`, an ETag. Declared headers are fixed at declaration time
+  and cannot do that. Left unset, nothing is added.
 - a type annotated `@HttpGlobResponse_` → the field annotated `@StatusCode_` (IntegerField) is the status and
   the field annotated `@HttpBodyData_` (GlobField or GlobArrayField) is the JSON body.
 - anything else → JSON via `GSonUtils`, `application/json`, 200.
@@ -124,6 +127,17 @@ practice: encoding is correct, decoding `OpenApiType` back is a known gap (see `
 `buildSchema` memoizes per `GlobType` in the `schemas` map and emits `#/components/schemas/<name>` refs;
 union fields get a synthetic `<Name>_union` wrapper type per branch.
 
+### Headers
+
+Request headers are parsed into a Glob of the operation's header type by
+`DefaultGlobHttpRequestHandler.parseHeader`, matching **on the lower-cased name** — header names are
+case-insensitive per RFC 9110 and clients do not agree on a casing, so a field declared `X-Trace-Id`
+also matches `x-trace-id`. The per-`GlobType` lowercase map is built once and cached in `HEADER_FIELDS`.
+
+Response headers declared through `Verb.addHeader` / `OperationInfo.addHeader` are written in
+`sendHttpResponse`, the single choke point every response goes through — including error responses.
+`ResponseHeaderTest` covers both directions plus the dynamic `GlobHttpContent.headers`.
+
 ## Gotchas
 
 - `HttpTreatment` (3 args) vs `HttpTreatmentWithHeader` (4 args, adds the header Glob) vs
@@ -131,6 +145,13 @@ union fields get a synthetic `<Name>_union` wrapper type per branch.
   on a 3-arg `HttpTreatment` (the pattern the README shows) does cause the headers to be parsed into a Glob,
   but the default adapter drops that argument: only an interceptor sees it, never the lambda. To read headers
   in the handler, use the 4-arg overload. Header types are not reflected in the OpenAPI doc at all.
+- Verb-level `addHeader` (on the `Verb`, not the `OperationInfo`) still goes to `DefaultHttpReceiver` and
+  is **not** written: the handler only sees the `HttpOperation`. Use `OperationInfo.addHeader`.
+- `GlobOpenApi` now declares `BigDecimal` as `{"type":"number","format":"big-decimal"}`, matching what
+  globs-gson actually writes (`JsonFieldValueWithWriterVisitor.visitBigDecimal` → `jsonWriter.value(BigDecimal)`).
+  It used to say `string`. **This changes the published document**, so clients generated from an older
+  `/api` will disagree until regenerated. The mapping lives in two places that must stay in step — `subType`
+  for bodies and responses, `OpenApiFieldVisitor` for query and path parameters.
 - Null query/header Globs are replaced by a pre-instantiated empty Glob of the declared type before the
   lambda is called, but a *missing* query string yields `null` from `DefaultParamProcessor`, so
   `getQueryParamType()` returning `EMPTY` (not null) matters.

@@ -16,6 +16,7 @@ import java.util.*;
 
 public class GlobOpenApi {
     private static final String DOUBLE_STR = "double";
+    private static final String INTEGER_STR = "integer";
     private static final String NUMBER_STR = "number";
     private static final String ARRAY_STR = "array";
     private static final String BIG_DECIMAL_STR = "big-decimal";
@@ -251,7 +252,7 @@ public class GlobOpenApi {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
                         .set(OpenApiSchemaProperty.format, BIG_DECIMAL_STR)
-                        .set(OpenApiSchemaProperty.type, STRING_STR);
+                        .set(OpenApiSchemaProperty.type, NUMBER_STR);
                 p.set(instantiate);
             }
 
@@ -263,7 +264,7 @@ public class GlobOpenApi {
                         .set(OpenApiSchemaProperty.items,
                                 OpenApiSchemaProperty.TYPE.instantiate()
                                         .set(OpenApiSchemaProperty.format, BIG_DECIMAL_STR)
-                                        .set(OpenApiSchemaProperty.type, STRING_STR));
+                                        .set(OpenApiSchemaProperty.type, NUMBER_STR));
                 p.set(instantiate);
             }
 
@@ -272,7 +273,7 @@ public class GlobOpenApi {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
                         .set(OpenApiSchemaProperty.format, "int32")
-                        .set(OpenApiSchemaProperty.type, "integer");
+                        .set(OpenApiSchemaProperty.type, INTEGER_STR);
                 p.set(instantiate);
             }
 
@@ -307,7 +308,7 @@ public class GlobOpenApi {
                 MutableGlob instantiate = OpenApiSchemaProperty.TYPE.instantiate()
                         .set(OpenApiSchemaProperty.name, field.getName())
                         .set(OpenApiSchemaProperty.format, "int64")
-                        .set(OpenApiSchemaProperty.type, "integer");
+                        .set(OpenApiSchemaProperty.type, INTEGER_STR);
                 p.set(instantiate);
             }
 
@@ -319,7 +320,7 @@ public class GlobOpenApi {
                         .set(OpenApiSchemaProperty.items,
                                 OpenApiSchemaProperty.TYPE.instantiate()
                                         .set(OpenApiSchemaProperty.format, "int64")
-                                        .set(OpenApiSchemaProperty.type, "integer"));
+                                        .set(OpenApiSchemaProperty.type, INTEGER_STR));
                 p.set(instantiate);
             }
 
@@ -331,7 +332,7 @@ public class GlobOpenApi {
                         .set(OpenApiSchemaProperty.items,
                                 OpenApiSchemaProperty.TYPE.instantiate()
                                         .set(OpenApiSchemaProperty.format, "int32")
-                                        .set(OpenApiSchemaProperty.type, "integer"));
+                                        .set(OpenApiSchemaProperty.type, INTEGER_STR));
                 p.set(instantiate);
             }
 
@@ -444,7 +445,7 @@ public class GlobOpenApi {
 
         @Override
         public void visitInteger(IntegerField field) throws Exception {
-            createSchema("integer", "int32");
+            createSchema(INTEGER_STR, "int32");
         }
 
         private void createSchema(String type, String format) {
@@ -477,7 +478,7 @@ public class GlobOpenApi {
 
         @Override
         public void visitLong(LongField field) throws Exception {
-            createSchema("integer", "int64");
+            createSchema(INTEGER_STR, "int64");
         }
 
         @Override
@@ -492,12 +493,12 @@ public class GlobOpenApi {
 
         @Override
         public void visitIntegerArray(IntegerArrayField field) throws Exception {
-            createArray("integer", "int32");
+            createArray(INTEGER_STR, "int32");
         }
 
         @Override
         public void visitLongArray(LongArrayField field) throws Exception {
-            createArray("integer", "int64");
+            createArray(INTEGER_STR, "int64");
         }
 
         @Override
@@ -517,12 +518,12 @@ public class GlobOpenApi {
 
         @Override
         public void visitBigDecimal(BigDecimalField field) throws Exception {
-            createSchema(STRING_STR, BIG_DECIMAL_STR);
+            createSchema(NUMBER_STR, BIG_DECIMAL_STR);
         }
 
         @Override
         public void visitBigDecimalArray(BigDecimalArrayField field) throws Exception {
-            createArray(STRING_STR, BIG_DECIMAL_STR);
+            createArray(NUMBER_STR, BIG_DECIMAL_STR);
         }
 
         private void createArray(String type, String format) {

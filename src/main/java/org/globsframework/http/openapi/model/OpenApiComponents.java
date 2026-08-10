@@ -13,7 +13,7 @@ public class OpenApiComponents {
 
     @Target(OpenApiSchemaProperty.class)
     @JsonAsObject_
-    public static final GlobArrayField schemas;
+    public static final GlobArrayField<OpenApiSchemaProperty> schemas;
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiComponents");

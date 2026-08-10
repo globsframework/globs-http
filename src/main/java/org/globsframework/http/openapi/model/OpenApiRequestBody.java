@@ -19,7 +19,7 @@ public class OpenApiRequestBody {
 
     @Target(OpenApiBodyMimeType.class)
     @JsonAsObject_
-    public static final GlobArrayField content;
+    public static final GlobArrayField<OpenApiBodyMimeType> content;
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiRequestBody");

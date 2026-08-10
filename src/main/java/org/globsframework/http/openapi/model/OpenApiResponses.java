@@ -21,7 +21,7 @@ public class OpenApiResponses {
 
     @Target(OpenApiBodyMimeType.class)
     @JsonAsObject_
-    public static final GlobArrayField content;
+    public static final GlobArrayField<OpenApiBodyMimeType> content;
 
     static {
         GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("OpenApiResponses");

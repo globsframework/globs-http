@@ -6,8 +6,6 @@ import org.apache.hc.core5.http.message.BasicNameValuePair;
 import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.metamodel.GlobTypeBuilder;
 import org.globsframework.core.metamodel.GlobTypeBuilderFactory;
-import org.globsframework.core.metamodel.annotations.FieldName_;
-import org.globsframework.core.metamodel.annotations.Target;
 import org.globsframework.core.metamodel.fields.*;
 import org.globsframework.core.model.Glob;
 import org.globsframework.core.model.MutableGlob;
@@ -185,10 +183,8 @@ public class GlobHttpUtilsTest {
 
         public static LongField aLong;
 
-        @FieldName_("client.name")
         public static StringField composedName;
 
-        @Target(PARAM.class)
         public static GlobField<PARAM> param;
 
         static {

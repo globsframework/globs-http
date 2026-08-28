@@ -3,7 +3,6 @@ package org.globsframework.http.openapi.model;
 import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.metamodel.GlobTypeBuilder;
 import org.globsframework.core.metamodel.GlobTypeBuilderFactory;
-import org.globsframework.core.metamodel.annotations.Target;
 import org.globsframework.core.metamodel.fields.BooleanField;
 import org.globsframework.core.metamodel.fields.GlobField;
 import org.globsframework.core.metamodel.fields.StringField;
@@ -19,7 +18,6 @@ public class OpenApiParameter {
 
     public static final BooleanField required;
 
-    @Target(OpenApiSchemaProperty.class)
     public static final GlobField<OpenApiSchemaProperty> schema;
 
     static {

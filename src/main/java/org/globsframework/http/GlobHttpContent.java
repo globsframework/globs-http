@@ -3,7 +3,6 @@ package org.globsframework.http;
 import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.metamodel.GlobTypeBuilder;
 import org.globsframework.core.metamodel.GlobTypeBuilderFactory;
-import org.globsframework.core.metamodel.annotations.Target;
 import org.globsframework.core.metamodel.fields.BytesField;
 import org.globsframework.core.metamodel.fields.GlobArrayField;
 import org.globsframework.core.metamodel.fields.IntegerField;
@@ -25,7 +24,6 @@ public class GlobHttpContent {
      * Response headers known only at request time. Left unset, nothing is added — the headers declared
      * on the operation still apply.
      */
-    @Target(HttpHeader.class)
     public static final GlobArrayField<HttpHeader> headers;
 
     static {

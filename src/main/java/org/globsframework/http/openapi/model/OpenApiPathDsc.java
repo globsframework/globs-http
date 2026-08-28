@@ -3,13 +3,11 @@ package org.globsframework.http.openapi.model;
 import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.metamodel.GlobTypeBuilder;
 import org.globsframework.core.metamodel.GlobTypeBuilderFactory;
-import org.globsframework.core.metamodel.annotations.Target;
 import org.globsframework.core.metamodel.fields.GlobArrayField;
 import org.globsframework.core.metamodel.fields.GlobField;
 import org.globsframework.core.metamodel.fields.StringArrayField;
 import org.globsframework.core.metamodel.fields.StringField;
 import org.globsframework.json.annottations.JsonAsObject;
-import org.globsframework.json.annottations.JsonAsObject_;
 
 public class OpenApiPathDsc {
     public static final GlobType TYPE;
@@ -22,14 +20,10 @@ public class OpenApiPathDsc {
 
     public static final StringField operationId;
 
-    @Target(OpenApiParameter.class)
     public static final GlobArrayField<OpenApiParameter> parameters;
 
-    @Target(OpenApiRequestBody.class)
     public static final GlobField<OpenApiRequestBody> requestBody;
 
-    @Target(OpenApiResponses.class)
-    @JsonAsObject_
     public static final GlobArrayField<OpenApiResponses> responses;
 
     static {

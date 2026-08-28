@@ -3,31 +3,23 @@ package org.globsframework.http.openapi.model;
 import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.metamodel.GlobTypeBuilder;
 import org.globsframework.core.metamodel.GlobTypeBuilderFactory;
-import org.globsframework.core.metamodel.annotations.Target;
 import org.globsframework.core.metamodel.fields.GlobField;
 import org.globsframework.core.metamodel.fields.StringField;
 import org.globsframework.json.annottations.JsonValueAsField;
-import org.globsframework.json.annottations.JsonValueAsField_;
 
 public class OpenApiPath {
     public static final GlobType TYPE;
 
-    @JsonValueAsField_
     public static final StringField name;
 
-    @Target(OpenApiPathDsc.class)
     public static final GlobField<OpenApiPathDsc> put;
 
-    @Target(OpenApiPathDsc.class)
     public static final GlobField<OpenApiPathDsc> post;
 
-    @Target(OpenApiPathDsc.class)
     public static final GlobField<OpenApiPathDsc> patch;
 
-    @Target(OpenApiPathDsc.class)
     public static final GlobField<OpenApiPathDsc> get;
 
-    @Target(OpenApiPathDsc.class)
     public static final GlobField<OpenApiPathDsc> delete;
 
     static {

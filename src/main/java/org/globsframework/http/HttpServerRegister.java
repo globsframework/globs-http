@@ -9,7 +9,6 @@ import org.globsframework.core.utils.Strings;
 import org.globsframework.http.openapi.model.GetOpenApiParamType;
 import org.globsframework.http.openapi.model.GlobOpenApi;
 import org.globsframework.json.annottations.IsJsonContent;
-import org.globsframework.json.annottations.IsJsonContent_;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -97,13 +96,10 @@ public class HttpServerRegister {
 
         public static final StringField verb;
 
-        @IsJsonContent_
         public static final StringField queryParam;
 
-        @IsJsonContent_
         public static final StringField body;
 
-        @IsJsonContent_
         public static final StringField returnType;
 
         public static final StringField comment;

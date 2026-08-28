@@ -14,7 +14,8 @@ import org.apache.hc.core5.reactor.IOReactorConfig;
 import org.apache.hc.core5.util.TimeValue;
 import org.globsframework.core.metamodel.GlobType;
 import org.globsframework.core.metamodel.GlobTypeBuilder;
-import org.globsframework.core.metamodel.annotations.*;
+import org.globsframework.core.metamodel.annotations.FieldName;
+import org.globsframework.core.metamodel.annotations.KeyField;
 import org.globsframework.core.metamodel.fields.*;
 import org.globsframework.core.metamodel.impl.DefaultGlobTypeBuilder;
 import org.globsframework.core.model.Glob;
@@ -28,7 +29,6 @@ import org.globsframework.http.server.apache.GlobHttpApacheBuilder;
 import org.globsframework.http.server.apache.Server;
 import org.globsframework.json.GSonUtils;
 import org.globsframework.json.annottations.JsonHideValue;
-import org.globsframework.json.annottations.JsonHideValue_;
 import org.junit.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,9 +36,11 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.concurrent.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 public class GlobHttpRequestHandlerTest {
@@ -180,9 +182,9 @@ public class GlobHttpRequestHandlerTest {
 
         httpServerRegister.register("/binaryCall", null)
                 .getBin(null, null, (body, url, queryParameters, headerType) -> CompletableFuture.completedFuture(
-                        HttpOutputData.asGlobArray(new Glob[] {
-                                Response1.TYPE.instantiate().set(Response1.value, "d1") ,
-                                Response1.TYPE.instantiate().set(Response1.value, "d2") })));
+                        HttpOutputData.asGlobArray(new Glob[]{
+                                Response1.TYPE.instantiate().set(Response1.value, "d1"),
+                                Response1.TYPE.instantiate().set(Response1.value, "d2")})));
 
 
         startServer();
@@ -368,10 +370,10 @@ public class GlobHttpRequestHandlerTest {
 
         httpServerRegister.register("/send", null)
                 .post(BodyContent.TYPE, null, (body, url, queryParameters) -> {
-                    if (body != null) {
-                        throw new IllegalArgumentException("body must be null");
-                    }
-                    return CompletableFuture.completedFuture(body);
+                            if (body != null) {
+                                throw new IllegalArgumentException("body must be null");
+                            }
+                            return CompletableFuture.completedFuture(body);
                         }
                 );
         startServer();
@@ -410,10 +412,10 @@ public class GlobHttpRequestHandlerTest {
             HttpHost target = new HttpHost("http", "localhost", port);
 
             {
-            HttpPost httpPost = new HttpPost("/send");
-            httpPost.setEntity(new StringEntity(GSonUtils.encode(glob, false), ContentType.APPLICATION_JSON));
-            Resp httpResponse = execute(httpclient, target, httpPost);
-            Assert.assertEquals(204, httpResponse.code());
+                HttpPost httpPost = new HttpPost("/send");
+                httpPost.setEntity(new StringEntity(GSonUtils.encode(glob, false), ContentType.APPLICATION_JSON));
+                Resp httpResponse = execute(httpclient, target, httpPost);
+                Assert.assertEquals(204, httpResponse.code());
             }
 
             {
@@ -701,10 +703,8 @@ public class GlobHttpRequestHandlerTest {
     static public class URLParameter {
         public static GlobType TYPE;
 
-        @FieldName_("id")
         public static LongField ID;
 
-        @FieldName_("subId")
         public static LongField SUBID;
 
         static {
@@ -730,7 +730,6 @@ public class GlobHttpRequestHandlerTest {
     static public class URLOneParameter {
         public static GlobType TYPE;
 
-        @FieldName_("id")
         public static LongField ID;
 
         static {
@@ -743,7 +742,6 @@ public class GlobHttpRequestHandlerTest {
     static public class HeaderType {
         public static GlobType TYPE;
 
-        @FieldName_("X-Glob-http-ID")
         public static StringField name;
 
         public static StringField id;
@@ -767,7 +765,6 @@ public class GlobHttpRequestHandlerTest {
 
         public static StringArrayField INFO;
 
-        @Target(QueryParameter.class)
         public static GlobField<QueryParameter> param;
 
         static {
@@ -796,10 +793,8 @@ public class GlobHttpRequestHandlerTest {
 
         public static StringField DATA;
 
-        @Targets({U1.class, U2.class})
         public static GlobUnionField testUnion;
 
-        @Targets({U1.class, U2.class})
         public static GlobArrayUnionField testUnions;
 
         static {
@@ -812,14 +807,10 @@ public class GlobHttpRequestHandlerTest {
     }
 
     static public class CustomBodyWithStatusCode {
-        @HttpGlobResponse_
         public static GlobType TYPE;
 
-        @StatusCode_
         public static IntegerField field1;
 
-        @Target(BodyContent.class)
-        @HttpBodyData_
         public static GlobField<BodyContent> field2;
 
         static {
@@ -834,7 +825,6 @@ public class GlobHttpRequestHandlerTest {
     static public class Response1 {
         public static GlobType TYPE;
 
-        @KeyField_
         public static StringField value;
 
         static {
@@ -847,11 +837,8 @@ public class GlobHttpRequestHandlerTest {
     static public class ResponseWithSensibleData {
         public static GlobType TYPE;
 
-        @KeyField_
-        @JsonHideValue_
         public static StringField field1;
 
-        @KeyField_
         public static StringField field2;
 
         static {
@@ -865,7 +852,6 @@ public class GlobHttpRequestHandlerTest {
     static public class U1 {
         public static GlobType TYPE;
 
-        @KeyField_
         public static StringField someValue;
 
         static {
@@ -878,7 +864,6 @@ public class GlobHttpRequestHandlerTest {
     static public class U2 {
         public static GlobType TYPE;
 
-        @KeyField_
         public static StringField someOtherValue;
 
         static {

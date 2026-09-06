@@ -81,7 +81,7 @@ selects the encoding:
 | --- | --- |
 | `null` future, `null` Glob, or a zero-size stream | **204** |
 | `GlobHttpContent.TYPE` | raw bytes, with `mimeType` / `charset` / `statusCode` / `headers` read from the Glob |
-| a type annotated `@HttpGlobResponse_` | status from the `@StatusCode_` field, JSON body from the `@HttpBodyData_` field |
+| a type carrying `HttpGlobResponse` | status from the `StatusCode` field, JSON body from the `HttpBodyData` field |
 | anything else | JSON via `GSonUtils`, `application/json`, 200 |
 
 `GlobHttpContent.headers` is how a handler sets a header it only knows per request — a session id, a

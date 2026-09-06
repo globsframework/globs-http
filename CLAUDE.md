@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 The workspace-level `../CLAUDE.md` describes the globsframework ecosystem and conventions shared by all the
-sibling repos (annotation pairs, no reflection on the hot path, per-repo release cycles). Read it too; what
+sibling repos (annotations as Globs, no reflection on the hot path, per-repo release cycles). Read it too; what
 follows is specific to `globs-http`.
 
 ## What this module is
@@ -97,8 +97,8 @@ the returned `Glob`'s *type* selects the encoding in `DefaultGlobHttpRequestHand
   `headers` (a `GlobArrayField` of `model/HttpHeader`) is how a handler sets a header whose value it only
   knows per request — a session id, a `Location`, an ETag. Declared headers are fixed at declaration time
   and cannot do that. Left unset, nothing is added.
-- a type annotated `@HttpGlobResponse_` → the field annotated `@StatusCode_` (IntegerField) is the status and
-  the field annotated `@HttpBodyData_` (GlobField or GlobArrayField) is the JSON body.
+- a type carrying `HttpGlobResponse` → the field carrying `StatusCode` (IntegerField) is the status and the
+  field carrying `HttpBodyData` (GlobField or GlobArrayField) is the JSON body.
 - anything else → JSON via `GSonUtils`, `application/json`, 200.
 
 Responses are serialized into a `MultiBufferOutputStream` (growing direct `ByteBuffer` chain) so the
@@ -118,9 +118,9 @@ pre-httpcore5 handler, kept as a 640-line comment; it also holds the unfinished 
 exposes it at `GET /api`, with `?scope=<tag>` filtering by the tags set through `declareTags`.
 
 The doc is a Glob tree (`OpenApiType`, `OpenApiPath`, `OpenApiSchemaProperty`, …) whose JSON shape comes from
-globs-gson annotations rather than from code: `@JsonValueAsField_` on `name` turns an array element into an
-object key (that is how `paths` becomes `{"/test/{id}": …}`), `@JsonAsObject_` on the array does the same for
-its container, and `@FieldName_("$ref")` handles names that are not valid Java identifiers. Adding a field to
+globs-gson annotations rather than from code: `JsonValueAsField` on `name` turns an array element into an
+object key (that is how `paths` becomes `{"/test/{id}": …}`), `JsonAsObject` on the array does the same for
+its container, and `FieldName.create("$ref")` handles names that are not valid Java identifiers. Adding a field to
 the OpenAPI model means picking the right annotation, not writing a serializer. Round-tripping is one-way in
 practice: encoding is correct, decoding `OpenApiType` back is a known gap (see `openApiScope`).
 
